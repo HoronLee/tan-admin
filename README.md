@@ -54,7 +54,6 @@ npm run format
 npm run check
 ```
 
-
 ## Shadcn
 
 Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
@@ -62,7 +61,6 @@ Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
 ```bash
 pnpm dlx shadcn@latest add button
 ```
-
 
 ## T3Env
 
@@ -77,10 +75,6 @@ import { env } from "#/env";
 
 console.log(env.VITE_APP_TITLE);
 ```
-
-
-
-
 
 ## Setting up Better Auth
 

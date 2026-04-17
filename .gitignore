@@ -19,3 +19,10 @@ mcp-todos.json
 src/generated/
 src/paraglide/
 src/routeTree.gen.ts
+
+# AI
+.agents/
+.claude/
+.codex/
+.opencode/
+.trellis/

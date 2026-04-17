@@ -1,0 +1,21 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+todos.json
+mcp-todos.json
+
+.vscode/
+
+# generated artifacts
+src/generated/
+src/paraglide/
+src/routeTree.gen.ts

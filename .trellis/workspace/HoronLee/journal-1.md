@@ -39,3 +39,36 @@ Implemented typed app config and Pino structured logging with Better Auth integr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Infra Fail-Fast 重构
+
+**Date**: 2026-04-19
+**Task**: Infra Fail-Fast 重构
+**Branch**: `main`
+
+### Summary
+
+还原 instrument.server.mjs 为纯 Sentry init，在 src/db.ts 新增 eager prisma.$connect() 实现数据层 fail-fast，对齐 Go servora-platform 的 data 层 Ping() 模式
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e8a6f4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

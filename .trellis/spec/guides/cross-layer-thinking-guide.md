@@ -68,6 +68,14 @@ For each boundary:
 
 **Good**: Each layer only knows its neighbors
 
+### Mistake 4: Wrong Runtime Owner for Config
+
+**Bad**: Reading server-only vars from `import.meta.env` in Vite SSR and assuming they exist everywhere
+
+**Good**: Use `process.env` for non-`VITE_` server vars, and reserve `import.meta.env` for client-safe `VITE_*` values
+
+This matters most for logging, auth, and startup config because the bug looks like a normal default-value fallback instead of an obvious crash.
+
 ---
 
 ## Checklist for Cross-Layer Features
@@ -77,6 +85,7 @@ Before implementation:
 - [ ] Identified all layer boundaries
 - [ ] Defined format at each boundary
 - [ ] Decided where validation happens
+- [ ] Confirmed which runtime owns each env key: `process.env` or `import.meta.env`
 
 After implementation:
 - [ ] Tested with edge cases (null, empty, invalid)

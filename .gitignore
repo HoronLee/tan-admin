@@ -25,3 +25,5 @@ src/routeTree.gen.ts
 .claude/
 .codex/
 .opencode/
+
+/logs/

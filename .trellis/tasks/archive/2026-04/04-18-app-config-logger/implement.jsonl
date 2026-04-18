@@ -1,0 +1,11 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Current logging status and recommended next steps"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns at boundaries"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality constraints: imports, env, polyfill"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Backend file placement rules"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer config and logging touches multiple layers"}
+{"file": "src/env.ts", "reason": "Current env schema - will add new vars"}
+{"file": "src/routes/api.$.ts", "reason": "oRPC boundary - replace console.error"}
+{"file": "src/utils/mcp-handler.ts", "reason": "MCP boundary - replace console.error"}
+{"file": "instrument.server.mjs", "reason": "Sentry/OTel bootstrap entry"}

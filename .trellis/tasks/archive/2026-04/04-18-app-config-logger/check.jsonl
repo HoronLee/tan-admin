@@ -1,0 +1,5 @@
+{"file": ".opencode/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".opencode/commands/trellis/check.md", "reason": "Code quality check spec"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify logging patterns"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify error handling"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify quality constraints"}

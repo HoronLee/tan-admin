@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { prisma } from "#/db";
+import { reportError } from "#/lib/error-report";
 import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("demo:prisma");
@@ -46,7 +47,7 @@ function DemoPrisma() {
 			router.invalidate();
 			(e.target as HTMLFormElement).reset();
 		} catch (error) {
-			console.error("Failed to create todo:", error);
+			reportError(error, { fallback: "Failed to create todo." });
 		}
 	};
 

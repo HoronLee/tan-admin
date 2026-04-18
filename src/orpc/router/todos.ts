@@ -1,5 +1,5 @@
-import { os } from "@orpc/server";
 import * as z from "zod";
+import { base } from "#/orpc/errors";
 
 const todos = [
 	{ id: 1, name: "Get groceries" },
@@ -7,11 +7,11 @@ const todos = [
 	{ id: 3, name: "Finish the project" },
 ];
 
-export const listTodos = os.input(z.object({})).handler(() => {
+export const listTodos = base.input(z.object({})).handler(() => {
 	return todos;
 });
 
-export const addTodo = os
+export const addTodo = base
 	.input(z.object({ name: z.string() }))
 	.handler(({ input }) => {
 		const newTodo = { id: todos.length + 1, name: input.name };

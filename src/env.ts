@@ -25,6 +25,7 @@ export const env = createEnv({
 
 	client: {
 		VITE_APP_TITLE: z.string().min(1).optional(),
+		VITE_SENTRY_DSN: z.string().url().optional(),
 	},
 
 	/**
@@ -49,6 +50,7 @@ export const env = createEnv({
 		LOG_MAX_FILES: process.env.LOG_MAX_FILES,
 		// Client vars — read from import.meta.env (Vite injects VITE_* only)
 		VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
+		VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
 	},
 
 	/**

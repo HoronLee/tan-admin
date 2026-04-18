@@ -20,3 +20,9 @@ export const prisma = globalThis.__prisma || new PrismaClient({ adapter });
 if (process.env.NODE_ENV !== "production") {
 	globalThis.__prisma = prisma;
 }
+
+// Fail-fast: verify the database is reachable at module load time.
+// PrismaClient.connect() performs a real authentication handshake — stronger
+// than a TCP port check. Any error bubbles up as an uncaught module-load
+// rejection and terminates the process before the server accepts traffic.
+await prisma.$connect();

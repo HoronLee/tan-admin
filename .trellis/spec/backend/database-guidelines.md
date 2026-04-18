@@ -58,7 +58,7 @@ Always import DB access from `#/db`; do not instantiate `PrismaClient` in reques
 
 ### Evidence
 
-Source: singleton cache in `src/db.ts:9-16`.
+Source: singleton cache in `src/db.ts:9-20`.
 
 ```ts
 declare global {
@@ -68,7 +68,13 @@ export const prisma = globalThis.__prisma || new PrismaClient({ adapter })
 if (process.env.NODE_ENV !== 'production') {
   globalThis.__prisma = prisma
 }
+
+// Fail-fast: verify the database is reachable at module load time.
+await prisma.$connect()
 ```
+
+`prisma.$connect()` performs a real PG authentication handshake (stronger than TCP port probe).
+If the database is unreachable the top-level `await` throws, Node exits before the server accepts traffic.
 
 Source: route usage imports singleton `src/routes/demo/prisma.tsx:3`.
 

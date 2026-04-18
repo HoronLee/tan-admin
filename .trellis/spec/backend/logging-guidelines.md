@@ -206,4 +206,3 @@ Always redact or avoid logging these fields:
 - `DATABASE_URL`
 
 Do not attach full request headers or full auth/session objects unless they are explicitly sanitized first.
-

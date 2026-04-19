@@ -3,7 +3,7 @@
   "name": "error-handling",
   "title": "brainstorm: 统一错误处理体系",
   "description": "",
-  "status": "planning",
+  "status": "completed",
   "dev_type": "backend",
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "HoronLee",
   "assignee": "HoronLee",
   "createdAt": "2026-04-18",
-  "completedAt": null,
+  "completedAt": "2026-04-19",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -42,7 +42,7 @@
       "action": "record-session"
     }
   ],
-  "commit": null,
+  "commit": "55d90df",
   "pr_url": null,
   "subtasks": [],
   "children": [],

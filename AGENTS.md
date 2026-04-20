@@ -7,7 +7,7 @@
 ## 技术栈
 
 - **框架**：TanStack Start（SSR + server functions）、TanStack Router、React 19 + React Compiler、Vite 8
-- **数据**：Prisma 7、PostgreSQL 17、oRPC、TanStack Query、TanStack Store
+- **数据**：ZenStack v3（Kysely 运行时）+ PostgreSQL 17、oRPC、TanStack Query、TanStack Store
 - **UI**：shadcn/ui、Tailwind CSS 4、Radix UI、TanStack Table / Form
 - **工具**：pnpm（唯一）、Better Auth、Sentry、Paraglide、T3Env、Biome、Vitest、MCP（`/mcp` 自曝 server）
 
@@ -20,7 +20,7 @@ pnpm dev                     # dev server @ :3000（预加载 instrument.server.
 pnpm build && pnpm start     # 生产构建 + 启动
 pnpm check                   # Biome lint+format
 pnpm test                    # Vitest
-pnpm db:push | db:migrate | db:generate | db:studio | db:seed
+pnpm db:push | db:migrate | db:generate | db:studio | db:seed | auth:migrate
 pnpm dlx shadcn@latest add button card ...
 ```
 
@@ -28,15 +28,16 @@ pnpm dlx shadcn@latest add button card ...
 
 - **包管理器只用 pnpm**，不接受 npm/yarn
 - **`#/*` 别名**由 `package.json` 的 `imports` 字段声明（不是 `tsconfig.json#paths`）；调 import 先看 package.json
-- **Prisma Client** 生成到 `src/generated/prisma/`（非 `node_modules/.prisma`），导入写 `#/generated/prisma`
+- **ZenStack schema** 放在 `zenstack/schema.zmodel`；`zen generate` 产出 `zenstack/{schema,models,input}.ts`，导入走 bare path `zenstack/schema`
+- **Better Auth 表**由 `@better-auth/cli migrate` 建 + Better Auth 内置 Kysely 管理，**不写入 zmodel**；业务代码与 auth 共享同一 `pg.Pool`（`src/db.ts` 导出 `pool` + `db`）
 - **环境变量**必须在 `src/env.ts` 声明 schema；前端可读变量必须 `VITE_` 前缀；`.env.local` 永不入库
-- **生成产物勿手改**：`src/routeTree.gen.ts`、`src/generated/prisma/*`、`src/paraglide/*`
+- **生成产物勿手改**：`src/routeTree.gen.ts`、`zenstack/{schema,models,input}.ts`、`src/paraglide/*`
 
 ## 深度规范与工作流
 
 详细前后端约定、目录职责、错误处理、state 分层、反模式见 `.trellis/spec/`：
 
-- [backend](./.trellis/spec/backend/index.md) — oRPC / Prisma / Auth / MCP / 日志 / 错误
+- [backend](./.trellis/spec/backend/index.md) — oRPC / ZenStack / Better Auth / MCP / 日志 / 错误
 - [frontend](./.trellis/spec/frontend/index.md) — 组件 / hook / state / 类型 / 质量
 - [guides](./.trellis/spec/guides/index.md) — 跨层 & 复用思维
 

@@ -1,16 +1,15 @@
 import * as Sentry from "@sentry/tanstackstart-react";
 import { createMiddleware } from "@tanstack/react-start";
-import { Prisma } from "#/generated/prisma/client";
+import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
 import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("server-fn");
 const DB_UNAVAILABLE_CODES = new Set([
 	"ECONNREFUSED",
 	"ENOTFOUND",
-	"P1000",
-	"P1001",
-	"P1002",
-	"P1017",
+	"ETIMEDOUT",
+	"EHOSTUNREACH",
+	"ENETUNREACH",
 ]);
 let exitScheduled = false;
 
@@ -28,21 +27,18 @@ function hasDbUnavailableCode(value: unknown): boolean {
 
 function hasDbUnavailableMessage(error: Error): boolean {
 	const text = `${error.name}: ${error.message}`;
-	return /(ECONNREFUSED|ENOTFOUND|P1000|P1001|P1002|P1017|Can't reach database server|Authentication failed)/i.test(
+	return /(ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|Connection terminated|Connection refused|password authentication failed)/i.test(
 		text,
 	);
 }
 
 function isDbUnavailableError(error: unknown): boolean {
-	if (
-		error instanceof Prisma.PrismaClientInitializationError ||
-		error instanceof Prisma.PrismaClientRustPanicError
-	) {
-		return true;
-	}
-
-	if (error instanceof Prisma.PrismaClientKnownRequestError) {
-		return DB_UNAVAILABLE_CODES.has(error.code);
+	// ZenStack wraps driver errors as ORMError(DB_QUERY_ERROR). The real pg
+	// network error sits on `cause`; recurse to look for connection codes.
+	if (error instanceof ORMError) {
+		if (error.reason === ORMErrorReason.CONFIG_ERROR) return true;
+		if (error.cause) return isDbUnavailableError(error.cause);
+		return false;
 	}
 
 	if (error instanceof Error) {

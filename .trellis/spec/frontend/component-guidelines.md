@@ -170,7 +170,7 @@ Source: `src/components/Header.tsx:27,41`.
 
 - Building class strings manually (`className={a + " " + b}`) instead of `cn()`.
 - Importing shadcn primitives from npm packages instead of local `src/components/ui/*`.
-- Hand-editing generated artifacts (`src/routeTree.gen.ts`, `src/generated/prisma/*`, `src/paraglide/*`).
+- Hand-editing generated artifacts (`src/routeTree.gen.ts`, `zenstack/*.ts`, `src/paraglide/*`).
 
 ### Evidence
 

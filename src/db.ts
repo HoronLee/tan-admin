@@ -1,5 +1,7 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/prisma/client.js";
+import { ZenStackClient } from "@zenstackhq/orm";
+import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
+import { Pool } from "pg";
+import { schema } from "../zenstack/schema";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -7,22 +9,33 @@ if (!databaseUrl) {
 	throw new Error("DATABASE_URL is required");
 }
 
-const adapter = new PrismaPg({
-	connectionString: databaseUrl,
-});
+type Db = InstanceType<typeof ZenStackClient<typeof schema>>;
 
 declare global {
-	var __prisma: PrismaClient | undefined;
+	var __pgPool: Pool | undefined;
+	var __db: Db | undefined;
 }
 
-export const prisma = globalThis.__prisma || new PrismaClient({ adapter });
+/**
+ * Shared pg Pool, consumed by both ZenStack (business tables) and
+ * Better Auth (auth tables). Single pool = single connection budget.
+ */
+export const pool =
+	globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
+
+export const db =
+	globalThis.__db ??
+	new ZenStackClient(schema, {
+		dialect: new PostgresDialect({ pool }),
+	});
 
 if (process.env.NODE_ENV !== "production") {
-	globalThis.__prisma = prisma;
+	globalThis.__pgPool = pool;
+	globalThis.__db = db;
 }
 
 // Fail-fast: verify the database is reachable at module load time.
-// PrismaClient.connect() performs a real authentication handshake — stronger
-// than a TCP port check. Any error bubbles up as an uncaught module-load
-// rejection and terminates the process before the server accepts traffic.
-await prisma.$connect();
+// A real authentication handshake — stronger than a TCP port check.
+// Any error bubbles up as an uncaught module-load rejection and
+// terminates the process before the server accepts traffic.
+await db.$connect();

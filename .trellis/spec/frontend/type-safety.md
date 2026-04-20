@@ -152,12 +152,12 @@ Source: generated warning in `src/routeTree.gen.ts:7-9`.
 // You should NOT make any changes in this file as it will be overwritten.
 ```
 
-Source: Prisma generation target in `prisma/schema.prisma:1-4`.
+Source: ZenStack generation target in `zenstack/schema.zmodel:1-4`.
 
-```prisma
+```zmodel
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "@zenstackhq/orm"
+  output   = "."
 }
 ```
 

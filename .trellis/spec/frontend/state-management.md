@@ -121,7 +121,7 @@ Use invalidation that matches the data source:
 
 ### Evidence
 
-Source: `src/routes/demo/prisma.tsx:40-42`.
+Source: `src/routes/demo/todos.tsx:40-42`.
 
 ```ts
 await createTodo({ data: { title } })

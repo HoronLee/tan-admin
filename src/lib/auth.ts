@@ -1,10 +1,12 @@
 import { betterAuth } from "better-auth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { pool } from "#/db";
 import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("better-auth");
 
 export const auth = betterAuth({
+	database: pool,
 	emailAndPassword: {
 		enabled: true,
 	},

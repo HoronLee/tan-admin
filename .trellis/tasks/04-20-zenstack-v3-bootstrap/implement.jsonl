@@ -1,0 +1,7 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "将替换其中 Prisma 章节为 ZenStack v3"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Prisma 错误映射章节改写为 ORMError 映射"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "新增 zenstack/ 目录, 删除 prisma/ 与 src/generated/prisma/"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "db.ts 重写保留 fail-fast 语义与结构化日志"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "login 页与 todo demo 页使用 shadcn 标准组件"}

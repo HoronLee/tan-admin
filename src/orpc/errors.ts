@@ -8,6 +8,10 @@ import * as z from "zod";
  * narrow errors via `isDefinedError()` and switch on `error.code`.
  */
 export const base = os.errors({
+	BAD_REQUEST: {
+		status: 400,
+		message: "Bad request.",
+	},
 	UNAUTHORIZED: {
 		status: 401,
 		message: "Authentication required.",

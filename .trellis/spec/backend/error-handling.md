@@ -11,11 +11,11 @@ Error handling is built on oRPC's native typed errors:
 - Every procedure derives from a shared `base` in `src/orpc/errors.ts` that declares the standard error codes.
 - Procedures throw via `errors.CODE({...})` or `new ORPCError('CODE', {...})`; clients narrow with `isDefinedError(error)`.
 - A boundary interceptor chain in `src/orpc/interceptors.ts` upgrades Zod validation failures into typed errors, logs every failure, captures unknown failures to Sentry, and rethrows `INTERNAL_ERROR`.
-- Prisma-backed procedures additionally compose `pub` (from `src/orpc/middleware/prisma-error.ts`) to map known Prisma error codes.
+- DB-backed procedures additionally compose `pub` (from `src/orpc/middleware/orm-error.ts`) to map ZenStack `ORMError` into typed oRPC errors.
 - `createServerFn` calls are covered by a global TanStack Start `functionMiddleware` in `src/start.ts`.
 - `instrument.server.mjs` is limited to Sentry initialisation only (loaded via `--import`). It does **not** install custom `uncaughtException`/`unhandledRejection` handlers; Node's default behaviour (print + `exit(1)`) is relied upon for unhandled rejections, with Sentry already initialised to capture them.
-- Startup fail-fast: `src/db.ts` calls `prisma.$connect()` at module load time. If the database is unreachable the top-level `await` throws, Node exits before the server accepts traffic.
-- Runtime fail-fast: `server-fn-middleware.ts` detects Prisma unavailability errors during request handling and calls `process.exit(1)` after flushing Sentry.
+- Startup fail-fast: `src/db.ts` calls `db.$connect()` (ZenStackClient) at module load time. If the database is unreachable the top-level `await` throws, Node exits before the server accepts traffic.
+- Runtime fail-fast: `server-fn-middleware.ts` detects DB unavailability errors during request handling (by recursing into `ORMError.cause` for connection-level codes) and calls `process.exit(1)` after flushing Sentry.
 - MCP keeps its existing JSON-RPC envelope contract unchanged.
 
 ## Standard Error Codes
@@ -24,6 +24,7 @@ Source: `src/orpc/errors.ts`.
 
 | Code | HTTP | `data` shape | Usage |
 |------|------|--------------|-------|
+| `BAD_REQUEST` | 400 | — | Malformed input (e.g. FK violation from ORM mapping) |
 | `UNAUTHORIZED` | 401 | — | Caller is not authenticated |
 | `FORBIDDEN` | 403 | — | Authenticated but not permitted |
 | `NOT_FOUND` | 404 | — | Resource does not exist |
@@ -70,35 +71,60 @@ export const listTodos = base.input(z.object({})).handler(() => todos);
 
 ### `pub`
 
-Use for procedures that query/mutate Prisma. Wraps `base` with `prismaErrorMiddleware`.
+Use for procedures that query/mutate the DB. Wraps `base` with `ormErrorMiddleware`.
 
-Source: `src/orpc/middleware/prisma-error.ts`.
+Source: `src/orpc/middleware/orm-error.ts`.
 
 ```ts
-export const pub = base.use(prismaErrorMiddleware);
+export const pub = base.use(ormErrorMiddleware);
 ```
 
-## Prisma Error Mapping
+### `authed`
 
-Source: `src/orpc/middleware/prisma-error.ts`.
+Use for endpoints requiring a signed-in user. Composes `pub` with `authMiddleware` (reads `context.headers` and calls Better Auth `auth.api.getSession`; `UNAUTHORIZED` when no session).
 
-| Prisma code | Typed error | Rationale |
-|-------------|-------------|-----------|
-| `P2002` (unique constraint) | `CONFLICT` | Duplicate key on create/update |
-| `P2025` (record not found) | `NOT_FOUND` | `where` matched zero rows |
-| Other `PrismaClientKnownRequestError` | unchanged | Logged with `code` + `meta`; surfaces as `INTERNAL_ERROR` at the boundary |
+Source: `src/orpc/middleware/auth.ts`.
 
 ```ts
-export const prismaErrorMiddleware = base.middleware(async ({ next, errors }) => {
+export const authed = pub.use(authMiddleware);
+```
+
+## ORM Error Mapping
+
+Source: `src/orpc/middleware/orm-error.ts`.
+
+| `ORMErrorReason` | Typed error | Rationale |
+|------------------|-------------|-----------|
+| `not-found` | `NOT_FOUND` | `update` / `delete` on missing row |
+| `rejected-by-policy` | `FORBIDDEN` | `@@allow/@@deny` policy denied the op (pre-wired for T2 RBAC) |
+| `invalid-input` | `INPUT_VALIDATION_FAILED` | ORM-side argument validation failure |
+| `db-query-error` + SQLSTATE `23505` | `CONFLICT` | Unique constraint violation |
+| `db-query-error` + SQLSTATE `23503` | `BAD_REQUEST` | Foreign-key violation |
+| Other `db-query-error` SQLSTATEs | unchanged | Logged + forwarded to boundary → `INTERNAL_ERROR` |
+| `config-error` / `not-supported` / `internal-error` | unchanged | Surfaces as `INTERNAL_ERROR` |
+
+```ts
+export const ormErrorMiddleware = base.middleware(async ({ next, errors }) => {
   try {
     return await next();
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
-      log.warn({ err, code: err.code, meta: err.meta }, "prisma known request error");
-      if (err.code === "P2002") throw errors.CONFLICT({ message: "Resource already exists.", cause: err });
-      if (err.code === "P2025") throw errors.NOT_FOUND({ message: "Resource not found.", cause: err });
+    if (!(err instanceof ORMError)) throw err;
+
+    switch (err.reason) {
+      case ORMErrorReason.NOT_FOUND:
+        throw errors.NOT_FOUND({ message: "Resource not found.", cause: err });
+      case ORMErrorReason.REJECTED_BY_POLICY:
+        throw errors.FORBIDDEN({ cause: err });
+      case ORMErrorReason.INVALID_INPUT:
+        throw errors.INPUT_VALIDATION_FAILED({ message: err.message, data: {...}, cause: err });
+      case ORMErrorReason.DB_QUERY_ERROR: {
+        if (err.dbErrorCode === "23505") throw errors.CONFLICT({ cause: err });
+        if (err.dbErrorCode === "23503") throw errors.BAD_REQUEST({ cause: err });
+        throw err;
+      }
+      default:
+        throw err;
     }
-    throw err;
   }
 });
 ```
@@ -147,7 +173,7 @@ Sources: `src/start.ts`, `src/lib/server-fn-middleware.ts`.
 - `src/start.ts` exports `startInstance = createStart(() => ({ functionMiddleware: [serverFnErrorMiddleware] }))`
 - `serverFnErrorMiddleware` (`type: "function"`) wraps `await next()` in `try/catch`
 - On failure: `log.error({ err, serverFn: { id, name } }, "server function error")` + `Sentry.captureException(error)` + rethrow
-- If the error matches DB-unavailable signatures (`ECONNREFUSED`, `ENOTFOUND`, `P1001`, `P1002`, Prisma init/panic), middleware logs `fatal` and schedules `process.exit(1)` after Sentry flush.
+- If the error matches DB-unavailable signatures (`ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`, `EHOSTUNREACH`, `ENETUNREACH`, or an `ORMError` with `config-error` reason / connection-level cause), middleware logs `fatal` and schedules `process.exit(1)` after Sentry flush.
 
 ```ts
 export const startInstance = createStart(() => ({
@@ -256,7 +282,7 @@ data: error instanceof Error ? error.message : String(error)
 
 - Throwing raw strings instead of `Error` / `ORPCError`.
 - Defining procedures directly on `os` (must derive from `base`).
-- Manually mapping Prisma error codes inside handlers when `pub` already handles them.
+- Manually mapping ZenStack `ORMError` reasons inside handlers when `pub` already handles them.
 - Reporting typed (`.defined === true`) errors to Sentry — they are expected signals.
 - Returning internal stack/error internals in public responses — keep defaults; `INTERNAL_ERROR` is opaque on purpose.
 - Displaying raw `INPUT_VALIDATION_FAILED` toast; render the `fieldErrors` inline instead.
@@ -265,4 +291,4 @@ data: error instanceof Error ? error.message : String(error)
 
 ### Evidence
 
-Source: `src/orpc/errors.ts`, `src/orpc/middleware/prisma-error.ts`, `src/orpc/interceptors.ts`, `src/routes/api.$.ts`, `src/routes/api.rpc.$.ts`, `src/start.ts`, `src/lib/server-fn-middleware.ts`, `src/lib/error-report.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.
+Source: `src/orpc/errors.ts`, `src/orpc/middleware/orm-error.ts`, `src/orpc/middleware/auth.ts`, `src/orpc/interceptors.ts`, `src/routes/api.$.ts`, `src/routes/api.rpc.$.ts`, `src/start.ts`, `src/lib/server-fn-middleware.ts`, `src/lib/error-report.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.

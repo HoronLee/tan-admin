@@ -1,96 +1,26 @@
 # Database Guidelines
 
-> Prisma + PostgreSQL conventions used by backend code.
+> ZenStack v3 + Better Auth (Kysely mode) + PostgreSQL conventions used by backend code.
 
 ---
 
 ## ORM and Client Generation
 
-- ORM is Prisma 7.
-- Client generator uses `prisma-client` and outputs into `src/generated/prisma`.
-- Import generated client from `#/generated/prisma/*` (server side only).
+- ORM is **ZenStack v3** (runtime built on Kysely; Prisma is only a peer of the CLI for migration).
+- Schema source: `zenstack/schema.zmodel` (ZModel, Prisma Schema superset).
+- Generated artifacts live next to the `.zmodel` (`zenstack/{schema,models,input}.ts`) and are git-ignored.
+- Import the typed `schema` object from `zenstack/schema` (bare path, resolved via `baseUrl: "."`).
 
 ### Evidence
 
-Source: `prisma/schema.prisma:1-4`.
+Source: `zenstack/schema.zmodel:1-14`.
 
-```prisma
-generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-}
-```
-
-Source: `src/db.ts:1`, `prisma/seed.ts:1`.
-
-```ts
-import { PrismaClient } from './generated/prisma/client.js'
-import { PrismaClient } from "../src/generated/prisma/client.js";
-```
-
-## Driver and Datasource
-
-- Runtime adapter is `@prisma/adapter-pg`.
-- Connection string comes from `process.env.DATABASE_URL`.
-
-### Evidence
-
-Source: `src/db.ts:3-7`.
-
-```ts
-import { PrismaPg } from '@prisma/adapter-pg'
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-})
-```
-
-Source: `prisma.config.ts:9-11`.
-
-```ts
-datasource: {
-  url: env('DATABASE_URL'),
-},
-```
-
-## Prisma Singleton Rule
-
-Always import DB access from `#/db`; do not instantiate `PrismaClient` in request handlers.
-
-### Evidence
-
-Source: singleton cache in `src/db.ts:9-20`.
-
-```ts
-declare global {
-  var __prisma: PrismaClient | undefined
-}
-export const prisma = globalThis.__prisma || new PrismaClient({ adapter })
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__prisma = prisma
+```zmodel
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Fail-fast: verify the database is reachable at module load time.
-await prisma.$connect()
-```
-
-`prisma.$connect()` performs a real PG authentication handshake (stronger than TCP port probe).
-If the database is unreachable the top-level `await` throws, Node exits before the server accepts traffic.
-
-Source: route usage imports singleton `src/routes/demo/prisma.tsx:3`.
-
-```ts
-import { prisma } from '#/db'
-```
-
-## Schema Style and Model Conventions
-
-Current schema style is single-file (`prisma/schema.prisma`) with straightforward model definitions.
-
-### Evidence
-
-Source: `prisma/schema.prisma:10-14`.
-
-```prisma
 model Todo {
   id        Int      @id @default(autoincrement())
   title     String
@@ -98,112 +28,133 @@ model Todo {
 }
 ```
 
-Source: datasource provider `prisma/schema.prisma:6-8`.
+Source: `src/db.ts:1-4`.
 
-```prisma
-datasource db {
-  provider = "postgresql"
-}
+```ts
+import { ZenStackClient } from "@zenstackhq/orm";
+import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
+import { Pool } from "pg";
+import { schema } from "../zenstack/schema";
+```
+
+## Shared `pg.Pool` Topology
+
+One `pg.Pool` per process, shared by ZenStack (business tables) and Better Auth (auth tables). Two Kysely instances sit on top of the same pool — independent query planners, single connection budget.
+
+```
+new pg.Pool(DATABASE_URL)
+   ├─ ZenStackClient(schema, { dialect: PostgresDialect({ pool }) })
+   │     → business tables (Todo, …)
+   │
+   └─ betterAuth({ database: pool })
+         → user / session / account / verification
+```
+
+### Evidence
+
+Source: shared pool singleton in `src/db.ts:16-33`.
+
+```ts
+export const pool =
+  globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
+
+export const db =
+  globalThis.__db ??
+  new ZenStackClient(schema, {
+    dialect: new PostgresDialect({ pool }),
+  });
+```
+
+Source: Better Auth consuming the same pool in `src/lib/auth.ts:8-10`.
+
+```ts
+export const auth = betterAuth({
+  database: pool,
+  emailAndPassword: { enabled: true },
+  // …
+});
+```
+
+## Singleton Rule
+
+Always import DB access from `#/db`; never instantiate `ZenStackClient` or `Pool` in request handlers.
+
+### Evidence
+
+Source: module-load fail-fast handshake in `src/db.ts:38-42`.
+
+```ts
+// Fail-fast: any connection error terminates the process before
+// the server accepts traffic.
+await db.$connect();
+```
+
+Source: route usage imports singleton in `src/orpc/router/todos.ts:2`.
+
+```ts
+import { db } from "#/db";
 ```
 
 ## Migration and CLI Workflow
 
-- Rapid iteration: `pnpm db:push`.
-- Versioned migration: `pnpm db:migrate`.
-- Client regeneration: `pnpm db:generate`.
+- Business schema (ZenStack): `pnpm db:push` | `pnpm db:migrate` | `pnpm db:generate`.
+- Auth schema (Better Auth): `pnpm auth:migrate` — creates `user` / `session` / `account` / `verification`.
+- Seed: `pnpm db:seed` → `tsx src/seed.ts`.
 - All scripts run through `.env.local` injection.
 
 ### Evidence
 
-Source: `package.json:18-22`.
+Source: `package.json:18-24`.
 
 ```json
-"db:generate": "dotenv -e .env.local -- prisma generate",
-"db:push": "dotenv -e .env.local -- prisma db push",
-"db:migrate": "dotenv -e .env.local -- prisma migrate dev",
-"db:seed": "dotenv -e .env.local -- prisma db seed"
-```
-
-Source: migrations path and seed in `prisma.config.ts:5-8`.
-
-```ts
-migrations: {
-  path: './prisma/migrations',
-  seed: 'tsx prisma/seed.ts',
-}
+"db:generate": "dotenv -e .env.local -- zen generate",
+"db:push": "dotenv -e .env.local -- zen db push",
+"db:migrate": "dotenv -e .env.local -- zen migrate dev",
+"db:studio": "dotenv -e .env.local -- zen studio",
+"db:seed": "dotenv -e .env.local -- tsx src/seed.ts",
+"auth:migrate": "dotenv -e .env.local -- npx @better-auth/cli@latest migrate"
 ```
 
 ## Seeding Convention
 
-Seed script is TypeScript (`tsx`) and may log progress with `console.log`/`console.error`.
+Seed script is TypeScript (`tsx`), logs via `createModuleLogger("seed")` — no `console.*` in production paths.
 
 ### Evidence
 
-Source: `prisma/seed.ts:11-18,26,30-33`.
+Source: `src/seed.ts:1-9`.
 
 ```ts
+import { db } from "#/db";
+import { createModuleLogger } from "#/lib/logger";
+
+const log = createModuleLogger("seed");
+
 async function main() {
-  console.log("🌱 Seeding database...");
-  await prisma.todo.deleteMany();
-  const todos = await prisma.todo.createMany({ data: [...] });
-  console.log(`✅ Created ${todos.count} todos`);
+  log.info("Seeding database…");
+  await db.todo.deleteMany({});
+  // …
 }
-.catch((e) => {
-  console.error("❌ Error seeding database:", e);
-  process.exit(1);
-})
 ```
 
 ## Query Location Rules
 
-- Backend queries belong in oRPC procedures or server functions.
-- Do not query Prisma from client-only components.
+- Backend queries belong in oRPC procedures or TanStack Start server functions.
+- Never import `db` from client-only components.
+- CRUD via `db.<model>.<op>` (Prisma-compatible API).
 
 ### Evidence
 
-Source: oRPC procedure file `src/orpc/router/todos.ts:10-20`.
+Source: oRPC procedure in `src/orpc/router/todos.ts:5-7`.
 
 ```ts
-export const listTodos = os.input(z.object({})).handler(() => {
-  return todos
-})
-```
-
-Source: server function query in `src/routes/demo/prisma.tsx:7-10,17-20`.
-
-```ts
-}).handler(async () => {
-  return await prisma.todo.findMany({ orderBy: { createdAt: 'desc' } })
-})
-.handler(async ({ data }) => {
-  return await prisma.todo.create({ data })
-})
-```
-
-## Transactions
-
-Prisma transactions are available but not currently used in tracked backend modules. Introduce `prisma.$transaction(...)` for multi-step writes when consistency across statements is required.
-
-### Evidence
-
-Source: no `$transaction` usage in current DB access files; single-step writes in `src/routes/demo/prisma.tsx:18-20` and `prisma/seed.ts:18-24`.
-
-```ts
-return await prisma.todo.create({ data })
-const todos = await prisma.todo.createMany({ data: [...] })
+export const listTodos = authed.input(z.object({})).handler(async () => {
+  return await db.todo.findMany({ orderBy: { createdAt: "desc" } });
+});
 ```
 
 ## Forbidden / Anti-Patterns
 
-- Creating `new PrismaClient()` in request paths.
-- Executing Prisma CLI commands without `.env.local` loading.
-- Importing DB client into client-only route components.
-- Hand-editing `src/generated/prisma/*`.
-
-### Evidence
-
-Source: required dotenv wrapping in `package.json:18-22`; singleton pattern in `src/db.ts:13`; generated output path in `prisma/schema.prisma:3`.
-
-```ts
-export const prisma = globalThis.__prisma || new PrismaClient({ adapter })
-```
+- Creating `new ZenStackClient()` or `new Pool()` in request paths.
+- Executing ZenStack / Better Auth CLI without `.env.local` loading.
+- Importing `#/db` into client-only route components.
+- Hand-editing `zenstack/{schema,models,input}.ts` (generated).

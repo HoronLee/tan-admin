@@ -87,12 +87,6 @@ export default function Header() {
 								Sentry
 							</a>
 							<a
-								href="/demo/prisma"
-								className="block rounded-lg px-3 py-2 text-sm text-[var(--sea-ink-soft)] no-underline transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
-							>
-								Prisma
-							</a>
-							<a
 								href="/demo/form/simple"
 								className="block rounded-lg px-3 py-2 text-sm text-[var(--sea-ink-soft)] no-underline transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
 							>
@@ -129,10 +123,10 @@ export default function Header() {
 								TanStack Query
 							</a>
 							<a
-								href="/demo/orpc-todo"
+								href="/demo/todos"
 								className="block rounded-lg px-3 py-2 text-sm text-[var(--sea-ink-soft)] no-underline transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
 							>
-								oRPC Todo
+								Todos
 							</a>
 							<a
 								href="/demo/mcp-todos"

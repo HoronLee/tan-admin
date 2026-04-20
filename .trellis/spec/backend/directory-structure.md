@@ -6,7 +6,7 @@
 
 ## Overview
 
-Backend entry points are route files with `server.handlers`, supported by oRPC router modules, Prisma access, auth handler wiring, and MCP transport/business modules.
+Backend entry points are route files with `server.handlers`, supported by oRPC router modules, ZenStack-backed database access, auth handler wiring, and MCP transport/business modules.
 
 ## HTTP Entry Points (`src/routes/*.$.ts` + `src/routes/mcp.ts`)
 
@@ -66,11 +66,11 @@ export default {
 }
 ```
 
-Source: `src/orpc/router/todos.ts:10-17`.
+Source: `src/orpc/router/todos.ts:5-13`.
 
 ```ts
-export const listTodos = os.input(z.object({})).handler(() => ...)
-export const addTodo = os.input(z.object({ name: z.string() })).handler(({ input }) => ...)
+export const listTodos = authed.input(z.object({})).handler(async () => ...)
+export const addTodo = authed.input(z.object({ title: z.string().min(1) })).handler(async ({ input }) => ...)
 ```
 
 ## Auth Split: Server vs Client
@@ -96,37 +96,42 @@ GET: ({ request }) => auth.handler(request)
 POST: ({ request }) => auth.handler(request)
 ```
 
-## Prisma Layout and Ownership
+## Database Layout and Ownership
 
-- Schema + migrations + seed config live in `prisma/` + `prisma.config.ts`.
-- Generated client lives in `src/generated/prisma/`.
-- Runtime singleton lives in `src/db.ts`.
+- ZModel schema lives in `zenstack/schema.zmodel`.
+- Generated runtime artifacts (`schema.ts`, `models.ts`, `input.ts`) are produced in-place at `zenstack/` by `zen generate`; all three are git-ignored.
+- Runtime singleton (shared `pg.Pool` + `ZenStackClient`) lives in `src/db.ts`.
+- Better Auth schema (`user` / `session` / `account` / `verification`) is managed by `@better-auth/cli migrate` — NOT declared in `.zmodel`.
+- Seed script: `src/seed.ts` (TypeScript, runs via `tsx`).
 
 ### Evidence
 
-Source: `prisma/schema.prisma:1-4`, `prisma.config.ts:4-7`.
+Source: `zenstack/schema.zmodel:1-14`.
 
-```prisma
-generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+```zmodel
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Todo {
+  id        Int      @id @default(autoincrement())
+  title     String
+  createdAt DateTime @default(now())
 }
 ```
 
-```ts
-migrations: {
-  path: './prisma/migrations',
-  seed: 'tsx prisma/seed.ts',
-}
-```
-
-Source: `src/db.ts:13-16`.
+Source: `src/db.ts:20-28`.
 
 ```ts
-export const prisma = globalThis.__prisma || new PrismaClient({ adapter })
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__prisma = prisma
-}
+export const pool =
+  globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
+
+export const db =
+  globalThis.__db ??
+  new ZenStackClient(schema, {
+    dialect: new PostgresDialect({ pool }),
+  });
 ```
 
 ## MCP Backend Layout
@@ -169,7 +174,7 @@ import '#/polyfill'
 ## Where New Backend Code Goes
 
 - New RPC procedure: `src/orpc/router/<domain>.ts` and export from `src/orpc/router/index.ts`.
-- New database model: `prisma/schema.prisma` then run `pnpm db:migrate`.
+- New database model: `zenstack/schema.zmodel` then run `pnpm db:push` (dev) or `pnpm db:migrate` (prod).
 - New HTTP endpoint: `src/routes/<feature>.$.ts` or specific route with `server.handlers`.
 
 ### Evidence
@@ -177,17 +182,17 @@ import '#/polyfill'
 Source: current procedure placement (`src/orpc/router/todos.ts`) and export (`src/orpc/router/index.ts`).
 
 ```ts
-export const addTodo = os.input(...).handler(...)
+export const addTodo = authed.input(...).handler(...)
 export default { listTodos, addTodo }
 ```
 
-Source: db migration command and schema ownership in `package.json:20`, `prisma/schema.prisma:10-14`.
+Source: db push command and schema ownership in `package.json:19`, `zenstack/schema.zmodel:10-14`.
 
 ```json
-"db:migrate": "dotenv -e .env.local -- prisma migrate dev"
+"db:push": "dotenv -e .env.local -- zen db push"
 ```
 
-```prisma
+```zmodel
 model Todo {
   id        Int      @id @default(autoincrement())
   title     String

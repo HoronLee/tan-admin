@@ -2,11 +2,7 @@ import * as Sentry from '@sentry/tanstackstart-react'
 
 const sentryDsn = import.meta.env?.VITE_SENTRY_DSN ?? process.env.VITE_SENTRY_DSN
 
-if (!sentryDsn) {
-  // Use console.warn here intentionally — logger depends on app config which
-  // may not be available this early in the bootstrap sequence.
-  console.warn('[sentry] VITE_SENTRY_DSN is not defined. Sentry is not running.')
-} else {
+if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
     // Adds request headers and IP for users, for more info visit:

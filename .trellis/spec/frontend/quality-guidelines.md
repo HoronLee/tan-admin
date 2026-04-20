@@ -18,7 +18,7 @@ Source: script contract in `package.json:8-23`.
   "build": "vite build && cp instrument.server.mjs .output/server",
   "test": "vitest run",
   "check": "biome check",
-  "db:generate": "dotenv -e .env.local -- prisma generate"
+  "db:generate": "dotenv -e .env.local -- zen generate"
 }
 ```
 
@@ -26,7 +26,7 @@ Source: pnpm section in `package.json:85-93`.
 
 ```json
 "pnpm": {
-  "onlyBuiltDependencies": ["@prisma/engines", "@sentry/cli", "esbuild", "lightningcss", "prisma"]
+  "onlyBuiltDependencies": ["@sentry/cli", "esbuild", "lightningcss"]
 }
 ```
 
@@ -100,7 +100,7 @@ Source: test dependencies in `package.json:71-72,79,83`.
 
 ### Evidence
 
-Source: user-path error logging in `src/routes/demo/prisma.tsx:43-45`.
+Source: user-path error logging in `src/routes/demo/todos.tsx:43-45`.
 
 ```ts
 } catch (error) {
@@ -128,8 +128,8 @@ Source: `.env.local` injection in `package.json:9,18-22`.
 
 ```json
 "dev": "dotenv -e .env.local -- ...",
-"db:push": "dotenv -e .env.local -- prisma db push",
-"db:migrate": "dotenv -e .env.local -- prisma migrate dev"
+"db:push": "dotenv -e .env.local -- zen db push",
+"db:migrate": "dotenv -e .env.local -- zen migrate"
 ```
 
 Source: env typing in `src/env.ts:13,15-17`.
@@ -190,7 +190,7 @@ aria-pressed={locale === currentLocale}
 
 - Running `npm install` / `yarn add` for project dependencies.
 - Cross-level relative imports when `#/*` alias is available.
-- Editing generated files (`src/routeTree.gen.ts`, `src/generated/prisma/*`, `src/paraglide/*`).
+- Editing generated files (`src/routeTree.gen.ts`, `zenstack/*.ts`, `src/paraglide/*`).
 - Hardcoding secrets in route/components code.
 - Importing shadcn primitives from package names instead of local `src/components/ui/*`.
 - Directly mutating store state objects.

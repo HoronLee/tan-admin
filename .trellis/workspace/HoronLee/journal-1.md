@@ -30,3 +30,55 @@ Implemented typed app config and Pino structured logging with Better Auth integr
 |------|---------|
 | `55d90df` | feat(error-handling): 实现全链路错误处理、Sentry 集成与依赖 fail-fast |
 | `923a35b` | docs(spec): update logging and cross-layer guidance |
+
+
+## Session 3: ZenStack v3 + Better Auth 迁移
+
+**Date**: 2026-04-20
+**Task**: ZenStack v3 + Better Auth 迁移
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+完成从 Prisma 7 到 ZenStack v3 + Better Auth (Kysely 模式) 的完整迁移。
+
+## 核心变更
+- **数据层重构**: ZenStackClient + PostgresDialect + 共享 pg.Pool 架构
+- **认证流程**: Better Auth 集成，四张表 (user/session/account/verification)
+- **错误处理**: 新增 orm-error 中间件，映射 ORMError + SQLSTATE 到 oRPC 错误码
+- **受保护路由**: /demo/todos 使用 createServerFn 包装会话检查，/login 页面支持注册/登录
+- **测试覆盖**: 新增 7 个 orm-error 测试用例，全部通过
+
+## 更新文件
+- 依赖: 移除 @prisma/client，新增 @zenstackhq/{orm,schema,cli}@3.5.6 + better-auth@1.6.5
+- Schema: zenstack/schema.zmodel (Todo 模型)
+- 核心: src/db.ts, src/lib/auth.ts, src/orpc/middleware/{auth,orm-error}.ts
+- 路由: src/routes/{login,demo/todos}.tsx
+- 文档: 更新 7 个 spec 文档，清理所有 Prisma 残留
+
+## 验证
+- ✅ tsc/biome/vitest 全绿
+- ✅ 手动测试：注册 → 登录 → 创建 Todo → 刷新验证持久化
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4e1e2e0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

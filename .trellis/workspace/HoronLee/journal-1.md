@@ -82,3 +82,36 @@ Implemented typed app config and Pino structured logging with Better Auth integr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: RBAC: ZenStack PolicyPlugin + oRPC Routers
+
+**Date**: 2026-04-20
+**Task**: RBAC: ZenStack PolicyPlugin + oRPC Routers
+**Branch**: `main`
+
+### Summary
+
+完成 T2 RBAC 建模任务：新增 Role/Permission/Menu/UserRole/RolePermission/PermissionMenu 6 张表 + PolicyPlugin 策略引擎 + auth middleware 升级（isAdmin 运行时计算）+ 18 个 oRPC RBAC procedures + seed 数据 + 4 条策略路径集成测试（19/19 通过）。修复 BA 表被 zen db push 误删问题（@@ignore 占位 model）及 import.meta.env 在 tsx 脚本崩溃问题。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7daa9bb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

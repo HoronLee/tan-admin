@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 4
+- **Total Sessions**: 5
 - **Last Active**: 2026-04-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~117 | Active |
+| `journal-1.md` | ~150 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-04-20 | RBAC PolicyPlugin + oRPC Routers | `7daa9bb` | `main` |
 | 4 | 2026-04-20 | RBAC: ZenStack PolicyPlugin + oRPC Routers | `7daa9bb` | `main` |
 | 3 | 2026-04-20 | ZenStack v3 + Better Auth 迁移 | `4e1e2e0` | `main` |
 | 2 | 2026-04-19 | Infra Fail-Fast 重构 | `1e8a6f4` | `main` |

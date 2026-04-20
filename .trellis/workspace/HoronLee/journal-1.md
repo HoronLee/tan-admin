@@ -115,3 +115,36 @@ Implemented typed app config and Pino structured logging with Better Auth integr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: RBAC PolicyPlugin + oRPC Routers
+
+**Date**: 2026-04-20
+**Task**: RBAC PolicyPlugin + oRPC Routers
+**Branch**: `main`
+
+### Summary
+
+T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. Fixed BA table drop bug with @@ignore placeholder models. Fixed import.meta.env crash in tsx scripts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7daa9bb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

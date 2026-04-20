@@ -158,3 +158,208 @@ export const listTodos = authed.input(z.object({})).handler(async () => {
 - Executing ZenStack / Better Auth CLI without `.env.local` loading.
 - Importing `#/db` into client-only route components.
 - Hand-editing `zenstack/{schema,models,input}.ts` (generated).
+
+---
+
+## RBAC PolicyPlugin — Activation & Per-Request Auth
+
+### 1. Scope / Trigger
+
+Applies whenever ZenStack access-control policies (`@@allow` / `@@deny` in `.zmodel`) need to be enforced at runtime. Without `PolicyPlugin` the schema compiles but all policy annotations are silently ignored.
+
+### 2. Package
+
+```bash
+pnpm add @zenstackhq/plugin-policy
+```
+
+`PolicyPlugin` lives in `@zenstackhq/plugin-policy`, NOT in `@zenstackhq/orm`.
+
+### 3. Signatures
+
+```ts
+// src/db.ts
+import { PolicyPlugin } from "@zenstackhq/plugin-policy";
+
+export const authDb = db.$use(new PolicyPlugin());
+// authDb is a new policy-enforced client; original `db` bypasses all policies.
+
+// Per-request (in middleware):
+const userDb = authDb.$setAuth({ userId: string, isAdmin?: boolean });
+```
+
+### 4. Auth Context Shape in zmodel
+
+```zmodel
+type Auth {
+  userId  String  @id
+  isAdmin Boolean?
+  @@auth
+}
+```
+
+Fields passed to `$setAuth()` must exactly match the `type Auth` block.
+
+### 5. Policy Expression Contracts
+
+| Policy line | Behaviour |
+|---|---|
+| `@@deny('all', auth() == null)` | Unauthenticated → read = **filtered** (empty), write = **throw ORMError** |
+| `@@allow('read', auth() != null)` | Any logged-in user can read |
+| `@@allow('all', auth().isAdmin == true)` | isAdmin users bypass all restrictions |
+| `@@allow('read', auth() != null && userId == auth().userId)` | Own-record access (UserRole pattern) |
+
+> **Gotcha**: For `findMany` / `findFirst`, policy violations on **read** return empty results, not thrown errors. Only **mutations** (create/update/delete) throw `ORMError`. Tests must account for this distinction.
+
+### 6. isAdmin Determination
+
+`isAdmin` is **not** stored in Better Auth's `user` table. Compute it per-request in `authMiddleware` using raw `db` (bypassing policies):
+
+```ts
+// src/orpc/middleware/auth.ts
+const userRoles = await db.userRole.findMany({
+  where: { userId: session.user.id },
+  include: { role: true },
+});
+const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin");
+const userDb = authDb.$setAuth({ userId: session.user.id, isAdmin });
+context.db = userDb;
+```
+
+### 7. Validation & Error Matrix
+
+| Scenario | Expected |
+|---|---|
+| Unauthenticated `findMany` | Returns `[]` (filtered) |
+| Unauthenticated `create` | Throws `ORMError` (`REJECTED_BY_POLICY`) |
+| Non-admin `create` on Role | Throws `ORMError` (`REJECTED_BY_POLICY` or `NOT_FOUND`) |
+| isAdmin user `create` | Succeeds |
+| Own-record `findMany` | Returns only own rows |
+| Other user's records | Filtered out (not thrown) |
+
+### 8. Tests Required
+
+See `src/orpc/middleware/rbac-policy.test.ts`. Assertion points:
+- Unauthenticated write → `rejects.toThrow()`
+- Unauthenticated read → `resolves` with length `0`
+- Non-admin write → `rejects.toSatisfy(err => err instanceof ORMError)`
+- Own-record read → `resolves` with rows where `userId == self`
+- Admin write → `resolves` (no throw)
+
+### 9. Wrong vs Correct
+
+#### Wrong
+
+```ts
+// WRONG: importing PolicyPlugin from the wrong package
+import { PolicyPlugin } from "@zenstackhq/orm";  // ❌ PolicyPlugin does not exist here
+
+// WRONG: sharing one authDb across requests without $setAuth
+context.db = authDb;  // ❌ auth() == null, all writes rejected
+```
+
+#### Correct
+
+```ts
+// src/db.ts
+import { PolicyPlugin } from "@zenstackhq/plugin-policy"; // ✅
+export const authDb = db.$use(new PolicyPlugin());
+
+// src/orpc/middleware/auth.ts (per request)
+const userDb = authDb.$setAuth({ userId, isAdmin });       // ✅
+context.db = userDb;
+```
+
+---
+
+## Better Auth Tables in ZenStack Schema
+
+### Problem
+
+`zen db push` compares the generated `~schema.prisma` against the live database. Because Better Auth tables (`user`, `session`, `account`, `verification`) are managed by `pnpm auth:migrate` and **not** declared in `schema.zmodel`, Prisma sees them as unknown tables and proposes to drop them.
+
+### Fix: `@@ignore` Placeholder Models
+
+Declare all 4 BA tables in `schema.zmodel` with `@@ignore`. This tells Prisma they exist but stops ZenStack from generating CRUD helpers for them.
+
+```zmodel
+model BaUser {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean
+  image         String?
+  nickname      String?   // additionalFields
+  avatar        String?   // additionalFields
+  status        String?   // additionalFields
+  createdAt     DateTime
+  updatedAt     DateTime
+
+  @@map("user")
+  @@ignore
+}
+
+model BaSession {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  @@map("session")
+  @@ignore
+}
+
+model BaAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+  @@ignore
+}
+
+model BaVerification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+  @@ignore
+}
+```
+
+> **Critical**: If you add `additionalFields` to Better Auth `user`, mirror them as `String?` in `BaUser` so the column schema stays consistent.
+
+### Wrong vs Correct
+
+#### Wrong
+
+```
+# zen db push output without @@ignore models:
+⚠️  You are about to drop the `user` table, which is not empty (N rows).
+⚠️  You are about to drop the `session` table …
+```
+
+#### Correct
+
+```
+# zen db push output with @@ignore models:
+🚀  Your database is now in sync with your Prisma schema. Done in 170ms
+```

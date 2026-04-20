@@ -11,6 +11,13 @@ export const auth = betterAuth({
 		enabled: true,
 	},
 	plugins: [tanstackStartCookies()],
+	user: {
+		additionalFields: {
+			nickname: { type: "string", required: false },
+			avatar: { type: "string", required: false },
+			status: { type: "string", defaultValue: "ACTIVE" },
+		},
+	},
 	logger: {
 		log(level, message, ...args) {
 			const meta = args.length > 0 ? args[0] : undefined;

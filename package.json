@@ -50,6 +50,7 @@
     "@tanstack/router-plugin": "^1.132.0",
     "@tanstack/store": "latest",
     "@zenstackhq/orm": "^3.5.6",
+    "@zenstackhq/plugin-policy": "^3.5.6",
     "@zenstackhq/schema": "^3.5.6",
     "better-auth": "^1.5.3",
     "class-variance-authority": "^0.7.1",

@@ -289,6 +289,47 @@ data: error instanceof Error ? error.message : String(error)
 - Handling server function errors ad hoc per route when a global `functionMiddleware` can enforce one contract.
 - Empty `catch {}` that swallows exceptions.
 
+---
+
+## Common Mistake: `import.meta.env` in Node.js Scripts
+
+### Symptom
+
+```
+TypeError: Cannot read properties of undefined (reading 'VITE_APP_TITLE')
+    at src/env.ts:57
+```
+
+Occurs when running `pnpm db:seed` (`tsx src/seed.ts`) or any other Node.js script that imports `src/env.ts`.
+
+### Cause
+
+`import.meta.env` is a **Vite-only** API. When the file is executed by Node.js (`tsx`, `vitest`, etc.), `import.meta.env` is `undefined`, so accessing any property on it throws immediately.
+
+### Fix
+
+Guard all `VITE_*` reads with a `typeof` check and fall back to `process.env`:
+
+```ts
+// src/env.ts — runtimeEnv section
+VITE_APP_TITLE:
+  typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_APP_TITLE
+    : process.env.VITE_APP_TITLE,
+VITE_APP_URL:
+  typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_APP_URL
+    : process.env.VITE_APP_URL,
+VITE_SENTRY_DSN:
+  typeof import.meta.env !== "undefined"
+    ? import.meta.env.VITE_SENTRY_DSN
+    : process.env.VITE_SENTRY_DSN,
+```
+
+### Rule
+
+> Every new `VITE_*` variable added to `runtimeEnv` in `src/env.ts` **must** use this guard pattern, not a bare `import.meta.env.*` access.
+
 ### Evidence
 
 Source: `src/orpc/errors.ts`, `src/orpc/middleware/orm-error.ts`, `src/orpc/middleware/auth.ts`, `src/orpc/interceptors.ts`, `src/routes/api.$.ts`, `src/routes/api.rpc.$.ts`, `src/start.ts`, `src/lib/server-fn-middleware.ts`, `src/lib/error-report.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.

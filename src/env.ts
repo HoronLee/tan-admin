@@ -53,10 +53,20 @@ export const env = createEnv({
 		LOG_MAX_FILES: process.env.LOG_MAX_FILES,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-		// Client vars — read from import.meta.env (Vite injects VITE_* only)
-		VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
-		VITE_APP_URL: import.meta.env.VITE_APP_URL,
-		VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
+		// Client vars — Vite exposes VITE_* via import.meta.env at build time;
+		// in Node.js contexts (tsx scripts, vitest) fall back to process.env.
+		VITE_APP_TITLE:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_APP_TITLE
+				: process.env.VITE_APP_TITLE,
+		VITE_APP_URL:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_APP_URL
+				: process.env.VITE_APP_URL,
+		VITE_SENTRY_DSN:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_SENTRY_DSN
+				: process.env.VITE_SENTRY_DSN,
 	},
 
 	/**

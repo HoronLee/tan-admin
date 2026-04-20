@@ -1,17 +1,18 @@
+import { authDb, db } from "#/db";
 import { auth } from "#/lib/auth";
 import { base } from "#/orpc/errors";
 import { pub } from "#/orpc/middleware/orm-error";
 
 /**
- * Authentication middleware (authn only — no RBAC in this task).
+ * Authentication + RBAC middleware.
  *
- * Reads `headers` from the procedure context, asks Better Auth for a
- * session, and attaches `user` to the context. Throws typed
- * `UNAUTHORIZED` when no session is present.
+ * 1. Validates session via Better Auth.
+ * 2. Queries the UserRole table (raw db — no policy) to determine isAdmin.
+ * 3. Binds a policy-enforced client to the oRPC context as `db`.
  *
- * Compose via `authed` below. Procedures that also need ORM error
- * mapping (i.e. anything that touches the DB) get it for free because
- * `pub` is already in the chain.
+ * Handlers that receive `context.db` get a user-scoped ZenStack client
+ * with PolicyPlugin enforcing @@allow / @@deny rules automatically.
+ * UNAUTHORIZED is thrown when no session is present.
  */
 export const authMiddleware = base.middleware(
 	async ({ context, next, errors }) => {
@@ -23,7 +24,24 @@ export const authMiddleware = base.middleware(
 			throw errors.UNAUTHORIZED({ message: "Sign in required." });
 		}
 
-		return next({ context: { ...ctx, user: session.user, session } });
+		// Determine super-admin status using the raw (policy-free) client.
+		const userRoles = await db.userRole.findMany({
+			where: { userId: session.user.id },
+			include: { role: true },
+		});
+		const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin");
+
+		// Create a per-request policy client bound to this user.
+		const userDb = authDb.$setAuth({ userId: session.user.id, isAdmin });
+
+		return next({
+			context: {
+				...ctx,
+				user: session.user,
+				session,
+				db: userDb,
+			},
+		});
 	},
 );
 

@@ -3,8 +3,224 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+plugin policy {
+  provider = '@zenstackhq/plugin-policy'
+}
+
+/// Auth context injected per-request via authDb.$setAuth()
+type Auth {
+  userId  String  @id
+  isAdmin Boolean?
+  @@auth
+}
+
+/// Menu route metadata stored as JSONB (ZenStack typed JSON, PostgreSQL only)
+type MenuMeta {
+  title                    String?
+  icon                     String?
+  activeIcon               String?
+  activePath               String?
+  order                    Int?
+  affixTab                 Boolean?
+  affixTabOrder            Int?
+  badge                    String?
+  badgeType                String?
+  badgeVariants            String?
+  hideChildrenInMenu       Boolean?
+  hideInBreadcrumb         Boolean?
+  hideInMenu               Boolean?
+  hideInTab                Boolean?
+  iframeSrc                String?
+  ignoreAccess             Boolean?
+  keepAlive                Boolean?
+  link                     String?
+  maxNumOfOpenTab          Int?
+  menuVisibleWithForbidden Boolean?
+  openInNewWindow          Boolean?
+}
+
 model Todo {
   id        Int      @id @default(autoincrement())
   title     String
   createdAt DateTime @default(now())
+}
+
+/// RBAC Role — supports self-referential hierarchy (parentId for sub-roles)
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  description String?
+  parentId    Int?
+  parent      Role?    @relation("RoleTree", fields: [parentId], references: [id])
+  children    Role[]   @relation("RoleTree")
+  status      String   @default("ACTIVE")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null)
+  @@allow('all', auth().isAdmin == true)
+}
+
+/// RBAC Permission — atomic capability unit (MENU | BUTTON | API)
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  description String?
+  type        String   @default("MENU")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+  permissionMenus PermissionMenu[]
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null)
+  @@allow('all', auth().isAdmin == true)
+}
+
+/// Menu / Route tree node. meta is stored as typed JSONB.
+model Menu {
+  id        Int       @id @default(autoincrement())
+  type      String    @default("MENU")
+  path      String?
+  name      String?   @unique
+  component String?
+  redirect  String?
+  alias     String?
+  meta      MenuMeta? @json
+  parentId  Int?
+  parent    Menu?     @relation("MenuTree", fields: [parentId], references: [id])
+  children  Menu[]    @relation("MenuTree")
+  status    String    @default("ACTIVE")
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  permissionMenus PermissionMenu[]
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null)
+  @@allow('all', auth().isAdmin == true)
+}
+
+/// User ↔ Role join table. userId matches Better Auth user.id (String UUID).
+model UserRole {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  roleId    Int
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null && userId == auth().userId)
+  @@allow('all', auth().isAdmin == true)
+}
+
+/// Role ↔ Permission join table.
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null)
+  @@allow('all', auth().isAdmin == true)
+}
+
+/// Permission ↔ Menu join table.
+model PermissionMenu {
+  id           Int        @id @default(autoincrement())
+  permissionId Int
+  menuId       Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([permissionId, menuId])
+
+  @@deny('all', auth() == null)
+  @@allow('read', auth() != null)
+  @@allow('all', auth().isAdmin == true)
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth managed tables — declared here so Prisma doesn't drop them.
+// ZenStack / Prisma will not generate CRUD helpers for @@ignore models.
+// ---------------------------------------------------------------------------
+
+/// Better Auth: users table (managed by BA, not ZenStack)
+model BaUser {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean
+  image         String?
+  nickname      String?
+  avatar        String?
+  status        String?
+  createdAt     DateTime
+  updatedAt     DateTime
+
+  @@map("user")
+  @@ignore
+}
+
+/// Better Auth: sessions table
+model BaSession {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  @@map("session")
+  @@ignore
+}
+
+/// Better Auth: OAuth accounts table
+model BaAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+  @@ignore
+}
+
+/// Better Auth: email verification tokens table
+model BaVerification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+  @@ignore
 }

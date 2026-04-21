@@ -182,3 +182,36 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: 全量依赖升级（2026-04）
+
+**Date**: 2026-04-21
+**Task**: 全量依赖升级（2026-04）
+**Branch**: `main`
+
+### Summary
+
+一次性升级全部 22 个 outdated 包到最新 stable。修复 3 处 breaking changes：TS 6.0 移除 baseUrl 改用 paths、Biome 2.4.12 schema migrate + import 排序自动修复、tailwindcss 4.2.3 中 jiti@2.6.1 scoped-package 解析 regression 导致 @plugin 路径改为显式 node_modules 路径。pnpm check + tsc + test (26) + build + db:push 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4b91349` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

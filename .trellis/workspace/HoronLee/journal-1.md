@@ -148,3 +148,37 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: 实现 oRPC + ZenStack 双栈 CRUD + admin Role 页
+
+**Date**: 2026-04-21
+**Task**: 实现 oRPC + ZenStack 双栈 CRUD + admin Role 页
+**Branch**: `main`
+
+### Summary
+
+将 API 升级为 oRPC(业务动作) + ZenStack Server Adapter(/api/model/**, 自动 CRUD + 缓存 invalidate) 双栈；新增 src/lib/auth-session.ts 共享 getSessionUser、src/lib/zenstack-error-map.ts 作为两端 reason->code 映射的单一来源；上线 shadcn Sidebar 驱动的 (admin)/ 路由组与 admin Role 页(useFindMany/useCreate/useUpdate/useDelete + Sheet + AlertDialog)；seed 脚本加入 env-gated super-admin bootstrap 打通 policy 闭环；3 份 spec 捕获双栈拓扑、错误契约、layout 约定。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f2afd3c` | (see git log) |
+| `afa4aed` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

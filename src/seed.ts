@@ -1,7 +1,11 @@
-import { db } from "#/db";
+import { randomUUID } from "node:crypto";
+import { db, pool } from "#/db";
 import { env } from "#/env";
 import { auth } from "#/lib/auth";
 import { createModuleLogger } from "#/lib/logger";
+
+const DEFAULT_ORG_SLUG = "default";
+const DEFAULT_ORG_NAME = "Default Organization";
 
 const log = createModuleLogger("seed");
 
@@ -41,23 +45,65 @@ async function bootstrapSuperAdmin(): Promise<string | null> {
 		return null;
 	}
 
+	// Promote to admin role (admin plugin gates isAdmin on user.role === "admin").
+	await pool.query(
+		'UPDATE "user" SET role = $1 WHERE id = $2 AND (role IS DISTINCT FROM $1)',
+		["admin", user.id],
+	);
+
 	log.info({ email, userId: user.id }, "Super-admin user ready.");
 	return user.id;
 }
 
+/**
+ * Create the default organization and bind the super-admin as owner.
+ * Uses direct pg INSERTs because Better Auth's server APIs require a
+ * request/session context we don't have in a seed script.
+ */
+async function seedDefaultOrg(adminUserId: string): Promise<void> {
+	const existing = await pool.query<{ id: string }>(
+		'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
+		[DEFAULT_ORG_SLUG],
+	);
+
+	let orgId: string;
+	if (existing.rows.length > 0) {
+		orgId = existing.rows[0].id;
+		log.info({ orgId }, "Default organization already exists.");
+	} else {
+		orgId = randomUUID();
+		await pool.query(
+			'INSERT INTO "organization" (id, name, slug, "createdAt") VALUES ($1, $2, $3, now())',
+			[orgId, DEFAULT_ORG_NAME, DEFAULT_ORG_SLUG],
+		);
+		log.info({ orgId }, "Default organization created.");
+	}
+
+	const existingMember = await pool.query<{ id: string }>(
+		'SELECT id FROM "member" WHERE "organizationId" = $1 AND "userId" = $2 LIMIT 1',
+		[orgId, adminUserId],
+	);
+
+	if (existingMember.rows.length > 0) {
+		log.info(
+			{ orgId, userId: adminUserId },
+			"Super-admin already a member of default org.",
+		);
+		return;
+	}
+
+	await pool.query(
+		'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
+		[randomUUID(), orgId, adminUserId, "owner"],
+	);
+	log.info(
+		{ orgId, userId: adminUserId },
+		"Super-admin bound as owner of default org.",
+	);
+}
+
 async function main() {
 	log.info("Seeding database…");
-
-	// --- Todos (demo) ---
-	await db.todo.deleteMany({});
-	const todos = await db.todo.createMany({
-		data: [
-			{ title: "Buy groceries" },
-			{ title: "Read a book" },
-			{ title: "Workout" },
-		],
-	});
-	log.info({ count: todos.count }, "Todos seeded.");
 
 	// --- Menus (system skeleton) ---
 	const dashboardMenu = await db.menu.upsert({
@@ -176,19 +222,9 @@ async function main() {
 	// --- Super-admin user bootstrap (opt-in via env) ---
 	const adminUserId = await bootstrapSuperAdmin();
 
-	// TODO(v2-S2): Create default organization via auth.api.organization.create
-	//   and add super-admin as owner after DB migration.
-	log.warn(
-		"TODO(v2-S2): Default organization creation deferred to S2 (requires auth:migrate + org tables).",
-	);
-
-	// TODO(v2-S2): Add super-admin to default org as owner:
-	//   await auth.api.organization.addMember({ userId: adminUserId, role: "owner", organizationId })
+	// --- Default organization + super-admin binding ---
 	if (adminUserId) {
-		log.warn(
-			{ adminUserId },
-			"TODO(v2-S2): Bind super-admin to default organization as owner.",
-		);
+		await seedDefaultOrg(adminUserId);
 	}
 
 	log.info("Seed complete.");

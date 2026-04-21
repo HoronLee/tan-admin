@@ -57,8 +57,26 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		],
 	}),
 	errorComponent: RootErrorFallback,
+	notFoundComponent: RootNotFound,
 	shellComponent: RootDocument,
 });
+
+function RootNotFound() {
+	return (
+		<div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+			<h1 className="text-2xl font-semibold">Page not found</h1>
+			<p className="max-w-lg text-sm text-muted-foreground">
+				The page you're looking for doesn't exist.
+			</p>
+			<Link
+				to="/"
+				className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+			>
+				Back to home
+			</Link>
+		</div>
+	);
+}
 
 function RootErrorFallback({ error, reset }: ErrorComponentProps) {
 	const message = error instanceof Error ? error.message : String(error);

@@ -14,9 +14,9 @@ This directory documents backend-role conventions extracted from real code paths
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | Filled |
+| [Directory Structure](./directory-structure.md) | Module organization, file layout, dual-stack (oRPC + ZenStack) topology | Filled |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations, PolicyPlugin, BA `@@ignore` tables | Filled |
-| [Error Handling](./error-handling.md) | Error types, handling strategies, `import.meta.env` gotcha | Filled |
+| [Error Handling](./error-handling.md) | Error types, ZenStack HTTP error contract, single-source mapping | Filled |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards and forbidden patterns | Filled |
 | [Logging Guidelines](./logging-guidelines.md) | Logging behavior and guardrails | Filled |
 
@@ -25,7 +25,8 @@ This directory documents backend-role conventions extracted from real code paths
 ## Notes
 
 - Backend routes are implemented via `server.handlers` in route files.
-- oRPC, Prisma, Auth, and MCP concerns are documented with file-backed examples.
+- Two HTTP stacks coexist under `/api/**`: ZenStack Server Adapter (`/api/model/**`) for model CRUD, oRPC (`/api/rpc/**`) for business actions. Auth stays on Better Auth (`/api/auth/**`). See [Directory Structure § Dual-Stack Topology](./directory-structure.md#dual-stack-topology-orpc--zenstack).
+- Error mapping between ZenStack `ORMError` and the 7 standard app codes lives at `src/lib/zenstack-error-map.ts`; both backend middleware and frontend reporter import the same function.
 - Generated outputs remain read-only and must be regenerated via scripts.
 
 ---

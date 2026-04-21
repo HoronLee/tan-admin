@@ -89,45 +89,101 @@ Source: `src/orpc/middleware/auth.ts`.
 export const authed = pub.use(authMiddleware);
 ```
 
-## ORM Error Mapping
+## ORM Error Mapping (Single Source of Truth)
 
-Source: `src/orpc/middleware/orm-error.ts`.
+Source of truth: `src/lib/zenstack-error-map.ts`. Both the backend middleware and the frontend error reporter import the same `mapZenStackReasonToCode(reason, dbErrorCode)` — there must never be two inline switches.
 
-| `ORMErrorReason` | Typed error | Rationale |
-|------------------|-------------|-----------|
+| `ORMErrorReason` | App code | Rationale |
+|------------------|----------|-----------|
 | `not-found` | `NOT_FOUND` | `update` / `delete` on missing row |
-| `rejected-by-policy` | `FORBIDDEN` | `@@allow/@@deny` policy denied the op (pre-wired for T2 RBAC) |
+| `rejected-by-policy` | `FORBIDDEN` | `@@allow/@@deny` policy denied the op (PolicyPlugin) |
 | `invalid-input` | `INPUT_VALIDATION_FAILED` | ORM-side argument validation failure |
 | `db-query-error` + SQLSTATE `23505` | `CONFLICT` | Unique constraint violation |
 | `db-query-error` + SQLSTATE `23503` | `BAD_REQUEST` | Foreign-key violation |
-| Other `db-query-error` SQLSTATEs | unchanged | Logged + forwarded to boundary → `INTERNAL_ERROR` |
-| `config-error` / `not-supported` / `internal-error` | unchanged | Surfaces as `INTERNAL_ERROR` |
+| Other `db-query-error` SQLSTATEs | `INTERNAL_ERROR` | Unmapped — default to internal |
+| `config-error` / `not-supported` / `internal-error` | `INTERNAL_ERROR` | Surfaces as internal |
+
+Source: `src/lib/zenstack-error-map.ts:62-76`.
 
 ```ts
-export const ormErrorMiddleware = base.middleware(async ({ next, errors }) => {
-  try {
-    return await next();
-  } catch (err) {
-    if (!(err instanceof ORMError)) throw err;
+export function mapZenStackReasonToCode(
+  reason: ZenStackErrorReason,
+  dbErrorCode?: string,
+): AppErrorCode {
+  if (reason !== "db-query-error") return ZENSTACK_REASON_CODE_MAP[reason];
+  if (dbErrorCode === SQLSTATE_UNIQUE_VIOLATION) return "CONFLICT";
+  if (dbErrorCode === SQLSTATE_FOREIGN_KEY_VIOLATION) return "BAD_REQUEST";
+  return "INTERNAL_ERROR";
+}
+```
 
-    switch (err.reason) {
-      case ORMErrorReason.NOT_FOUND:
-        throw errors.NOT_FOUND({ message: "Resource not found.", cause: err });
-      case ORMErrorReason.REJECTED_BY_POLICY:
-        throw errors.FORBIDDEN({ cause: err });
-      case ORMErrorReason.INVALID_INPUT:
-        throw errors.INPUT_VALIDATION_FAILED({ message: err.message, data: {...}, cause: err });
-      case ORMErrorReason.DB_QUERY_ERROR: {
-        if (err.dbErrorCode === "23505") throw errors.CONFLICT({ cause: err });
-        if (err.dbErrorCode === "23503") throw errors.BAD_REQUEST({ cause: err });
-        throw err;
-      }
-      default:
-        throw err;
+### Backend side: `ormErrorMiddleware`
+
+Source: `src/orpc/middleware/orm-error.ts:34-85`.
+
+```ts
+const mappedCode = mapZenStackReasonToCode(err.reason, dbErrorCode);
+switch (mappedCode) {
+  case "NOT_FOUND": throw errors.NOT_FOUND({ message: "Resource not found.", cause: err });
+  case "FORBIDDEN": throw errors.FORBIDDEN({ cause: err });
+  case "INPUT_VALIDATION_FAILED": throw errors.INPUT_VALIDATION_FAILED({ message: err.message, data: flattenFieldErrors(err), cause: err });
+  case "CONFLICT": throw errors.CONFLICT({ message: "Resource already exists.", cause: err });
+  case "BAD_REQUEST": throw errors.BAD_REQUEST({ cause: err });
+  default: throw err; // boundary interceptor → INTERNAL_ERROR
+}
+```
+
+`INTERNAL_ERROR` is not thrown inline — rethrow the raw `ORMError` and let the boundary interceptor capture it to Sentry + remap.
+
+## ZenStack HTTP Error Contract (Dual-Stack Gotcha)
+
+The ZenStack Server Adapter at `/api/model/**` **does not pass through** `ormErrorMiddleware`. It converts the raw `ORMError` into an HTTP response with the shape:
+
+```json
+{
+  "body": {
+    "error": {
+      "status": 403,
+      "message": "...",
+      "reason": "rejected-by-policy",
+      "model": "Role",
+      "rejectedByPolicy": true,
+      "rejectReason": "no-access",
+      "dbErrorCode": "23505"
     }
   }
-});
+}
 ```
+
+After deserialization by `@zenstackhq/client-helpers/fetch.js`, the client-side error surfaces the same `{ reason, dbErrorCode, message }` fields under `error.info`.
+
+Front-end side reuses the **same mapping constants** via `getZenStackHttpError(error)` + `mapZenStackReasonToCode(reason, dbErrorCode)`. See `src/lib/error-report.ts` and `src/lib/zenstack-error-map.ts`.
+
+### Why not unify the wire format?
+
+We chose not to proxy ZenStack responses into an oRPC-shaped `ORPCError`:
+
+- Rewriting adapter responses breaks ZenStack's official contract — future upgrades become brittle.
+- Detection by `error.body.error.reason` or `error.info.reason` is precise and costs one extra branch in `reportError`.
+- Both stacks converge on the same 7-code enum via one shared mapping function, so toast copy stays consistent.
+
+See the `04-20-crud-autogen-hooks` task's D1 decision for the full Options considered.
+
+## Where the Mapping Must Be Reused
+
+- Backend `src/orpc/middleware/orm-error.ts` → `mapZenStackReasonToCode` (not a local switch).
+- Frontend `src/lib/error-report.ts` → `getZenStackHttpError` + `mapZenStackReasonToCode`.
+- Unit tests: `src/lib/zenstack-error-map.test.ts` must cover all 7 reasons plus `db-query-error` × {23505, 23503, other SQLSTATE}.
+
+### Common Mistake: Duplicated Switch
+
+**Symptom**: Adding a new `dbErrorCode` mapping (e.g. `23514` check_violation → `BAD_REQUEST`) in `orm-error.ts` alone, forgetting `zenstack-error-map.ts`.
+
+**Cause**: Treating the middleware as the sole source.
+
+**Fix**: Always edit `zenstack-error-map.ts` first. The middleware delegates.
+
+**Prevention**: Grep `mapZenStackReasonToCode` before touching either file — there should be at most two call sites.
 
 ## Boundary Interceptor Chain
 

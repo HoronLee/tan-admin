@@ -16,7 +16,8 @@ This directory documents the current frontend conventions based on real source f
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Filled |
 | [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | Filled |
-| [Hook Guidelines](./hook-guidelines.md) | Custom hooks and data access patterns | Filled |
+| [Hook Guidelines](./hook-guidelines.md) | Custom hooks, ZenStack CRUD hooks vs oRPC actions, data access patterns | Filled |
+| [Layout Guidelines](./layout-guidelines.md) | Admin route group `(admin)/`, shadcn sidebar shell (L1), Dialog vs AlertDialog | Filled |
 | [State Management](./state-management.md) | Local state, server cache, global store | Filled |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards and forbidden patterns | Filled |
 | [Type Safety](./type-safety.md) | Type patterns and runtime validation | Filled |

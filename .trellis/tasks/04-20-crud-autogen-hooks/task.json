@@ -3,8 +3,8 @@
   "name": "crud-autogen-hooks",
   "title": "oRPC 单栈升级为 oRPC + ZenStack 双栈（自动 CRUD + hooks）",
   "description": "",
-  "status": "planning",
-  "dev_type": null,
+  "status": "in_progress",
+  "dev_type": "fullstack",
   "scope": null,
   "package": null,
   "priority": "P2",
@@ -15,16 +15,8 @@
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "current_phase": 0,
+  "current_phase": 3,
   "next_action": [
-    {
-      "phase": 1,
-      "action": "brainstorm"
-    },
-    {
-      "phase": 2,
-      "action": "research"
-    },
     {
       "phase": 3,
       "action": "implement"

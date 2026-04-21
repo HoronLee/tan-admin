@@ -211,20 +211,87 @@ Fields passed to `$setAuth()` must exactly match the `type Auth` block.
 
 > **Gotcha**: For `findMany` / `findFirst`, policy violations on **read** return empty results, not thrown errors. Only **mutations** (create/update/delete) throw `ORMError`. Tests must account for this distinction.
 
-### 6. isAdmin Determination
+### 6. isAdmin Determination (Shared Util)
 
-`isAdmin` is **not** stored in Better Auth's `user` table. Compute it per-request in `authMiddleware` using raw `db` (bypassing policies):
+`isAdmin` is **not** stored in Better Auth's `user` table. It is derived from the `UserRole` join: a user is admin iff they are bound to the `super-admin` Role. This logic is centralised in `src/lib/auth-session.ts` and reused by both the oRPC middleware and the ZenStack Server Adapter — do not inline it at either call site.
+
+Source: `src/lib/auth-session.ts:20-44`.
+
+```ts
+export async function getSessionUser(
+  input: Request | Headers,
+): Promise<AuthSessionContext | null> {
+  const session = await auth.api.getSession({ headers: toHeaders(input) })
+  if (!session?.user) return null
+  const userRoles = await db.userRole.findMany({
+    where: { userId: session.user.id },
+    include: { role: true },
+  })
+  const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin")
+  return {
+    session,
+    user: session.user,
+    policyAuth: { userId: session.user.id, isAdmin },
+  }
+}
+```
+
+### 6a. Applying auth per request
+
+**oRPC middleware** — gate on session presence and expose `context.authDb`:
 
 ```ts
 // src/orpc/middleware/auth.ts
-const userRoles = await db.userRole.findMany({
-  where: { userId: session.user.id },
-  include: { role: true },
-});
-const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin");
-const userDb = authDb.$setAuth({ userId: session.user.id, isAdmin });
-context.db = userDb;
+const session = await getSessionUser(context.headers)
+if (!session) throw errors.UNAUTHORIZED()
+context.authDb = authDb.$setAuth(session.policyAuth)
 ```
+
+**ZenStack adapter** — must pass `$setAuth` on **every** request, including unauthenticated ones, so `auth() == null` evaluates predictably. Do not return a bare `authDb` on the null branch.
+
+Source: `src/routes/api/model/$.ts:8-17`.
+
+```ts
+// ✅ Explicit: pass undefined when there's no session so `auth() == null`
+getClient: async (request) => {
+  const sessionContext = await getSessionUser(request)
+  return authDb.$setAuth(sessionContext?.policyAuth)
+}
+```
+
+```ts
+// ❌ Relying on default semantics: `authDb` without $setAuth may or may not
+//    evaluate `auth() == null` the same way across ZenStack versions.
+getClient: async (request) => {
+  const sessionContext = await getSessionUser(request)
+  return sessionContext ? authDb.$setAuth(sessionContext.policyAuth) : authDb
+}
+```
+
+### 6b. Querying `@@ignore` Tables (BaUser / BaSession / ...)
+
+Ignored models do not appear on the ZenStack ORM client. Reach for the raw Kysely builder instead — `db.$qbRaw` is untyped Kysely over the same pool.
+
+```ts
+// src/seed.ts
+const user = await db.$qbRaw
+  .selectFrom("user")
+  .where("email", "=", email)
+  .select(["id"])
+  .executeTakeFirst()
+```
+
+Do **not** attempt `db.baUser.findFirst(...)` — the property does not exist.
+
+### 6c. Super-admin Bootstrap
+
+Because the `Role` model enforces `@@allow('all', auth().isAdmin == true)`, a freshly migrated database has **no principal who can create a Role** — a chicken-and-egg. The seed script resolves this by creating the first super-admin user up front (opt-in via env):
+
+- `SEED_SUPER_ADMIN_EMAIL` + `SEED_SUPER_ADMIN_PASSWORD` in `.env.local`
+- `pnpm db:seed` calls `auth.api.signUpEmail(...)` (idempotent — catches "user exists") then upserts the `UserRole(super-admin)` binding
+- Without the env vars set, seed skips the bootstrap and logs an info line
+
+Source: `src/seed.ts` `bootstrapSuperAdmin`. Keep the bootstrap strictly env-gated — never auto-promote "the first user" implicitly (security risk in shared dev databases).
 
 ### 7. Validation & Error Matrix
 

@@ -105,6 +105,98 @@ store.subscribe(() => {
 })
 ```
 
+## ZenStack Auto-Generated CRUD Hooks
+
+Model CRUD on this project goes through ZenStack's TanStack Query client, not hand-written oRPC procedures. Call `useZenStackQueries()` to obtain a model-keyed client with fully-typed `useFindMany` / `useFindUnique` / `useCount` / `useCreate` / `useUpdate` / `useDelete` hooks. Cache invalidation on successful mutations is automatic (including nested reads).
+
+### Evidence
+
+Source: `src/zenstack/client.ts`.
+
+```ts
+import { schema } from "zenstack/schema"
+import { useClientQueries } from "@zenstackhq/tanstack-query/runtime-v5/react"
+import type { authDb } from "#/db"
+
+export function useZenStackQueries() {
+  return useClientQueries<typeof authDb>(schema, { endpoint: "/api/model" })
+}
+```
+
+Source: `src/routes/(admin)/roles/index.tsx:151,161-169`.
+
+```ts
+const client = useZenStackQueries()
+const rolesQuery = client.role.useFindMany({
+  orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+  skip: (page - 1) * PAGE_SIZE,
+  take: PAGE_SIZE,
+})
+const countQuery = client.role.useCount()
+const createRole = client.role.useCreate()
+const updateRole = client.role.useUpdate()
+const deleteRole = client.role.useDelete()
+```
+
+### Convention: When to Use ZenStack Hooks vs oRPC
+
+| Concern | Stack | Hook |
+|---------|-------|------|
+| Single-model CRUD on a policy-protected model | ZenStack | `client.<model>.useFindMany` / `useCreate` / `useUpdate` / `useDelete` |
+| Cross-model transactions, batch ops, device commands, background jobs | oRPC | `useQuery(orpc.<proc>.queryOptions(...))`, `useMutation({ mutationFn: orpc.<proc>.call })` |
+| Auth (sign in / up / out, session reads) | Better Auth | `authClient.useSession()` |
+| Models with `@@ignore` in `zenstack/schema.zmodel` (e.g. `BaUser`) | **oRPC only** | ZenStack will not generate hooks for ignored models |
+
+**Why ZenStack for CRUD**:
+
+- No per-model procedures to hand-write.
+- Automatic cache invalidation includes related reads that oRPC's generic client cannot express.
+- PolicyPlugin on `authDb` enforces row-level policies identically on both stacks.
+
+**Why oRPC for actions**:
+
+- Explicit input/output contracts and typed errors.
+- Arbitrary server logic, external calls, multi-model transactions.
+
+### Passing Field-Level Validation Errors from ZenStack into Forms
+
+`INPUT_VALIDATION_FAILED` must stay silent from `reportError`'s toast path and surface as field errors. Inspect the error via `getZenStackHttpError(error)` inside the mutation's `catch` block before delegating to `reportError`.
+
+Source: `src/routes/(admin)/roles/index.tsx:184-202,225-230`.
+
+```ts
+function setServerValidation(error: unknown): boolean {
+  const zenStackError = getZenStackHttpError(error)
+  if (!zenStackError) return false
+  const code = mapZenStackReasonToCode(zenStackError.reason, zenStackError.dbErrorCode)
+  if (code !== "INPUT_VALIDATION_FAILED") return false
+  // ... set field errors
+  return true
+}
+
+try { await createRole.mutateAsync({ data }) }
+catch (error) {
+  if (setServerValidation(error)) return // swallow — handled at field level
+  reportError(error)
+}
+```
+
+### Gotcha: Typing the Client
+
+Pass `typeof authDb` as the generic so the hook return types include any runtime plugin extensions (e.g. PolicyPlugin-attached fields). A bare `useClientQueries(schema, ...)` loses plugin typings.
+
+### Don't: Hand-write oRPC Procedures for Plain CRUD
+
+```ts
+// Don't
+export const listRoles = authed.handler(async ({ context }) =>
+  context.authDb.role.findMany(...)
+)
+
+// Instead
+// Add @@allow policies to Role in zenstack/schema.zmodel; hooks are generated automatically.
+```
+
 ## Route and Data Hooks
 
 Preferred data hooks in route components:

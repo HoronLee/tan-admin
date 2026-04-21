@@ -1,0 +1,12 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "双栈错误契约融合需要与后端错误语义对齐"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "新增 auth-session util 与 /api/model handler 需遵循目录规范"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "T3 产出会写入此 spec——先读现有约定再补充双栈分工"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "新增 (admin)/ route group + layout 组件须符合前端目录规范"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "User 页与 shell 组件需遵循组件规范"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "ZenStack hooks + TanStack Query 缓存策略归属此分层"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "useClientQueries 泛型 + 前端映射函数需遵守类型规范"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "双栈契约 + 前后端共享映射 = 典型跨层思维场景"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "getSessionUser 抽出 + reason→code 常量表 = 复用决策"}

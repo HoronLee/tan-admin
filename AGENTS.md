@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-全 TypeScript 栈后台管理系统，对标 [go-wind-admin](https://github.com/tx7do/go-wind-admin) 的 TS 版本。前后端一体、类型安全、可私有化部署。
+全 TypeScript 栈后台管理系统，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全、可私有化部署。目标形态是现代 IAM 驱动的业务后台底座。
 
 ## 技术栈
 

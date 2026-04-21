@@ -1,0 +1,8 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "ZenStack / 迁移"}
+{"file": ".trellis/spec/frontend/layout-guidelines.md", "reason": "Sidebar/Tabbar 布局（保留 v1 产出）"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "DataTable/FormDrawer/ConfirmDialog 用于自写页面"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "禁 any，oRPC + Better Auth 类型处理"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Better Auth 后端 + better-auth-ui 前端的数据契约"}

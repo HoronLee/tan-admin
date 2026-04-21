@@ -1,0 +1,9 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/frontend/layout-guidelines.md", "reason": "Sidebar/Tabbar/shell 重写关键"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "DataTable/FormDrawer/ConfirmDialog 约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "TanStack Store 菜单缓存方案 A"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "禁 any，oRPC 返回类型处理"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "借鉴 servora-iam/go-wind-admin 而非直接复制"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "getUserMenus 后端-前端数据契约"}

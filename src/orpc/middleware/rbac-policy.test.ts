@@ -1,125 +1,69 @@
 import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { authDb, db } from "#/db";
 
 /**
  * Policy integration tests.
  *
  * These tests run against the real database (same DATABASE_URL used by the app).
- * They verify the four key policy paths defined in the RBAC schema:
- *   1. unauthenticated — all denied
- *   2. own-record — UserRole readable by the owning user
- *   3. cross-user-deny — non-admin cannot write protected tables
- *   4. admin-override — super-admin can write everything
+ * They verify the core policy paths defined in the schema:
+ *   1. unauthenticated — all write operations denied
+ *   2. authenticated read — any logged-in user can read Menu
+ *   3. admin write — isAdmin user can mutate Menu
+ *   4. non-admin write — regular user cannot mutate Menu
  */
 describe("RBAC Policy paths", () => {
-	// Seed IDs captured during setup
-	let superAdminRoleId: number;
-	let viewerRoleId: number;
-	let aliceId: string;
-	let bobId: string;
-
-	beforeAll(async () => {
-		// Wipe RBAC tables in safe order
-		await db.rolePermission.deleteMany({});
-		await db.userRole.deleteMany({});
-		await db.role.deleteMany({});
-
-		// Create test roles
-		const superRole = await db.role.create({
-			data: {
-				name: "Super Admin",
-				code: "super-admin",
-				status: "ACTIVE",
-				order: 0,
-			},
-		});
-		const viewerRole = await db.role.create({
-			data: { name: "Viewer", code: "viewer", status: "ACTIVE", order: 1 },
-		});
-		superAdminRoleId = superRole.id;
-		viewerRoleId = viewerRole.id;
-
-		// Fake user IDs (Better Auth users aren't seeded in unit tests)
-		aliceId = "test-user-alice";
-		bobId = "test-user-bob";
-
-		// Assign super-admin to alice, viewer to bob
-		await db.userRole.create({
-			data: { userId: aliceId, roleId: superAdminRoleId },
-		});
-		await db.userRole.create({ data: { userId: bobId, roleId: viewerRoleId } });
-	});
-
-	afterAll(async () => {
-		await db.userRole.deleteMany({
-			where: { userId: { in: [aliceId, bobId] } },
-		});
-		await db.role.deleteMany({
-			where: { id: { in: [superAdminRoleId, viewerRoleId] } },
-		});
-	});
+	const aliceId = "test-user-alice-policy";
+	const bobId = "test-user-bob-policy";
 
 	// --- 1. Unauthenticated ---
 
 	describe("unauthenticated (no $setAuth)", () => {
-		it("reads are filtered to empty (auth==null, @@deny read)", async () => {
+		it("reads are filtered to empty (auth==null, @@deny all)", async () => {
 			// ZenStack v3: read policy violations → filtered results (not thrown)
-			const roles = await authDb.role.findMany();
-			expect(roles).toHaveLength(0);
+			const menus = await authDb.menu.findMany();
+			expect(Array.isArray(menus)).toBe(true);
+			expect(menus).toHaveLength(0);
+		});
+
+		it("unauthenticated write is rejected by policy", async () => {
 			await expect(
-				authDb.role.create({
-					data: { name: "X", code: "x", status: "ACTIVE", order: 99 },
+				authDb.menu.create({
+					data: {
+						name: "test-policy-unauthed",
+						type: "MENU",
+						status: "ACTIVE",
+						order: 999,
+					},
 				}),
-			).rejects.toThrow();
+			).rejects.toSatisfy((err: unknown) => err instanceof ORMError);
 		});
 	});
 
-	// --- 2. Own-record (UserRole) ---
+	// --- 2. Authenticated read ---
 
-	describe("own-record: UserRole visible to owning user", () => {
-		it("bob can read his own UserRole", async () => {
+	describe("authenticated: any user can read menus", () => {
+		it("bob (non-admin) can read menus (returns array)", async () => {
 			const bobDb = authDb.$setAuth({ userId: bobId, isAdmin: false });
-			const rows = await bobDb.userRole.findMany();
-			expect(rows).toHaveLength(1);
-			expect(rows[0].userId).toBe(bobId);
-		});
-
-		it("alice cannot see bob's UserRole when not admin", async () => {
-			// Alice is a super-admin, but let's test a hypothetical non-admin user
-			// by creating a separate test case with a plain viewer perspective
-			const carolDb = authDb.$setAuth({
-				userId: "test-user-carol",
-				isAdmin: false,
-			});
-			const rows = await carolDb.userRole.findMany();
-			// carol has no UserRole records, so she should see empty array (not bob's)
-			expect(rows).toHaveLength(0);
+			const menus = await bobDb.menu.findMany();
+			expect(Array.isArray(menus)).toBe(true);
 		});
 	});
 
-	// --- 3. Cross-user-deny (non-admin cannot mutate) ---
+	// --- 3. Non-admin write denied ---
 
-	describe("cross-user-deny: viewer cannot write Role", () => {
-		it("bob (viewer) cannot create a role", async () => {
+	describe("non-admin cannot write Menu", () => {
+		it("bob (non-admin) cannot create a menu", async () => {
 			const bobDb = authDb.$setAuth({ userId: bobId, isAdmin: false });
 			await expect(
-				bobDb.role.create({
-					data: { name: "Hack", code: "hack", status: "ACTIVE", order: 99 },
+				bobDb.menu.create({
+					data: {
+						name: "test-policy-bob-create",
+						type: "MENU",
+						status: "ACTIVE",
+						order: 999,
+					},
 				}),
-			).rejects.toSatisfy((err: unknown) => {
-				return (
-					err instanceof ORMError &&
-					(err.reason === ORMErrorReason.REJECTED_BY_POLICY ||
-						err.reason === ORMErrorReason.NOT_FOUND)
-				);
-			});
-		});
-
-		it("bob (viewer) cannot delete a role", async () => {
-			const bobDb = authDb.$setAuth({ userId: bobId, isAdmin: false });
-			await expect(
-				bobDb.role.delete({ where: { id: superAdminRoleId } }),
 			).rejects.toSatisfy((err: unknown) => {
 				return (
 					err instanceof ORMError &&
@@ -130,40 +74,43 @@ describe("RBAC Policy paths", () => {
 		});
 	});
 
-	// --- 4. Admin-override ---
+	// --- 4. Admin override ---
 
-	describe("admin-override: super-admin can write everything", () => {
-		let tempRoleId: number;
+	describe("admin can write Menu", () => {
+		let tempMenuId: number;
 
-		it("alice (super-admin) can create a role", async () => {
+		it("alice (admin) can create a menu", async () => {
 			const aliceDb = authDb.$setAuth({ userId: aliceId, isAdmin: true });
-			const role = await aliceDb.role.create({
+			const menu = await aliceDb.menu.create({
 				data: {
-					name: "Temp",
-					code: "temp-policy-test",
+					name: "test-policy-alice-create",
+					type: "MENU",
 					status: "ACTIVE",
-					order: 99,
+					order: 999,
 				},
 			});
-			expect(role.id).toBeDefined();
-			tempRoleId = role.id;
+			expect(menu.id).toBeDefined();
+			tempMenuId = menu.id;
 		});
 
-		it("alice (super-admin) can delete that role", async () => {
+		it("alice (admin) can delete that menu", async () => {
 			const aliceDb = authDb.$setAuth({ userId: aliceId, isAdmin: true });
 			await expect(
-				aliceDb.role.delete({ where: { id: tempRoleId } }),
+				aliceDb.menu.delete({ where: { id: tempMenuId } }),
 			).resolves.toBeDefined();
 		});
 
-		it("alice (super-admin) can assign a role to another user", async () => {
-			const aliceDb = authDb.$setAuth({ userId: aliceId, isAdmin: true });
-			const ur = await aliceDb.userRole.create({
-				data: { userId: "test-user-dave", roleId: viewerRoleId },
+		it("direct db (no policy) can also write", async () => {
+			const menu = await db.menu.create({
+				data: {
+					name: "test-policy-direct-create",
+					type: "MENU",
+					status: "ACTIVE",
+					order: 998,
+				},
 			});
-			expect(ur.userId).toBe("test-user-dave");
-			// cleanup
-			await db.userRole.delete({ where: { id: ur.id } });
+			expect(menu.id).toBeDefined();
+			await db.menu.delete({ where: { id: menu.id } });
 		});
 	});
 });

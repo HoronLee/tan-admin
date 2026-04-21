@@ -45,110 +45,27 @@ model Todo {
   createdAt DateTime @default(now())
 }
 
-/// RBAC Role — supports self-referential hierarchy (parentId for sub-roles)
-model Role {
-  id          Int      @id @default(autoincrement())
-  name        String
-  code        String   @unique
-  description String?
-  parentId    Int?
-  parent      Role?    @relation("RoleTree", fields: [parentId], references: [id])
-  children    Role[]   @relation("RoleTree")
-  status      String   @default("ACTIVE")
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  userRoles       UserRole[]
-  rolePermissions RolePermission[]
-
-  @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
-  @@allow('all', auth().isAdmin == true)
-}
-
-/// RBAC Permission — atomic capability unit (MENU | BUTTON | API)
-model Permission {
-  id          Int      @id @default(autoincrement())
-  name        String
-  code        String   @unique
-  description String?
-  type        String   @default("MENU")
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-
-  rolePermissions RolePermission[]
-  permissionMenus PermissionMenu[]
-
-  @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
-  @@allow('all', auth().isAdmin == true)
-}
-
 /// Menu / Route tree node. meta is stored as typed JSONB.
 model Menu {
-  id        Int       @id @default(autoincrement())
-  type      String    @default("MENU")
-  path      String?
-  name      String?   @unique
-  component String?
-  redirect  String?
-  alias     String?
-  meta      MenuMeta? @json
-  parentId  Int?
-  parent    Menu?     @relation("MenuTree", fields: [parentId], references: [id])
-  children  Menu[]    @relation("MenuTree")
-  status    String    @default("ACTIVE")
-  order     Int       @default(0)
-  createdAt DateTime  @default(now())
-
-  permissionMenus PermissionMenu[]
-
-  @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
-  @@allow('all', auth().isAdmin == true)
-}
-
-/// User ↔ Role join table. userId matches Better Auth user.id (String UUID).
-model UserRole {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, roleId])
-
-  @@deny('all', auth() == null)
-  @@allow('read', auth() != null && userId == auth().userId)
-  @@allow('all', auth().isAdmin == true)
-}
-
-/// Role ↔ Permission join table.
-model RolePermission {
-  id           Int        @id @default(autoincrement())
-  roleId       Int
-  permissionId Int
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-
-  @@unique([roleId, permissionId])
-
-  @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
-  @@allow('all', auth().isAdmin == true)
-}
-
-/// Permission ↔ Menu join table.
-model PermissionMenu {
-  id           Int        @id @default(autoincrement())
-  permissionId Int
-  menuId       Int
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-
-  @@unique([permissionId, menuId])
+  id                 Int       @id @default(autoincrement())
+  type               String    @default("MENU")
+  path               String?
+  name               String?   @unique
+  component          String?
+  redirect           String?
+  alias              String?
+  meta               MenuMeta? @json
+  parentId           Int?
+  parent             Menu?     @relation("MenuTree", fields: [parentId], references: [id])
+  children           Menu[]    @relation("MenuTree")
+  status             String    @default("ACTIVE")
+  order              Int       @default(0)
+  /// Better Auth organization id (UUID). null = visible across all orgs.
+  organizationId     String?
+  /// Permission key required to view this menu node (format: "resource:action").
+  /// null = any authenticated user can view.
+  requiredPermission String?
+  createdAt          DateTime  @default(now())
 
   @@deny('all', auth() == null)
   @@allow('read', auth() != null)

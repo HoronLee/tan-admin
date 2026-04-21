@@ -5,17 +5,17 @@ import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("seed");
 
-async function bootstrapSuperAdmin(superAdminRoleId: number): Promise<void> {
+async function bootstrapSuperAdmin(): Promise<string | null> {
 	const email = env.SEED_SUPER_ADMIN_EMAIL;
 	const password = env.SEED_SUPER_ADMIN_PASSWORD;
 	if (!email || !password) {
 		log.info(
 			"SEED_SUPER_ADMIN_EMAIL / SEED_SUPER_ADMIN_PASSWORD not set — skipping super-admin bootstrap.",
 		);
-		return;
+		return null;
 	}
 
-	// Better Auth signUp is the canonical path for creating the user row —
+	// Better Auth signUpEmail is the canonical path for creating the user row —
 	// it hashes the password and populates auth-managed columns correctly.
 	// When the account already exists it throws; treat that as a success signal.
 	try {
@@ -24,10 +24,7 @@ async function bootstrapSuperAdmin(superAdminRoleId: number): Promise<void> {
 		});
 		log.info({ email }, "Super-admin user created via Better Auth.");
 	} catch {
-		log.info(
-			{ email },
-			"Super-admin user already exists — proceeding to bind role.",
-		);
+		log.info({ email }, "Super-admin user already exists — proceeding.");
 	}
 
 	const user = await db.$qbRaw
@@ -39,22 +36,13 @@ async function bootstrapSuperAdmin(superAdminRoleId: number): Promise<void> {
 	if (!user) {
 		log.warn(
 			{ email },
-			"Super-admin user lookup failed after sign-up attempt — skipping role bind.",
+			"Super-admin user lookup failed after sign-up attempt — skipping further setup.",
 		);
-		return;
+		return null;
 	}
 
-	const existing = await db.userRole.findFirst({
-		where: { userId: user.id, roleId: superAdminRoleId },
-	});
-	if (existing) {
-		log.info({ email }, "Super-admin role binding already in place.");
-		return;
-	}
-	await db.userRole.create({
-		data: { userId: user.id, roleId: superAdminRoleId },
-	});
-	log.info({ email, userId: user.id }, "Super-admin role bound.");
+	log.info({ email, userId: user.id }, "Super-admin user ready.");
+	return user.id;
 }
 
 async function main() {
@@ -71,62 +59,6 @@ async function main() {
 	});
 	log.info({ count: todos.count }, "Todos seeded.");
 
-	// --- Roles ---
-	const superAdmin = await db.role.upsert({
-		where: { code: "super-admin" },
-		update: {},
-		create: {
-			name: "Super Admin",
-			code: "super-admin",
-			description: "Full system access",
-			status: "ACTIVE",
-			order: 0,
-		},
-	});
-
-	await db.role.upsert({
-		where: { code: "admin" },
-		update: {},
-		create: {
-			name: "Admin",
-			code: "admin",
-			description: "Administrative access",
-			status: "ACTIVE",
-			order: 1,
-		},
-	});
-
-	await db.role.upsert({
-		where: { code: "viewer" },
-		update: {},
-		create: {
-			name: "Viewer",
-			code: "viewer",
-			description: "Read-only access",
-			status: "ACTIVE",
-			order: 2,
-		},
-	});
-
-	log.info("Roles seeded.");
-
-	// --- Permissions ---
-	const permDefs = [
-		{ name: "Role Management", code: "role:manage", type: "MENU" },
-		{ name: "Permission Management", code: "permission:manage", type: "MENU" },
-		{ name: "Menu Management", code: "menu:manage", type: "MENU" },
-		{ name: "User Management", code: "user:manage", type: "MENU" },
-		{ name: "Dashboard", code: "dashboard:view", type: "MENU" },
-	];
-	for (const p of permDefs) {
-		await db.permission.upsert({
-			where: { code: p.code },
-			update: {},
-			create: { ...p, status: "ACTIVE" },
-		});
-	}
-	log.info("Permissions seeded.");
-
 	// --- Menus (system skeleton) ---
 	const dashboardMenu = await db.menu.upsert({
 		where: { name: "dashboard" },
@@ -139,53 +71,35 @@ async function main() {
 			meta: { title: "Dashboard", icon: "LayoutDashboard", order: 1 },
 			status: "ACTIVE",
 			order: 1,
+			requiredPermission: null,
 		},
 	});
 
-	const systemMenu = await db.menu.upsert({
-		where: { name: "system" },
+	const adminMenu = await db.menu.upsert({
+		where: { name: "admin" },
 		update: {},
 		create: {
-			name: "system",
+			name: "admin",
 			type: "CATALOG",
-			path: "/system",
-			meta: { title: "System", icon: "Settings", order: 100 },
+			path: "/admin",
+			meta: { title: "Admin", icon: "ShieldCheck", order: 10 },
 			status: "ACTIVE",
-			order: 100,
+			order: 10,
+			requiredPermission: "user:read",
 		},
 	});
 
-	const systemMenuDefs = [
+	const adminMenuDefs = [
 		{
-			name: "system-role",
-			path: "/system/roles",
-			component: "system/roles",
-			title: "Roles",
-			order: 1,
-		},
-		{
-			name: "system-permission",
-			path: "/system/permissions",
-			component: "system/permissions",
-			title: "Permissions",
-			order: 2,
-		},
-		{
-			name: "system-menu",
-			path: "/system/menus",
-			component: "system/menus",
-			title: "Menus",
-			order: 3,
-		},
-		{
-			name: "system-user",
-			path: "/system/users",
-			component: "system/users",
+			name: "admin-users",
+			path: "/admin/users",
+			component: "admin/users",
 			title: "Users",
-			order: 4,
+			order: 1,
+			requiredPermission: "user:read",
 		},
 	];
-	for (const m of systemMenuDefs) {
+	for (const m of adminMenuDefs) {
 		await db.menu.upsert({
 			where: { name: m.name },
 			update: {},
@@ -194,34 +108,88 @@ async function main() {
 				type: "MENU",
 				path: m.path,
 				component: m.component,
-				parentId: systemMenu.id,
+				parentId: adminMenu.id,
 				meta: { title: m.title, order: m.order },
 				status: "ACTIVE",
 				order: m.order,
+				requiredPermission: m.requiredPermission,
 			},
 		});
 	}
 
+	const orgMenu = await db.menu.upsert({
+		where: { name: "organization" },
+		update: {},
+		create: {
+			name: "organization",
+			type: "MENU",
+			path: "/organization",
+			component: "organization",
+			meta: { title: "Organization", icon: "Building2", order: 20 },
+			status: "ACTIVE",
+			order: 20,
+			requiredPermission: "organization:read",
+		},
+	});
+
+	const menusMenu = await db.menu.upsert({
+		where: { name: "menus" },
+		update: {},
+		create: {
+			name: "menus",
+			type: "MENU",
+			path: "/menus",
+			component: "menus",
+			meta: { title: "Menus", icon: "Menu", order: 30 },
+			status: "ACTIVE",
+			order: 30,
+			requiredPermission: "menu:write",
+		},
+	});
+
+	const settingsMenu = await db.menu.upsert({
+		where: { name: "settings" },
+		update: {},
+		create: {
+			name: "settings",
+			type: "MENU",
+			path: "/settings",
+			component: "settings",
+			meta: { title: "Settings", icon: "Settings", order: 99 },
+			status: "ACTIVE",
+			order: 99,
+			requiredPermission: null,
+		},
+	});
+
 	log.info(
-		{ dashboardId: dashboardMenu.id, systemId: systemMenu.id },
+		{
+			dashboardId: dashboardMenu.id,
+			adminId: adminMenu.id,
+			orgId: orgMenu.id,
+			menusId: menusMenu.id,
+			settingsId: settingsMenu.id,
+		},
 		"Menus seeded.",
 	);
 
-	// --- Super-admin role permissions (all) ---
-	const allPerms = await db.permission.findMany();
-	for (const perm of allPerms) {
-		await db.rolePermission.upsert({
-			where: {
-				roleId_permissionId: { roleId: superAdmin.id, permissionId: perm.id },
-			},
-			update: {},
-			create: { roleId: superAdmin.id, permissionId: perm.id },
-		});
-	}
-	log.info("Super-admin role permissions seeded.");
-
 	// --- Super-admin user bootstrap (opt-in via env) ---
-	await bootstrapSuperAdmin(superAdmin.id);
+	const adminUserId = await bootstrapSuperAdmin();
+
+	// TODO(v2-S2): Create default organization via auth.api.organization.create
+	//   and add super-admin as owner after DB migration.
+	log.warn(
+		"TODO(v2-S2): Default organization creation deferred to S2 (requires auth:migrate + org tables).",
+	);
+
+	// TODO(v2-S2): Add super-admin to default org as owner:
+	//   await auth.api.organization.addMember({ userId: adminUserId, role: "owner", organizationId })
+	if (adminUserId) {
+		log.warn(
+			{ adminUserId },
+			"TODO(v2-S2): Bind super-admin to default organization as owner.",
+		);
+	}
 
 	log.info("Seed complete.");
 }

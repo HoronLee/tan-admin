@@ -7,7 +7,7 @@ import { pub } from "#/orpc/middleware/orm-error";
  * Authentication + RBAC middleware.
  *
  * 1. Validates session via Better Auth.
- * 2. Queries the UserRole table (raw db — no policy) to determine isAdmin.
+ * 2. Checks the admin plugin `role` field on the user to determine isAdmin.
  * 3. Binds a policy-enforced client to the oRPC context as `db`.
  *
  * Handlers that receive `context.db` get a user-scoped ZenStack client

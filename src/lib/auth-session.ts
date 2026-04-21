@@ -1,4 +1,3 @@
-import { db } from "#/db";
 import { auth } from "#/lib/auth";
 
 type SessionResult = Awaited<ReturnType<typeof auth.api.getSession>>;
@@ -11,6 +10,7 @@ export interface AuthSessionContext {
 		userId: string;
 		isAdmin: boolean;
 	};
+	activeOrganizationId: string | undefined;
 }
 
 function toHeaders(input: Request | Headers): Headers {
@@ -27,11 +27,14 @@ export async function getSessionUser(
 		return null;
 	}
 
-	const userRoles = await db.userRole.findMany({
-		where: { userId: session.user.id },
-		include: { role: true },
-	});
-	const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin");
+	// admin plugin adds `role` field to the user; "admin" role = isAdmin
+	const userRole = (session.user as { role?: string }).role;
+	const isAdmin = userRole === "admin";
+
+	// organization plugin adds `activeOrganizationId` to the session
+	const activeOrganizationId =
+		(session.session as { activeOrganizationId?: string })
+			.activeOrganizationId ?? undefined;
 
 	return {
 		session,
@@ -40,5 +43,6 @@ export async function getSessionUser(
 			userId: session.user.id,
 			isAdmin,
 		},
+		activeOrganizationId,
 	};
 }

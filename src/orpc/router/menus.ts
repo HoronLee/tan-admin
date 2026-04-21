@@ -38,10 +38,14 @@ const MenuBodySchema = z.object({
 	parentId: z.number().int().positive().optional(),
 	status: z.enum(["ACTIVE", "DISABLED"]).optional(),
 	order: z.number().int().min(0).optional(),
+	/// Better Auth organization id (UUID string). null = visible across all orgs.
+	organizationId: z.string().optional(),
+	/// Permission key required to view this menu node (format: "resource:action").
+	requiredPermission: z.string().optional(),
 });
 
 export const listMenus = authed
-	.input(z.object({}))
+	.input(z.object({}).optional())
 	.handler(async ({ context }) => {
 		// Return the full tree rooted at top-level nodes
 		return await context.db.menu.findMany({

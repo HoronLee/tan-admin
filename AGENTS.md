@@ -38,6 +38,7 @@ pnpm dlx shadcn@latest add button card ...
 详细前后端约定、目录职责、错误处理、state 分层、反模式见 `.trellis/spec/`：
 
 - [backend](./.trellis/spec/backend/index.md) — oRPC / ZenStack / Better Auth / MCP / 日志 / 错误
+  - ⚠️ **授权分层契约** 单独列出：[`backend/authorization-boundary.md`](./.trellis/spec/backend/authorization-boundary.md) — 身份层归 Better Auth、业务层归 ZenStack policy，是所有业务表设计的前提
 - [frontend](./.trellis/spec/frontend/index.md) — 组件 / hook / state / 类型 / 质量
 - [guides](./.trellis/spec/guides/index.md) — 跨层 & 复用思维
 

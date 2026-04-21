@@ -16,6 +16,7 @@ This directory documents backend-role conventions extracted from real code paths
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization, file layout, dual-stack (oRPC + ZenStack) topology | Filled |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations, PolicyPlugin, BA `@@ignore` tables | Filled |
+| [Authorization Boundary](./authorization-boundary.md) | Better Auth × ZenStack 权限分层契约，业务表 policy 范式 | Filled |
 | [Error Handling](./error-handling.md) | Error types, ZenStack HTTP error contract, single-source mapping | Filled |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards and forbidden patterns | Filled |
 | [Logging Guidelines](./logging-guidelines.md) | Logging behavior and guardrails | Filled |

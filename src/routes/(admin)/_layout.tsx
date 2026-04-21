@@ -1,5 +1,15 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Outlet,
+	redirect,
+	useLocation,
+} from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+import { useStore } from "@tanstack/react-store";
+import { useEffect } from "react";
 import AppSidebar from "#/components/layout/AppSidebar";
+import AppTabbar from "#/components/layout/AppTabbar";
 import ThemeToggle from "#/components/ThemeToggle";
 import { Separator } from "#/components/ui/separator";
 import {
@@ -8,12 +18,49 @@ import {
 	SidebarTrigger,
 } from "#/components/ui/sidebar";
 import BetterAuthHeader from "#/integrations/better-auth/header-user";
+import { getSessionUser } from "#/lib/auth-session";
+import { findMenuByPath, menuStore } from "#/stores/menu";
+import { addTab } from "#/stores/tabbar";
+
+const requireAuth = createServerFn({ method: "GET" }).handler(async () => {
+	const headers = new Headers(getRequestHeaders() as Record<string, string>);
+	const session = await getSessionUser(headers);
+	return Boolean(session);
+});
 
 export const Route = createFileRoute("/(admin)/_layout")({
+	beforeLoad: async () => {
+		const authenticated = await requireAuth();
+		if (!authenticated) {
+			throw redirect({ to: "/login" });
+		}
+	},
 	component: AdminLayout,
 });
 
+function useTabSync() {
+	const { pathname } = useLocation();
+	const { menus } = useStore(menuStore);
+
+	useEffect(() => {
+		// Resolve title from dynamic menu tree; fallback to last pathname segment
+		const menuNode = findMenuByPath(menus, pathname);
+		const menuTitle = menuNode?.meta?.title;
+		const fallbackTitle =
+			pathname.split("/").filter(Boolean).at(-1) ?? pathname;
+		const title = menuTitle ?? fallbackTitle;
+
+		addTab({
+			path: pathname,
+			title,
+			closable: pathname !== "/dashboard",
+		});
+	}, [pathname, menus]);
+}
+
 function AdminLayout() {
+	useTabSync();
+
 	return (
 		<SidebarProvider>
 			<AppSidebar />
@@ -34,6 +81,7 @@ function AdminLayout() {
 						<BetterAuthHeader />
 					</div>
 				</header>
+				<AppTabbar />
 				<div className="flex-1 p-4 sm:p-6">
 					<Outlet />
 				</div>

@@ -11,10 +11,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { Toaster } from "#/components/ui/sonner";
 import { getLocale } from "#/paraglide/runtime";
-import Footer from "../components/Footer";
-import Header from "../components/Header";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-import StoreDevtools from "../lib/demo-store-devtools";
 import appCss from "../styles.css?url";
 
 const initSentryClient = createIsomorphicFn()
@@ -34,8 +31,6 @@ const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getIte
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: async () => {
-		// Other redirect strategies are possible; see
-		// https://github.com/TanStack/router/tree/main/examples/react/i18n-paraglide#offline-redirect
 		if (typeof document !== "undefined") {
 			document.documentElement.setAttribute("lang", getLocale());
 		}
@@ -51,7 +46,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "TanStack Start Starter",
+				title: "Tan Admin",
 			},
 		],
 		links: [
@@ -100,10 +95,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-[rgba(79,184,178,0.24)]">
-				<Header />
+			<body className="font-sans antialiased [overflow-wrap:anywhere]">
 				{children}
-				<Footer />
 				<Toaster position="top-right" />
 				<TanStackDevtools
 					config={{
@@ -114,7 +107,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 							name: "Tanstack Router",
 							render: <TanStackRouterDevtoolsPanel />,
 						},
-						StoreDevtools,
 						TanStackQueryDevtools,
 					]}
 				/>

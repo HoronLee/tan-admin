@@ -95,6 +95,12 @@ importers:
       '@zenstackhq/schema':
         specifier: ^3.5.6
         version: 3.5.6
+      '@zenstackhq/server':
+        specifier: 3.5.6
+        version: 3.5.6(express@5.2.1)(hono@4.12.14)(pg@8.20.0)(zod@4.3.6)
+      '@zenstackhq/tanstack-query':
+        specifier: 3.5.6
+        version: 3.5.6(@tanstack/react-query@5.99.0(react@19.2.5))
       better-auth:
         specifier: ^1.5.3
         version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@7.7.0(prisma@7.7.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3))(typescript@5.9.3))(@tanstack/react-start@1.167.41(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.8(@types/node@22.19.17)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)))(pg@8.20.0)(prisma@7.7.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(solid-js@1.9.12)(vitest@3.2.4(@types/node@22.19.17)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.2.0))(lightningcss@1.32.0)(tsx@4.21.0))
@@ -2797,6 +2803,9 @@ packages:
       pg:
         optional: true
 
+  '@zenstackhq/client-helpers@3.5.6':
+    resolution: {integrity: sha512-J5w1qTVnGyWYD25EftbWWdMz9pfKabfJGwUp4Z7FVsU+yrT8+CzoyxK6lfYLpGQ5IaOwn+ti4ejr45uQyBvRLQ==}
+
   '@zenstackhq/common-helpers@3.5.6':
     resolution: {integrity: sha512-yh380RGsTq7g6pYjKIwAcKYtY7MdEzr8afzrnr2BfkTH90ETOvSIqLppNxWHTL2b8bnKsfHssHwxQ50z0tfjyg==}
 
@@ -2860,6 +2869,20 @@ packages:
       next:
         optional: true
       nuxt:
+        optional: true
+
+  '@zenstackhq/tanstack-query@3.5.6':
+    resolution: {integrity: sha512-4frE86rU7sLivcxFj4zrfLEv4IxTt6V7xdjGUKdl7NeUqTPmWMFCkibqGfWk+SoABiDwonG0PRcNHkYNjOnOsQ==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.0.0
+      '@tanstack/svelte-query': ^6.0.0
+      '@tanstack/vue-query': ^5.0.0
+    peerDependenciesMeta:
+      '@tanstack/react-query':
+        optional: true
+      '@tanstack/svelte-query':
+        optional: true
+      '@tanstack/vue-query':
         optional: true
 
   '@zenstackhq/zod@3.5.6':
@@ -7929,6 +7952,13 @@ snapshots:
       - supports-color
       - typescript
 
+  '@zenstackhq/client-helpers@3.5.6':
+    dependencies:
+      '@zenstackhq/common-helpers': 3.5.6
+      '@zenstackhq/schema': 3.5.6
+      decimal.js: 10.6.0
+      superjson: 2.2.6
+
   '@zenstackhq/common-helpers@3.5.6': {}
 
   '@zenstackhq/language@3.5.6':
@@ -8005,6 +8035,15 @@ snapshots:
       - mysql2
       - pg
       - sql.js
+
+  '@zenstackhq/tanstack-query@3.5.6(@tanstack/react-query@5.99.0(react@19.2.5))':
+    dependencies:
+      '@zenstackhq/client-helpers': 3.5.6
+      '@zenstackhq/common-helpers': 3.5.6
+      '@zenstackhq/schema': 3.5.6
+      decimal.js: 10.6.0
+    optionalDependencies:
+      '@tanstack/react-query': 5.99.0(react@19.2.5)
 
   '@zenstackhq/zod@3.5.6(zod@4.3.6)':
     dependencies:

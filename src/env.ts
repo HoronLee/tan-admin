@@ -17,6 +17,8 @@ export const env = createEnv({
 		LOG_MAX_FILES: z.coerce.number().int().positive().optional(),
 		BETTER_AUTH_SECRET: z.string().min(32),
 		BETTER_AUTH_URL: z.string().url(),
+		SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
+		SEED_SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
 	},
 
 	/**
@@ -53,6 +55,8 @@ export const env = createEnv({
 		LOG_MAX_FILES: process.env.LOG_MAX_FILES,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+		SEED_SUPER_ADMIN_EMAIL: process.env.SEED_SUPER_ADMIN_EMAIL,
+		SEED_SUPER_ADMIN_PASSWORD: process.env.SEED_SUPER_ADMIN_PASSWORD,
 		// Client vars — Vite exposes VITE_* via import.meta.env at build time;
 		// in Node.js contexts (tsx scripts, vitest) fall back to process.env.
 		VITE_APP_TITLE:

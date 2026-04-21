@@ -64,4 +64,36 @@ describe("reportError", () => {
 		expect(sentryCapture).toHaveBeenCalledWith(err);
 		expect(toastError).not.toHaveBeenCalled();
 	});
+
+	it("maps ZenStack policy errors to the same FORBIDDEN toast", () => {
+		const err = Object.assign(new Error("fetch failed"), {
+			status: 403,
+			info: {
+				reason: "rejected-by-policy",
+				message: "policy denied",
+			},
+		});
+
+		reportError(err);
+
+		expect(toastError).toHaveBeenCalledWith(
+			"You do not have permission to perform this action.",
+		);
+		expect(sentryCapture).not.toHaveBeenCalled();
+	});
+
+	it("keeps ZenStack invalid-input silent for form-level rendering", () => {
+		const err = Object.assign(new Error("fetch failed"), {
+			status: 422,
+			info: {
+				reason: "invalid-input",
+				message: "invalid payload",
+			},
+		});
+
+		reportError(err);
+
+		expect(toastError).not.toHaveBeenCalled();
+		expect(sentryCapture).not.toHaveBeenCalled();
+	});
 });

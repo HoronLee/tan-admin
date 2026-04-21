@@ -1,6 +1,11 @@
 import { isDefinedError } from "@orpc/client";
 import * as Sentry from "@sentry/tanstackstart-react";
 import { toast } from "sonner";
+import {
+	APP_ERROR_MESSAGES,
+	getZenStackHttpError,
+	mapZenStackReasonToCode,
+} from "#/lib/zenstack-error-map";
 
 export interface ReportOptions {
 	/** Fallback message when the error is not a typed ORPCError. */
@@ -41,6 +46,21 @@ export function reportError(error: unknown, options: ReportOptions = {}): void {
 		}
 		if (!silent) {
 			toast.error(definedError.message || fallback);
+		}
+		return;
+	}
+
+	const zenStackError = getZenStackHttpError(error);
+	if (zenStackError) {
+		const code = mapZenStackReasonToCode(
+			zenStackError.reason,
+			zenStackError.dbErrorCode,
+		);
+		if (code === "INPUT_VALIDATION_FAILED") {
+			return;
+		}
+		if (!silent) {
+			toast.error(APP_ERROR_MESSAGES[code] ?? fallback);
 		}
 		return;
 	}

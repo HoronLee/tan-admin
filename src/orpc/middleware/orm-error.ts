@@ -1,13 +1,12 @@
-import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
+import { ORMError } from "@zenstackhq/orm";
 import { createModuleLogger } from "#/lib/logger";
+import {
+	mapZenStackReasonToCode,
+	SQLSTATE_FOREIGN_KEY_VIOLATION,
+} from "#/lib/zenstack-error-map";
 import { base } from "#/orpc/errors";
 
 const log = createModuleLogger("orpc:orm");
-
-// Postgres SQLSTATE codes we special-case into typed oRPC errors.
-// https://www.postgresql.org/docs/current/errcodes-appendix.html
-const SQLSTATE_UNIQUE_VIOLATION = "23505";
-const SQLSTATE_FOREIGN_KEY_VIOLATION = "23503";
 
 function flattenFieldErrors(err: ORMError): {
 	formErrors: string[];
@@ -45,40 +44,40 @@ export const ormErrorMiddleware = base.middleware(async ({ next, errors }) => {
 			"zenstack ORM error",
 		);
 
-		switch (err.reason) {
-			case ORMErrorReason.NOT_FOUND:
+		const dbErrorCode =
+			typeof err.dbErrorCode === "string" ? err.dbErrorCode : undefined;
+		const mappedCode = mapZenStackReasonToCode(err.reason, dbErrorCode);
+
+		switch (mappedCode) {
+			case "NOT_FOUND":
 				throw errors.NOT_FOUND({
 					message: "Resource not found.",
 					cause: err,
 				});
-			case ORMErrorReason.REJECTED_BY_POLICY:
+			case "FORBIDDEN":
 				throw errors.FORBIDDEN({
 					message: "You do not have permission to perform this action.",
 					cause: err,
 				});
-			case ORMErrorReason.INVALID_INPUT:
+			case "INPUT_VALIDATION_FAILED":
 				throw errors.INPUT_VALIDATION_FAILED({
 					message: err.message,
 					data: flattenFieldErrors(err),
 					cause: err,
 				});
-			case ORMErrorReason.DB_QUERY_ERROR: {
-				const code =
-					typeof err.dbErrorCode === "string" ? err.dbErrorCode : undefined;
-				if (code === SQLSTATE_UNIQUE_VIOLATION) {
-					throw errors.CONFLICT({
-						message: "Resource already exists.",
-						cause: err,
-					});
-				}
-				if (code === SQLSTATE_FOREIGN_KEY_VIOLATION) {
-					throw errors.BAD_REQUEST({
-						message: "Referenced resource does not exist.",
-						cause: err,
-					});
-				}
-				throw err;
-			}
+			case "CONFLICT":
+				throw errors.CONFLICT({
+					message: "Resource already exists.",
+					cause: err,
+				});
+			case "BAD_REQUEST":
+				throw errors.BAD_REQUEST({
+					message:
+						dbErrorCode === SQLSTATE_FOREIGN_KEY_VIOLATION
+							? "Referenced resource does not exist."
+							: "Bad request.",
+					cause: err,
+				});
 			default:
 				throw err;
 		}

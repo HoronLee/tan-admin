@@ -1,7 +1,61 @@
 import { db } from "#/db";
+import { env } from "#/env";
+import { auth } from "#/lib/auth";
 import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("seed");
+
+async function bootstrapSuperAdmin(superAdminRoleId: number): Promise<void> {
+	const email = env.SEED_SUPER_ADMIN_EMAIL;
+	const password = env.SEED_SUPER_ADMIN_PASSWORD;
+	if (!email || !password) {
+		log.info(
+			"SEED_SUPER_ADMIN_EMAIL / SEED_SUPER_ADMIN_PASSWORD not set — skipping super-admin bootstrap.",
+		);
+		return;
+	}
+
+	// Better Auth signUp is the canonical path for creating the user row —
+	// it hashes the password and populates auth-managed columns correctly.
+	// When the account already exists it throws; treat that as a success signal.
+	try {
+		await auth.api.signUpEmail({
+			body: { email, password, name: "Super Admin" },
+		});
+		log.info({ email }, "Super-admin user created via Better Auth.");
+	} catch {
+		log.info(
+			{ email },
+			"Super-admin user already exists — proceeding to bind role.",
+		);
+	}
+
+	const user = await db.$qbRaw
+		.selectFrom("user")
+		.where("email", "=", email)
+		.select(["id"])
+		.executeTakeFirst();
+
+	if (!user) {
+		log.warn(
+			{ email },
+			"Super-admin user lookup failed after sign-up attempt — skipping role bind.",
+		);
+		return;
+	}
+
+	const existing = await db.userRole.findFirst({
+		where: { userId: user.id, roleId: superAdminRoleId },
+	});
+	if (existing) {
+		log.info({ email }, "Super-admin role binding already in place.");
+		return;
+	}
+	await db.userRole.create({
+		data: { userId: user.id, roleId: superAdminRoleId },
+	});
+	log.info({ email, userId: user.id }, "Super-admin role bound.");
+}
 
 async function main() {
 	log.info("Seeding database…");
@@ -165,6 +219,9 @@ async function main() {
 		});
 	}
 	log.info("Super-admin role permissions seeded.");
+
+	// --- Super-admin user bootstrap (opt-in via env) ---
+	await bootstrapSuperAdmin(superAdmin.id);
 
 	log.info("Seed complete.");
 }

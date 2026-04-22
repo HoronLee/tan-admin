@@ -34,13 +34,19 @@ function validateTransportEnv(): void {
 	}
 
 	if (transport === "smtp") {
-		const missing: string[] = [];
-		if (!env.SMTP_HOST) missing.push("SMTP_HOST");
-		if (!env.SMTP_USER) missing.push("SMTP_USER");
-		if (!env.SMTP_PASS) missing.push("SMTP_PASS");
-		if (missing.length > 0) {
+		if (!env.SMTP_HOST) {
 			throw new Error(
-				`[email-transport] EMAIL_TRANSPORT=smtp requires: ${missing.join(", ")}. ` +
+				"[email-transport] EMAIL_TRANSPORT=smtp requires SMTP_HOST. " +
+					"Check your .env / deployment config.",
+			);
+		}
+		// SMTP_USER + SMTP_PASS are optional: local relays (mailpit / maildev /
+		// postfix) accept unauthenticated submissions. If one is set, both must be.
+		const hasUser = Boolean(env.SMTP_USER);
+		const hasPass = Boolean(env.SMTP_PASS);
+		if (hasUser !== hasPass) {
+			throw new Error(
+				"[email-transport] SMTP_USER and SMTP_PASS must be set together, or neither. " +
 					"Check your .env / deployment config.",
 			);
 		}
@@ -71,17 +77,16 @@ function buildConsoleDriver(): Driver {
 }
 
 function buildSmtpDriver(): Driver {
-	// Safe non-null assertions: validateTransportEnv() guarantees these.
+	// SMTP_HOST is guaranteed by validateTransportEnv(); auth is opt-in.
 	const transporter: Transporter = nodemailer.createTransport({
 		host: env.SMTP_HOST as string,
 		port: env.SMTP_PORT,
 		// Port 465 uses implicit TLS → secure:true; 587/25 use STARTTLS → secure:false.
 		secure: env.SMTP_SECURE,
 		requireTLS: !env.SMTP_SECURE && env.SMTP_PORT === 587,
-		auth: {
-			user: env.SMTP_USER as string,
-			pass: env.SMTP_PASS as string,
-		},
+		auth: env.SMTP_USER
+			? { user: env.SMTP_USER, pass: env.SMTP_PASS as string }
+			: undefined,
 		pool: true,
 	});
 

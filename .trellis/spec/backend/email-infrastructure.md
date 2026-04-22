@@ -69,7 +69,7 @@ All templates wrap `<EmailLayout preview=...>` from `src/emails/components/email
 | `EMAIL_TRANSPORT` | Required env | Behaviour |
 |---|---|---|
 | `console` (dev default) | none | Logs subject + first URL found in body. No network call. |
-| `smtp` | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (+ `SMTP_PORT` / `SMTP_SECURE` opt) | `nodemailer` pool; `verify()` on boot (warn-only); `sendMail({ from, to, subject, html, text })`. |
+| `smtp` | `SMTP_HOST` required; `SMTP_USER` + `SMTP_PASS` both-or-neither (unauth relays like mailpit/maildev work without); `SMTP_PORT` / `SMTP_SECURE` opt | `nodemailer` pool; `verify()` on boot (warn-only); `auth: undefined` when creds absent. |
 | `resend` | `RESEND_API_KEY` | `Resend().emails.send(...)`; throws on non-null `{ error }` result. |
 
 Always-required: `EMAIL_FROM`; optional `EMAIL_FROM_NAME` composes `"Name" <address>`.
@@ -77,7 +77,7 @@ Always-required: `EMAIL_FROM`; optional `EMAIL_FROM_NAME` composes `"Name" <addr
 ### Boot-time validation (`validateTransportEnv()` at module load)
 
 - `appConfig.env === "prod"` **and** `EMAIL_TRANSPORT === "console"` → throw. Stops prod from silently swallowing emails.
-- `smtp` missing any of `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` → throw naming missing fields.
+- `smtp` missing `SMTP_HOST` → throw. `SMTP_USER` XOR `SMTP_PASS` (one set, the other empty) → throw. Both empty is valid (local relay path).
 - `resend` without `RESEND_API_KEY` → throw.
 
 Runs **once at import time**. Mis-configured deployment crashes before serving traffic — not 30 min later on first verify email.
@@ -124,7 +124,9 @@ organization({
 
 | Condition | Expected |
 |---|---|
-| `smtp` missing creds | Module load throws naming missing field |
+| `smtp` missing `SMTP_HOST` | Module load throws |
+| `smtp` has `SMTP_USER` xor `SMTP_PASS` | Module load throws (both-or-neither) |
+| `smtp` with neither creds | Valid; `auth: undefined`, works for mailpit/maildev/local relay |
 | `resend` missing key | Module load throws |
 | `APP_ENV=prod` + `console` | Module load throws |
 | `EMAIL_FROM_NAME` unset | From header = bare `EMAIL_FROM` |

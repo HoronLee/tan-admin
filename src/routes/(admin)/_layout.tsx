@@ -10,6 +10,7 @@ import { useStore } from "@tanstack/react-store";
 import { useEffect } from "react";
 import AppSidebar from "#/components/layout/AppSidebar";
 import AppTabbar from "#/components/layout/AppTabbar";
+import OrganizationSwitcher from "#/components/layout/OrganizationSwitcher";
 import ThemeToggle from "#/components/ThemeToggle";
 import { Separator } from "#/components/ui/separator";
 import {
@@ -80,6 +81,7 @@ function AdminLayout() {
 						</h1>
 					</div>
 					<div className="flex items-center gap-2">
+						<OrganizationSwitcher />
 						<ThemeToggle />
 						<UserButton size="icon" themeToggle={false} align="end" />
 					</div>

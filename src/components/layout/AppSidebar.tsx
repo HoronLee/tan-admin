@@ -4,6 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import type { LucideIcon } from "lucide-react";
 import {
 	BookOpenIcon,
+	Building2Icon,
 	BuildingIcon,
 	FileTextIcon,
 	KeyIcon,
@@ -47,6 +48,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	Menu: MenuIcon,
 	Settings: SettingsIcon,
 	Building: BuildingIcon,
+	Building2: Building2Icon,
 	FileText: FileTextIcon,
 	Lock: LockIcon,
 	List: ListIcon,

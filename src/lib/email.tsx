@@ -90,35 +90,15 @@ function buildFromAddress(): string {
 	return name ? `"${name}" <${env.EMAIL_FROM}>` : env.EMAIL_FROM;
 }
 
-function shouldSkip(to: string): boolean {
-	const list = env.EMAIL_VERIFICATION_SKIP_LIST;
-	if (!list) return false;
-	const normalized = to.trim().toLowerCase();
-	return list
-		.split(",")
-		.map((entry) => entry.trim().toLowerCase())
-		.filter(Boolean)
-		.includes(normalized);
-}
-
 /**
  * High-level email entry point. Renders a react-email template, resolves the
- * from address, honours the dev skip-list, and dispatches through the
- * configured transport.
+ * from address, and dispatches through the configured transport.
  *
  * Errors propagate — callers decide whether to retry / surface to the user.
  * Better Auth's `sendVerificationEmail` etc. call this outside of the signup
  * transaction, so a thrown error will NOT roll back the signup.
  */
 export async function sendEmail(payload: EmailPayload): Promise<void> {
-	if (shouldSkip(payload.to)) {
-		log.info(
-			{ to: payload.to, type: payload.type },
-			"Email skipped — address is in EMAIL_VERIFICATION_SKIP_LIST.",
-		);
-		return;
-	}
-
 	const { subject, html, text } = await renderTemplate(payload);
 	const from = buildFromAddress();
 

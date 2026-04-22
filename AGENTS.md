@@ -61,10 +61,11 @@ VITE_TEAM_ENABLED=false
 ```bash
 SEED_SUPER_ADMIN_EMAIL=admin@acme.com
 SEED_SUPER_ADMIN_PASSWORD=...
-
-# dev 场景加入跳过列表，省去邮箱验证
-EMAIL_VERIFICATION_SKIP_LIST=admin@acme.com
 ```
+
+seed 走 `internalAdapter.createUser`（绕过 signUpEmail 的 verification hook），直接 `emailVerified=true` 落库，首次启动即可登录。
+
+dev 测试账号免验证：`APP_ENV=dev` 时以 `@dev.com` 结尾的邮箱注册后自动标 verified、不发验证邮件（`src/lib/auth.ts` 里硬编码约定）。
 
 详见 `.trellis/spec/backend/tenancy-modes.md` 和 `.trellis/spec/backend/email-infrastructure.md`。
 

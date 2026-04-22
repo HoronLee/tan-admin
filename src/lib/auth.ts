@@ -1,3 +1,5 @@
+import "@tanstack/react-start/server-only";
+
 import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { admin, multiSession, organization } from "better-auth/plugins";
@@ -9,6 +11,22 @@ import { createModuleLogger } from "#/lib/logger";
 import { ac, adminRole, member, owner } from "#/lib/permissions";
 
 const log = createModuleLogger("better-auth");
+
+// Dev convenience: addresses at `@dev.com` skip verification entirely — we
+// flip `emailVerified` to true in-place and don't dispatch the email. Avoids
+// touching mailpit for throwaway test accounts. Production unaffected.
+//
+// Don't import `appConfig` here — it pulls `node:os` transitively and taints
+// the client bundle whenever a route file imports a serverFn from this tree
+// (see auth-session.ts). Compute the flag from `env` + `process.env` locally.
+const DEV_AUTO_VERIFY_DOMAIN = "@dev.com";
+const IS_DEV_MODE =
+	env.APP_ENV === "dev" ||
+	(env.APP_ENV === undefined && process.env.NODE_ENV !== "production");
+
+function isDevAutoVerifyEmail(email: string): boolean {
+	return IS_DEV_MODE && email.toLowerCase().endsWith(DEV_AUTO_VERIFY_DOMAIN);
+}
 
 export const auth = betterAuth({
 	database: pool,
@@ -26,6 +44,17 @@ export const auth = betterAuth({
 	},
 	emailVerification: {
 		sendVerificationEmail: async ({ user, url }) => {
+			if (isDevAutoVerifyEmail(user.email)) {
+				await pool.query(
+					'UPDATE "user" SET "emailVerified" = true WHERE id = $1',
+					[user.id],
+				);
+				log.info(
+					{ email: user.email },
+					"Dev auto-verify: marked emailVerified=true, skipped send.",
+				);
+				return;
+			}
 			await sendEmail({
 				type: "verify",
 				to: user.email,

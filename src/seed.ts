@@ -162,40 +162,58 @@ async function bootstrapSuperAdmin(): Promise<string | null> {
 		return null;
 	}
 
-	// Better Auth signUpEmail is the canonical path for creating the user row —
-	// it hashes the password and populates auth-managed columns correctly.
-	// When the account already exists it throws; treat that as a success signal.
-	try {
-		await auth.api.signUpEmail({
-			body: { email, password, name: "Super Admin" },
-		});
-		log.info({ email }, "Super-admin user created via Better Auth.");
-	} catch {
-		log.info({ email }, "Super-admin user already exists — proceeding.");
-	}
-
-	const user = await db.$qbRaw
+	const existing = await db.$qbRaw
 		.selectFrom("user")
 		.where("email", "=", email)
 		.select(["id"])
 		.executeTakeFirst();
 
-	if (!user) {
+	if (existing) {
+		// Keep role / emailVerified authoritative across re-runs: seed owns this
+		// account, so normalize it every time even if a prior seed or manual
+		// update drifted the columns.
+		await pool.query(
+			'UPDATE "user" SET role = $1, "emailVerified" = true WHERE id = $2',
+			["admin", existing.id],
+		);
+		log.info(
+			{ email, userId: existing.id },
+			"Super-admin already exists, normalized.",
+		);
+		return existing.id;
+	}
+
+	// Skip the public signUpEmail API: it fires the verification email hook and
+	// leaves emailVerified=false. Super-admin is a seed-strapped account that
+	// must be login-ready on first boot, so create the user + credential row
+	// directly via internalAdapter.
+	const ctx = await auth.$context;
+	const hash = await ctx.password.hash(password);
+	const created = await ctx.internalAdapter.createUser({
+		email,
+		name: "Super Admin",
+		emailVerified: true,
+		role: "admin",
+	});
+	if (!created) {
 		log.warn(
 			{ email },
-			"Super-admin user lookup failed after sign-up attempt — skipping further setup.",
+			"internalAdapter.createUser returned empty — aborting.",
 		);
 		return null;
 	}
+	await ctx.internalAdapter.linkAccount({
+		userId: created.id,
+		providerId: "credential",
+		accountId: created.id,
+		password: hash,
+	});
 
-	// Promote to admin role (admin plugin gates isAdmin on user.role === "admin").
-	await pool.query(
-		'UPDATE "user" SET role = $1 WHERE id = $2 AND (role IS DISTINCT FROM $1)',
-		["admin", user.id],
+	log.info(
+		{ email, userId: created.id },
+		"Super-admin created (internalAdapter, emailVerified=true).",
 	);
-
-	log.info({ email, userId: user.id }, "Super-admin user ready.");
-	return user.id;
+	return created.id;
 }
 
 /**
@@ -288,7 +306,15 @@ async function main() {
 	log.info("Seed complete.");
 }
 
-main().catch((err: unknown) => {
-	log.error({ err }, "Seed failed.");
-	process.exit(1);
-});
+main()
+	.catch((err: unknown) => {
+		log.error({ err }, "Seed failed.");
+		process.exitCode = 1;
+	})
+	.finally(async () => {
+		// nodemailer SMTP pool + pg Pool hold sockets open — without these the
+		// CLI never exits. Force-exit after pool.end() to cover any other
+		// lingering handles (BA internals, etc.).
+		await pool.end().catch(() => {});
+		process.exit(process.exitCode ?? 0);
+	});

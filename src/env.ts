@@ -33,7 +33,6 @@ export const env = createEnv({
 		EMAIL_TRANSPORT: z.enum(["console", "smtp", "resend"]).default("console"),
 		EMAIL_FROM: z.string().email().default("noreply@localhost"),
 		EMAIL_FROM_NAME: z.string().optional(),
-		EMAIL_VERIFICATION_SKIP_LIST: z.string().default(""),
 
 		// SMTP driver
 		SMTP_HOST: z.string().optional(),
@@ -101,7 +100,6 @@ export const env = createEnv({
 		EMAIL_TRANSPORT: process.env.EMAIL_TRANSPORT,
 		EMAIL_FROM: process.env.EMAIL_FROM,
 		EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME,
-		EMAIL_VERIFICATION_SKIP_LIST: process.env.EMAIL_VERIFICATION_SKIP_LIST,
 		SMTP_HOST: process.env.SMTP_HOST,
 		SMTP_PORT: process.env.SMTP_PORT,
 		SMTP_SECURE: process.env.SMTP_SECURE,

@@ -26,7 +26,6 @@ export async function sendEmail(payload: EmailPayload): Promise<void>;
 
 - Discriminated union — each template's required props are checked at call site.
 - Subject resolved via Paraglide `m.email_subject_*()` (i18n).
-- Honours `EMAIL_VERIFICATION_SKIP_LIST` (dev skip).
 - Renders HTML + plaintext fallback via `render` + `toPlainText` from `@react-email/render`.
 
 ### Low-level driver (`src/lib/email-transport.ts`)
@@ -82,9 +81,9 @@ Always-required: `EMAIL_FROM`; optional `EMAIL_FROM_NAME` composes `"Name" <addr
 
 Runs **once at import time**. Mis-configured deployment crashes before serving traffic — not 30 min later on first verify email.
 
-### Skip-list
+### Dev auto-verify domain
 
-`EMAIL_VERIFICATION_SKIP_LIST` is comma-separated. `sendEmail` compares each entry case-insensitively after `trim().toLowerCase()`. Matching → logged as skipped, returns without render/dispatch. Intended for dev (e.g. `admin@tan-admin.local`). **Keep empty in production.**
+`APP_ENV=dev` + signup email ending in `@dev.com` → `sendVerificationEmail` hook flips `user.emailVerified=true` in-place via shared `pool` and skips dispatch. Hardcoded in `src/lib/auth.ts` (`DEV_AUTO_VERIFY_DOMAIN`). Prod and non-matching addresses go through normal verification. Super-admin seed bypasses this path entirely via `internalAdapter.createUser({ emailVerified: true })`.
 
 ### Template / transport interaction
 
@@ -131,7 +130,7 @@ organization({
 | `APP_ENV=prod` + `console` | Module load throws |
 | `EMAIL_FROM_NAME` unset | From header = bare `EMAIL_FROM` |
 | `EMAIL_FROM_NAME` set | From header = `"Name" <email>` |
-| `to` in skip-list (case-insensitive) | Logged, no render/send |
+| `APP_ENV=dev` + `user.email` ends `@dev.com` | `sendVerificationEmail` sets `emailVerified=true`, skips dispatch |
 | SMTP `verify()` fails at boot | Warn-only; provider may reject verify but accept `sendMail` |
 | `sendMail` throws in BA hook | `sendEmail` logs + rethrows; BA hook is post-commit (#7260), signup still succeeds |
 | React-email render throws | Propagates; caller sees error |
@@ -146,11 +145,11 @@ organization({
 ### Good — dev console
 
 ```bash
+APP_ENV=dev
 EMAIL_TRANSPORT=console
-EMAIL_VERIFICATION_SKIP_LIST=admin@tan-admin.local
 ```
 
-Signup logs `"[EMAIL_TRANSPORT=console] mail skipped (dev)"` + extracted verify URL; super-admin auto-verified via skip-list.
+Signup from non-`@dev.com` addresses logs `"[EMAIL_TRANSPORT=console] mail skipped (dev)"` + extracted verify URL (click-through via log). `@dev.com` addresses auto-verify without emitting the URL. Super-admin is seeded verified regardless.
 
 ### Good — prod SMTP (Aliyun Direct Mail)
 
@@ -163,7 +162,6 @@ SMTP_USER=noreply@yourdomain.com
 SMTP_PASS=...              # SMTP auth code, not mailbox password
 EMAIL_FROM=noreply@yourdomain.com
 EMAIL_FROM_NAME=Tan Admin
-EMAIL_VERIFICATION_SKIP_LIST=
 ```
 
 Boot logs `"SMTP transporter verified"`; all 4 mails deliver.

@@ -54,16 +54,17 @@ export function FormDrawer({
 			<SheetContent
 				side={side}
 				className={`flex flex-col gap-0 p-0 ${widthClass[width]}`}
-				aria-describedby={description ? undefined : "form-drawer-desc"}
 			>
 				<SheetHeader className="px-6 py-4">
 					<SheetTitle>{title}</SheetTitle>
-					{description && <SheetDescription>{description}</SheetDescription>}
-					{!description && (
-						<SheetDescription id="form-drawer-desc" className="sr-only">
-							{title}
-						</SheetDescription>
-					)}
+					{/* Always render SheetDescription so radix's internal context
+					    registers a descriptionId; hide it via sr-only when caller
+					    didn't provide copy. Manually setting aria-describedby +
+					    id here breaks radix's detection and triggers
+					    "Missing `Description`" warning. */}
+					<SheetDescription className={description ? undefined : "sr-only"}>
+						{description ?? title}
+					</SheetDescription>
 				</SheetHeader>
 				<Separator />
 				<div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>

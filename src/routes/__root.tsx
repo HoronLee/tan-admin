@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
+import { Providers } from "#/components/providers";
 import { Toaster } from "#/components/ui/sonner";
 import { getLocale } from "#/paraglide/runtime";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -114,7 +115,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body className="font-sans antialiased [overflow-wrap:anywhere]">
-				{children}
+				<Providers>{children}</Providers>
 				<Toaster position="top-right" />
 				<TanStackDevtools
 					config={{

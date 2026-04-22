@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ShieldCheckIcon, WorkflowIcon } from "lucide-react";
 
-export const Route = createFileRoute("/(admin)/dashboard")({
+export const Route = createFileRoute("/(admin)/_layout/dashboard")({
 	component: AdminDashboardPage,
 });
 

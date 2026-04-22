@@ -17,7 +17,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "#/components/ui/sidebar";
-import BetterAuthHeader from "#/integrations/better-auth/header-user";
+import { UserButton } from "#/components/user/user-button";
 import { getSessionUser } from "#/lib/auth-session";
 import { findMenuByPath, menuStore } from "#/stores/menu";
 import { addTab } from "#/stores/tabbar";
@@ -32,7 +32,10 @@ export const Route = createFileRoute("/(admin)/_layout")({
 	beforeLoad: async () => {
 		const authenticated = await requireAuth();
 		if (!authenticated) {
-			throw redirect({ to: "/login" });
+			throw redirect({
+				to: "/auth/$path",
+				params: { path: "sign-in" },
+			});
 		}
 	},
 	component: AdminLayout,
@@ -78,7 +81,7 @@ function AdminLayout() {
 					</div>
 					<div className="flex items-center gap-2">
 						<ThemeToggle />
-						<BetterAuthHeader />
+						<UserButton size="icon" themeToggle={false} align="end" />
 					</div>
 				</header>
 				<AppTabbar />

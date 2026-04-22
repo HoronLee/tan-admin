@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
 		if (hasSession) {
 			throw redirect({ to: "/dashboard" });
 		}
-		throw redirect({ to: "/login" });
+		throw redirect({ to: "/auth/$path", params: { path: "sign-in" } });
 	},
 	component: () => null,
 });

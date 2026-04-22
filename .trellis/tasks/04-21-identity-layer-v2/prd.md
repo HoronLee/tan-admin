@@ -5,7 +5,7 @@
 弃用 v1 自建的 `Tenant / UserRole / RolePermission / Role / Permission` 模型，改用 **Better Auth 开源插件生态**做身份层基础：
 - `better-auth/plugins/admin` — https://better-auth.com/docs/plugins/admin
 - `better-auth/plugins/organization`（**teams 开启**） — https://better-auth.com/docs/plugins/organization
-- UI 库 `@daveyplate/better-auth-ui` — 所有"能用的"预制组件全部接入
+- UI 库 **better-auth-ui shadcn 变体**（`@better-auth-ui/react` + `npx shadcn add`）— 仅覆盖 **auth / user-button / 个人 settings** 三个模块；**Organization / Admin / Menu 模块 ba-ui 未提供**（官方 `/docs/shadcn` 组件清单仅 Provider / User / Auth / Settings / Email），需自写 UI 调用 `authClient.organization.*` + `authClient.admin.*` + Stage 2 自研组件（DataTable / FormDrawer / ConfirmDialog）组装
 
 **保留自建 Menu 树**（Better Auth 无此概念）。保留 v1 Stage 1/2/3 产出的前端基础设施（shell 去 demo 化 / 基础组件库 / 动态 Sidebar + Tabbar + stores）。
 
@@ -37,7 +37,7 @@
 |---|---|---|---|
 | D1 | 自建 Role 表 | **a. 完全删** | 用 `organization.member.role`（owner/admin/member）+ Better Auth `customRoles` 扩展 |
 | D2 | 自建 Permission 表 | **a. 完全删** | 用 Better Auth access control **statements DSL**（代码里静态声明，TypeScript 类型安全） |
-| D3 | **better-auth-ui（shadcn 变体）** | **能用全用** | 使用 shadcn CLI 方式安装（`npx shadcn add https://better-auth-ui.com/r/{auth,settings}.json`），组件代码落地到项目 `src/components/auth/` / `settings/`；Provider 本地化（`src/components/auth/auth-provider.tsx`）；hook 从 `@better-auth-ui/react` 导入。覆盖：auth（`/auth/$path` 动态路由）/ settings / 组织相关卡片；**只自写** Admin 用户列表（ban/impersonate）+ Menu 管理 |
+| D3 | **better-auth-ui（shadcn 变体）** | **能用全用** | 使用 shadcn CLI 方式安装（`npx shadcn add https://better-auth-ui.com/r/{auth,settings,user-button}.json`），组件代码落地到 `src/components/{auth,settings,user}/`；Provider 本地化（`src/components/providers.tsx` + `src/components/auth/auth-provider.tsx`）；hook 从 `@better-auth-ui/react` 导入。**实际覆盖范围**：auth（`/auth/$path`）+ 个人 settings（`/settings/$path` → account / security）+ UserButton。**ba-ui shadcn 变体不提供 Organization / Admin / Menu 组件**，因此需要自写：`<OrganizationSwitcher />`（Header）+ `/organization`（资料 / 成员 / 邀请 / 团队）+ `/invitations`（我收到的邀请）+ `/users`（全站 admin 用户列表 ban/impersonate/setRole）+ `/menus`（Menu 树 CRUD）。自写组件全部复用 Stage 2 的 DataTable / FormDrawer / ConfirmDialog |
 | D4 | Organization `teams` | **a. 开启** | `teams: { enabled: true }`；避免未来迁移痛 |
 | D5 | 审计日志 | **b. 推迟** | 本 task 不做；未来新 task 评估"自建 AuditLog + ZenStack hooks" 或成熟库 |
 | D6 | 迁移策略 | **a. Drop + 重建** | dev 无生产数据；`db:reset` → zmodel 重写 → `db:migrate` + `auth:migrate` → `db:seed` |
@@ -65,29 +65,39 @@
 5. **数据库重置**：drop 所有表 → 重跑 `db:migrate` + `auth:migrate` → `db:seed` 创建默认 organization + 超管账号 + 默认 menu 树
 
 ### 前端
-1. **`@daveyplate/better-auth-ui` 接入**：
-   - 顶层 Provider：`AuthUIProvider from "@daveyplate/better-auth-ui/tanstack"` 包住 Router；注入 `authClient` / `Link` / `navigate` / `replace`
-   - 配置 `organization: { logo: true, customRoles: [...] }`（如需）
+1. **better-auth-ui shadcn 变体接入**：
+   - `src/components/providers.tsx` 顶层包装 `<AuthProvider>`（来自 `src/components/auth/auth-provider.tsx`，shadcn add 落地），注入 `authClient` / `navigate` / `Link` / `redirectTo`
+   - `__root.tsx` 的 `RootDocument` 内挂 `<Providers>`
 2. **替换 v1 Stage 1 的自写部分**：
-   - `src/routes/login.tsx` → 用 `<SignIn />`（可扩展到独立的 `/signup` / `/forgot-password`）
-   - `src/integrations/better-auth/header-user.tsx` → 用 `<UserButton />`
-   - `(admin)/_layout.tsx` 的 header 增加 `<OrganizationSwitcher />`
-3. **新 Settings 页面**：
-   - `src/routes/(admin)/settings/index.tsx` → `<SettingsCards />`（用户自助）
-   - `src/routes/(admin)/organization/index.tsx` → `<OrganizationSettingsCards />` + `<OrganizationMembersCard />`
-   - `src/routes/(admin)/invitations/index.tsx` → Accept invitation / pending invitations 列表
-4. **自写管理页面**（用 Stage 2 组件）：
-   - `src/routes/(admin)/admin/users/index.tsx` → 管理员用户列表（`authClient.admin.listUsers`）+ banUser / impersonateUser / setRole 操作（DataTable + ConfirmDialog）
-   - `src/routes/(admin)/menus/index.tsx` → Menu 树形 CRUD（DataTable + FormDrawer + ConfirmDialog）
-5. **动态 Sidebar 接入新鉴权**：
+   - 删 `src/routes/login.tsx`；新建 `src/routes/auth/$path.tsx` 用 `<Auth path={path} />`（自动处理 sign-in / sign-up / sign-out / forgot-password / reset-password / magic-link 所有子路径）
+   - 删 `src/integrations/better-auth/header-user.tsx`；`(admin)/_layout.tsx` Header 用 `<UserButton size="icon" themeToggle={false} align="end" />`
+3. **个人 Settings 页面**（ba-ui 现成）：
+   - `src/routes/(admin)/settings/$path.tsx` → `<Settings path={path} />`，viewPaths 校验 `account` / `security`
+   - 菜单 `/settings` seed path 指向 `/settings/account`（匹配 ba-ui 默认 basePaths）
+4. **组织模块自写**（ba-ui 无对应组件）：
+   - Header 自写 `<OrganizationSwitcher />`：`useListOrganizations()` + `authClient.organization.setActive()` 下拉切换
+   - `src/routes/(admin)/organization/index.tsx` → 组织资料卡（`organization.update/delete`）+ 成员 DataTable（`organization.listMembers` + inviteMember Drawer / updateMemberRole / removeMember ConfirmDialog）+ Team 子模块（PRD D4 开了 teams）
+   - `src/routes/(admin)/invitations/index.tsx` → 我收到的邀请（`organization.listUserInvitations` + accept/reject）
+5. **全站管理员用户管理自写**（ba-ui 无对应组件）：
+   - `src/routes/(admin)/users/index.tsx` → DataTable 展示 `authClient.admin.listUsers`，操作列 banUser / impersonateUser / setRole（ConfirmDialog）
+   - URL 路径统一用 `/users`（不是 `/admin/users`）—— `(admin)` 是 TanStack Router 路由组，括号不进入 URL；菜单 path 保持短
+6. **Menu 管理自写**：
+   - `src/routes/(admin)/menus/index.tsx` → Menu 树形 CRUD（DataTable + FormDrawer + ConfirmDialog，复用 Stage 2 组件）
+7. **动态 Sidebar 接入新鉴权**：
    - `src/orpc/router/user-menus.ts` 改写后，前端 `menuStore` / `AppSidebar` **零改动**（API 形状保持）
-6. **Dashboard 页保留不动**。
+   - ⚠️ `databaseHooks.session.create.before` 必须配：新用户登录后自动把 member 表里最早的 org 设为 `session.activeOrganizationId`，否则 `hasPermission` 永远 false，所有带 `requiredPermission` 的菜单全被过滤掉
+8. **Dashboard 页保留不动**。
 
 ### Seed 数据
-- 1 个默认 organization（name: "Default Org"）
-- 1 个超管（role: `admin` 或 `owner`），email 同 v1 `admin@example.com`
-- 默认 Menu 树：Dashboard / 用户管理（admin/users）/ 组织（organization）/ 菜单（menus）/ 设置（settings）
-- 每个菜单节点挂对应的 `requiredPermission`（如 `admin:read` / `menu:write`）
+- 1 个默认 organization（name: "Default Organization", slug: `default`）
+- 1 个超管（`user.role = "admin"` for admin plugin + `member.role = "owner"` in default org），email/password 由 `SEED_SUPER_ADMIN_EMAIL` / `SEED_SUPER_ADMIN_PASSWORD` env 注入
+- 默认扁平 Menu 树（无 `/admin` catalog 前缀，因 `(admin)` 是路由组，括号不入 URL）：
+  - `/dashboard`（无 permission）
+  - `/users`（`user:read`）
+  - `/organization`（`organization:read`）
+  - `/menus`（`menu:write`）
+  - `/settings/account`（无 permission，指向 ba-ui Settings 默认第一个 tab）
+- Menu 表每次 seed 前 `TRUNCATE ... CASCADE`（菜单骨架全量重建，避免老路径残留）
 
 ## Acceptance Criteria
 
@@ -108,14 +118,15 @@
 - [ ] `src/orpc/router/index.ts` 同步更新
 
 ### 前端
-- [ ] `/login` 使用 `<SignIn />`（登录成功跳 `/dashboard`）
-- [ ] Header 区域显示 `<UserButton />` + `<OrganizationSwitcher />`
-- [ ] `/settings` 使用 `<SettingsCards />`
-- [ ] `/organization` 使用 `<OrganizationSettingsCards />` + `<OrganizationMembersCard />`
-- [ ] `/admin/users` 使用自写表格 + `authClient.admin.*` API 完成列表 / ban / setRole
-- [ ] `/menus` 使用自写表格 + FormDrawer + ConfirmDialog 完成 Menu 树 CRUD
-- [ ] Sidebar 按 `organization.hasPermission` 过滤菜单
-- [ ] 未登录访问 `(admin)/*` redirect `/login`
+- [ ] `/auth/sign-in` 使用 `<Auth path="sign-in" />`（登录成功跳 `/dashboard`）
+- [ ] Header 区域显示 `<UserButton />` + 自写 `<OrganizationSwitcher />`
+- [ ] `/settings/$path` 使用 `<Settings path={path} />`（account / security tabs）
+- [ ] `/organization` 自写：组织资料 + 成员 DataTable + 邀请 Drawer
+- [ ] `/invitations` 自写：我收到的邀请列表 + accept/reject
+- [ ] `/users` 自写（注意不是 `/admin/users`，`(admin)` 是路由组）：`authClient.admin.*` API + DataTable + ConfirmDialog 完成列表 / ban / setRole / impersonate
+- [ ] `/menus` 自写：DataTable + FormDrawer + ConfirmDialog 完成 Menu 树 CRUD
+- [ ] Sidebar 按 `organization.hasPermission` 过滤菜单，且 `databaseHooks.session.create.before` 已配置自动 active org
+- [ ] 未登录访问 `(admin)/*` redirect `/auth/sign-in`
 
 ### 质量门禁
 - [ ] `pnpm check` 全绿

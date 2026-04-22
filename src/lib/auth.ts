@@ -12,6 +12,26 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
+	databaseHooks: {
+		session: {
+			create: {
+				// Auto-pick an active organization on session creation so the user
+				// is not stuck with `activeOrganizationId = null` (which would
+				// block every org-gated hasPermission check — incl. menu filtering).
+				before: async (session) => {
+					const { rows } = await pool.query<{ organizationId: string }>(
+						'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+						[session.userId],
+					);
+					const organizationId = rows[0]?.organizationId;
+					if (!organizationId) return { data: session };
+					return {
+						data: { ...session, activeOrganizationId: organizationId },
+					};
+				},
+			},
+		},
+	},
 	plugins: [
 		admin(),
 		organization({

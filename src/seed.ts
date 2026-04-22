@@ -106,6 +106,11 @@ async function main() {
 	log.info("Seeding database…");
 
 	// --- Menus (system skeleton) ---
+	// Menu tree is fully owned by seed — wipe first so removed entries don't linger.
+	// CASCADE handles the self-referencing parentId FK.
+	await pool.query('TRUNCATE TABLE "Menu" RESTART IDENTITY CASCADE');
+	log.info("Menu table cleared.");
+
 	const dashboardMenu = await db.menu.upsert({
 		where: { name: "dashboard" },
 		update: {},
@@ -121,47 +126,22 @@ async function main() {
 		},
 	});
 
-	const adminMenu = await db.menu.upsert({
-		where: { name: "admin" },
+	// Flat top-level menus — (admin) is a TanStack Router *route group*
+	// (parentheses strip from URL), so real paths stay short: /users, /menus, ...
+	const usersMenu = await db.menu.upsert({
+		where: { name: "users" },
 		update: {},
 		create: {
-			name: "admin",
-			type: "CATALOG",
-			path: "/admin",
-			meta: { title: "Admin", icon: "ShieldCheck", order: 10 },
+			name: "users",
+			type: "MENU",
+			path: "/users",
+			component: "users",
+			meta: { title: "Users", icon: "Users", order: 10 },
 			status: "ACTIVE",
 			order: 10,
 			requiredPermission: "user:read",
 		},
 	});
-
-	const adminMenuDefs = [
-		{
-			name: "admin-users",
-			path: "/admin/users",
-			component: "admin/users",
-			title: "Users",
-			order: 1,
-			requiredPermission: "user:read",
-		},
-	];
-	for (const m of adminMenuDefs) {
-		await db.menu.upsert({
-			where: { name: m.name },
-			update: {},
-			create: {
-				name: m.name,
-				type: "MENU",
-				path: m.path,
-				component: m.component,
-				parentId: adminMenu.id,
-				meta: { title: m.title, order: m.order },
-				status: "ACTIVE",
-				order: m.order,
-				requiredPermission: m.requiredPermission,
-			},
-		});
-	}
 
 	const orgMenu = await db.menu.upsert({
 		where: { name: "organization" },
@@ -199,7 +179,7 @@ async function main() {
 		create: {
 			name: "settings",
 			type: "MENU",
-			path: "/settings",
+			path: "/settings/account",
 			component: "settings",
 			meta: { title: "Settings", icon: "Settings", order: 99 },
 			status: "ACTIVE",
@@ -211,7 +191,7 @@ async function main() {
 	log.info(
 		{
 			dashboardId: dashboardMenu.id,
-			adminId: adminMenu.id,
+			usersId: usersMenu.id,
 			orgId: orgMenu.id,
 			menusId: menusMenu.id,
 			settingsId: settingsMenu.id,

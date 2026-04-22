@@ -6,3 +6,4 @@
 {"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "DataTable/FormDrawer/ConfirmDialog 用于自写页面"}
 {"file": ".trellis/spec/frontend/type-safety.md", "reason": "禁 any，oRPC + Better Auth 类型处理"}
 {"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Better Auth 后端 + better-auth-ui 前端的数据契约"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "授权分层契约（BA 身份层 vs ZenStack 业务层 policy）"}

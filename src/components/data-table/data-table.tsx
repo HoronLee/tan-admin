@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, FilterFn } from "@tanstack/react-table";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -23,6 +23,13 @@ interface PaginationProps {
 	onPageSizeChange: (size: number) => void;
 }
 
+const fuzzyFilter: FilterFn<unknown> = (row, columnId, value) => {
+	const cell = row.getValue<unknown>(columnId);
+	return String(cell ?? "")
+		.toLowerCase()
+		.includes(String(value ?? "").toLowerCase());
+};
+
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
@@ -44,6 +51,7 @@ export function DataTable<TData, TValue>({
 		data,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
+		filterFns: { fuzzy: fuzzyFilter },
 	});
 
 	return (

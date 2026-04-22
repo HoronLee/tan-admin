@@ -39,12 +39,6 @@ type MenuMeta {
   openInNewWindow          Boolean?
 }
 
-model Todo {
-  id        Int      @id @default(autoincrement())
-  title     String
-  createdAt DateTime @default(now())
-}
-
 /// Menu / Route tree node. meta is stored as typed JSONB.
 model Menu {
   id                 Int       @id @default(autoincrement())

@@ -1,4 +1,8 @@
-import { adminClient, organizationClient } from "better-auth/client/plugins";
+import {
+	adminClient,
+	multiSessionClient,
+	organizationClient,
+} from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { ac, adminRole, member, owner } from "#/lib/permissions";
 
@@ -12,5 +16,6 @@ export const authClient = createAuthClient({
 			ac,
 			roles: { owner, admin: adminRole, member },
 		}),
+		multiSessionClient(),
 	],
 });

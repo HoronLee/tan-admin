@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin, organization } from "better-auth/plugins";
+import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { pool } from "#/db";
 import { createModuleLogger } from "#/lib/logger";
@@ -39,6 +39,7 @@ export const auth = betterAuth({
 			roles: { owner, admin: adminRole, member },
 			teams: { enabled: true },
 		}),
+		multiSession(),
 		tanstackStartCookies(),
 	],
 	user: {

@@ -34,6 +34,12 @@ export function Providers({ children }: { children: ReactNode }) {
 			navigate={navigate}
 			Link={Link}
 			redirectTo="/dashboard"
+			// Capability flags — UI renders only what the server supports.
+			// multiSession() is installed on the server; passkey / magicLink are not.
+			multiSession={true}
+			passkey={false}
+			magicLink={false}
+			deleteUser={{ enabled: false }}
 		>
 			{children}
 		</AuthProvider>

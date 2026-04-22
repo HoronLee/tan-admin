@@ -240,4 +240,56 @@ UserButton / Settings 内置组件会**无条件探测**某些能力端点（比
 
 - Email registry（`<EmailVerificationEmail />` 等邮件模板）— 本项目 v2 没用，后续搞 SMTP / transactional email provider 再说。
 - `passkey` / `magicLink` 流程 — plugin 没装，UI 也没测。
-- Dark mode 主题切换 — next-themes 自动安装了但没接进 AuthProvider（用的是自写 ThemeToggle + `THEME_INIT_SCRIPT`）。
+
+### 实施反馈（04-22 theme-cleanup 任务）
+
+把项目从 `new-york + zinc` 迁移到 shadcn 2026 新默认期间发现的重点：
+
+**1. style 选 `radix-vega`（不选 base-nova / radix-nova）**
+
+shadcn 2026 的 style schema 扩展成 `{library}-{style}` 格式：`radix-vega / radix-nova / base-vega / base-nova / ...`。
+- `base-*` 把 Radix primitive 换成 Base UI（`@base-ui/react`），**`asChild` 变 `render` prop**。项目里 `asChild` 48 处（UI 31 + 业务 17），改不起。
+- `radix-nova` 保留 Radix 但视觉更紧凑（padding 减、min-height 减）。对 admin 合适，但**ba-ui 源码以 Vega 为基线**——切 Nova 会让 `/auth/*` 和 `/settings/*` 与主站 4px 级割裂。
+- `radix-vega`（本项目选）= 原 new-york 的改名，**ba-ui 天然匹配，零视觉割裂**。shadcn/create Web UI 默认也是 Vega。
+
+**2. ba-ui 三个 registry 不支持 style 分支**
+
+`https://better-auth-ui.com/r/auth.json`（以及 user-button.json / settings.json）是**扁平 URL**，没有 `{style}` 占位，说明 ba-ui 单套源码不分 style。shadcn apply 切 style 时不会动 ba-ui 落地的源码（`src/components/auth | user | settings/`）——这**正是想要的行为**：保留 ba-ui 原样 Vega 视觉与框架统一。
+
+**3. `shadcn apply --preset <id>` 一条命令搞定大部分**
+
+2026-04 新增的 `shadcn apply` 命令替代了"手工改 components.json + shadcn add --overwrite × N"的繁琐流程：
+
+```bash
+pnpm dlx shadcn@latest apply --preset bIkez2m
+```
+
+自动完成：`components.json` 更新 + `:root`/`.dark` 色值换 neutral + 新增 `--radius-2xl/3xl/4xl` 档位 + 28 个 UI 组件 reinstall + 字体安装（本次是 Noto Sans Variable）。**没有 `--dry-run`**，依赖 git 做 undo 层（先 commit 建立锚点）。
+
+`apply` 不清理 legacy（TanStack Start demo 遗留的 CSS 变量 / body gradient / 自定义类），这部分要单独手工做。
+
+**4. `AuthProvider appearance={{ theme, setTheme }}` 的类型适配**
+
+ba-ui 的 `appearance.setTheme` 签名是 `(theme: string) => void`（接受任意字符串），但我们自写的 `useTheme().setTheme` 是 `(theme: Theme) => void`（严格 union）。直接传会 TS 报错，需写适配 wrapper：
+
+```tsx
+const setThemeFromAuth = (next: string) => {
+  if (next === "light" || next === "dark" || next === "system") {
+    setTheme(next);
+  }
+};
+
+<AuthProvider appearance={{ theme, setTheme: setThemeFromAuth }} ... >
+```
+
+**5. Dark mode 用 shadcn 官方 TanStack Start 指南自写，不用 next-themes / tanstack-theme-kit**
+
+`ui.shadcn.com/docs/dark-mode/tanstack-start` 给了 ~80 行 theme-provider.tsx + mode-toggle.tsx 模板，用 TanStack Router 原生 `<ScriptOnce>` 注入 FOUC 脚本，**零第三方依赖**。比 next-themes（Next.js 专用）和 tanstack-theme-kit（0.1.0 个人项目）都干净。项目 `src/components/theme-provider.tsx` 就是照抄官方模板。
+
+**6. `shadcn` npm 包是 runtime dep（不是 devDependency）**
+
+apply 会加 `shadcn ^4.4.0` 到 `dependencies`，并在 `styles.css` 加 `@import "shadcn/tailwind.css"`。这是**运行时** import，`shadcn` 必须在 dependencies，不能挪 devDependencies。
+
+**7. 字体：Noto Sans Variable 对中文友好**
+
+shadcn/create 当前 preset 里选 Inter 作为 heading，但 apply 实际装的是 `@fontsource-variable/noto-sans` 并把 `--font-sans` 设为 `'Noto Sans Variable'`（`--font-heading` 跟着 sans）。Noto Sans 对 CJK 支持远好于 Inter，对中文后台项目是更好的选择。

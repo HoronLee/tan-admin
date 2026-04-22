@@ -6,17 +6,15 @@
 
 ## Overview
 
-Error handling is built on oRPC's native typed errors:
-
 - Every procedure derives from a shared `base` in `src/orpc/errors.ts` that declares the standard error codes.
 - Procedures throw via `errors.CODE({...})` or `new ORPCError('CODE', {...})`; clients narrow with `isDefinedError(error)`.
-- A boundary interceptor chain in `src/orpc/interceptors.ts` upgrades Zod validation failures into typed errors, logs every failure, captures unknown failures to Sentry, and rethrows `INTERNAL_ERROR`.
-- DB-backed procedures additionally compose `pub` (from `src/orpc/middleware/orm-error.ts`) to map ZenStack `ORMError` into typed oRPC errors.
-- `createServerFn` calls are covered by a global TanStack Start `functionMiddleware` in `src/start.ts`.
-- `instrument.server.mjs` is limited to Sentry initialisation only (loaded via `--import`). It does **not** install custom `uncaughtException`/`unhandledRejection` handlers; Node's default behaviour (print + `exit(1)`) is relied upon for unhandled rejections, with Sentry already initialised to capture them.
-- Startup fail-fast: `src/db.ts` calls `db.$connect()` (ZenStackClient) at module load time. If the database is unreachable the top-level `await` throws, Node exits before the server accepts traffic.
-- Runtime fail-fast: `server-fn-middleware.ts` detects DB unavailability errors during request handling (by recursing into `ORMError.cause` for connection-level codes) and calls `process.exit(1)` after flushing Sentry.
-- MCP keeps its existing JSON-RPC envelope contract unchanged.
+- Boundary interceptors (`src/orpc/interceptors.ts`) upgrade Zod failures into typed errors, log failures, capture unknown failures to Sentry, rethrow `INTERNAL_ERROR`.
+- DB procedures compose `pub` (with `ormErrorMiddleware`) to map ZenStack `ORMError` into typed oRPC errors.
+- `createServerFn` calls are covered by a global `functionMiddleware` in `src/start.ts`.
+- `instrument.server.mjs` is Sentry-init only (loaded via `--import`); no custom `uncaughtException`/`unhandledRejection` — Node defaults + Sentry handle them.
+- **Startup fail-fast**: `src/db.ts` calls `db.$connect()` at module load; top-level `await` throws → Node exits before serving.
+- **Runtime fail-fast**: `server-fn-middleware.ts` detects DB unavailability (recurses into `ORMError.cause`) and `process.exit(1)` after Sentry flush.
+- MCP keeps its JSON-RPC envelope contract unchanged.
 
 ## Standard Error Codes
 
@@ -81,7 +79,7 @@ export const pub = base.use(ormErrorMiddleware);
 
 ### `authed`
 
-Use for endpoints requiring a signed-in user. Composes `pub` with `authMiddleware` (reads `context.headers` and calls Better Auth `auth.api.getSession`; `UNAUTHORIZED` when no session).
+Use for endpoints requiring a signed-in user. Composes `pub` with `authMiddleware` (reads `context.headers`, calls Better Auth `auth.api.getSession`; `UNAUTHORIZED` when no session).
 
 Source: `src/orpc/middleware/auth.ts`.
 
@@ -91,7 +89,7 @@ export const authed = pub.use(authMiddleware);
 
 ## ORM Error Mapping (Single Source of Truth)
 
-Source of truth: `src/lib/zenstack-error-map.ts`. Both the backend middleware and the frontend error reporter import the same `mapZenStackReasonToCode(reason, dbErrorCode)` — there must never be two inline switches.
+Source of truth: `src/lib/zenstack-error-map.ts`. Both backend middleware and frontend error reporter import the same `mapZenStackReasonToCode(reason, dbErrorCode)` — never two inline switches.
 
 | `ORMErrorReason` | App code | Rationale |
 |------------------|----------|-----------|
@@ -102,8 +100,6 @@ Source of truth: `src/lib/zenstack-error-map.ts`. Both the backend middleware an
 | `db-query-error` + SQLSTATE `23503` | `BAD_REQUEST` | Foreign-key violation |
 | Other `db-query-error` SQLSTATEs | `INTERNAL_ERROR` | Unmapped — default to internal |
 | `config-error` / `not-supported` / `internal-error` | `INTERNAL_ERROR` | Surfaces as internal |
-
-Source: `src/lib/zenstack-error-map.ts:62-76`.
 
 ```ts
 export function mapZenStackReasonToCode(
@@ -119,7 +115,7 @@ export function mapZenStackReasonToCode(
 
 ### Backend side: `ormErrorMiddleware`
 
-Source: `src/orpc/middleware/orm-error.ts:34-85`.
+Source: `src/orpc/middleware/orm-error.ts`.
 
 ```ts
 const mappedCode = mapZenStackReasonToCode(err.reason, dbErrorCode);
@@ -137,7 +133,7 @@ switch (mappedCode) {
 
 ## ZenStack HTTP Error Contract (Dual-Stack Gotcha)
 
-The ZenStack Server Adapter at `/api/model/**` **does not pass through** `ormErrorMiddleware`. It converts the raw `ORMError` into an HTTP response with the shape:
+The ZenStack Server Adapter at `/api/model/**` **does not pass through** `ormErrorMiddleware`. It converts the raw `ORMError` into an HTTP response:
 
 ```json
 {
@@ -155,19 +151,9 @@ The ZenStack Server Adapter at `/api/model/**` **does not pass through** `ormErr
 }
 ```
 
-After deserialization by `@zenstackhq/client-helpers/fetch.js`, the client-side error surfaces the same `{ reason, dbErrorCode, message }` fields under `error.info`.
+After deserialization by `@zenstackhq/client-helpers/fetch.js`, the client sees the same `{ reason, dbErrorCode, message }` under `error.info`. Frontend reuses the **same mapping constants** via `getZenStackHttpError(error)` + `mapZenStackReasonToCode(reason, dbErrorCode)`.
 
-Front-end side reuses the **same mapping constants** via `getZenStackHttpError(error)` + `mapZenStackReasonToCode(reason, dbErrorCode)`. See `src/lib/error-report.ts` and `src/lib/zenstack-error-map.ts`.
-
-### Why not unify the wire format?
-
-We chose not to proxy ZenStack responses into an oRPC-shaped `ORPCError`:
-
-- Rewriting adapter responses breaks ZenStack's official contract — future upgrades become brittle.
-- Detection by `error.body.error.reason` or `error.info.reason` is precise and costs one extra branch in `reportError`.
-- Both stacks converge on the same 7-code enum via one shared mapping function, so toast copy stays consistent.
-
-See the `04-20-crud-autogen-hooks` task's D1 decision for the full Options considered.
+**Why not unify the wire format into an oRPC `ORPCError`?** Rewriting adapter responses breaks ZenStack's official contract (upgrades become brittle); one extra branch in `reportError` is cheap. Both stacks converge on the same 7-code enum via one shared mapping function. See `04-20-crud-autogen-hooks` D1 for full rationale.
 
 ## Where the Mapping Must Be Reused
 
@@ -175,24 +161,16 @@ See the `04-20-crud-autogen-hooks` task's D1 decision for the full Options consi
 - Frontend `src/lib/error-report.ts` → `getZenStackHttpError` + `mapZenStackReasonToCode`.
 - Unit tests: `src/lib/zenstack-error-map.test.ts` must cover all 7 reasons plus `db-query-error` × {23505, 23503, other SQLSTATE}.
 
-### Common Mistake: Duplicated Switch
-
-**Symptom**: Adding a new `dbErrorCode` mapping (e.g. `23514` check_violation → `BAD_REQUEST`) in `orm-error.ts` alone, forgetting `zenstack-error-map.ts`.
-
-**Cause**: Treating the middleware as the sole source.
-
-**Fix**: Always edit `zenstack-error-map.ts` first. The middleware delegates.
-
-**Prevention**: Grep `mapZenStackReasonToCode` before touching either file — there should be at most two call sites.
+**Common mistake**: adding a new `dbErrorCode` mapping in `orm-error.ts` alone and forgetting `zenstack-error-map.ts`. Fix: always edit `zenstack-error-map.ts` first; the middleware delegates. Grep `mapZenStackReasonToCode` before touching either file — at most two call sites.
 
 ## Boundary Interceptor Chain
 
 Source: `src/orpc/interceptors.ts`; wired in `src/routes/api.$.ts` and `src/routes/api.rpc.$.ts` via `interceptors: serverInterceptors`.
 
 1. **Zod → `INPUT_VALIDATION_FAILED`**: If the thrown error is `BAD_REQUEST` whose `cause` is `ValidationError`, rebuild a `ZodError` from `cause.issues` and re-throw as `INPUT_VALIDATION_FAILED` carrying `{ formErrors, fieldErrors }` from `z.flattenError(...)`.
-2. **Structured log + unknown remap**: Every error is logged via the `orpc` module logger as `log.error({ err }, "oRPC handler error")`. If the error is not a defined `ORPCError`, it is captured with `Sentry.captureException(error)` and remapped to `new ORPCError("INTERNAL_ERROR", ...)`.
+2. **Structured log + unknown remap**: Every error is logged via the `orpc` module logger as `log.error({ err }, "oRPC handler error")`. If the error is not a defined `ORPCError`, it is `Sentry.captureException(error)` and remapped to `new ORPCError("INTERNAL_ERROR", ...)`.
 
-Typed errors (the ones on `base`) are considered expected application signals and are **not** reported to Sentry.
+Typed errors (the ones on `base`) are considered expected signals and are **not** reported to Sentry.
 
 ```ts
 export const serverInterceptors = [
@@ -226,16 +204,10 @@ Sources: `src/start.ts`, `src/lib/server-fn-middleware.ts`.
 
 `createServerFn` does not pass through oRPC interceptors, so we register a global TanStack Start middleware:
 
-- `src/start.ts` exports `startInstance = createStart(() => ({ functionMiddleware: [serverFnErrorMiddleware] }))`
+- `src/start.ts`: `startInstance = createStart(() => ({ functionMiddleware: [serverFnErrorMiddleware] }))`
 - `serverFnErrorMiddleware` (`type: "function"`) wraps `await next()` in `try/catch`
-- On failure: `log.error({ err, serverFn: { id, name } }, "server function error")` + `Sentry.captureException(error)` + rethrow
-- If the error matches DB-unavailable signatures (`ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`, `EHOSTUNREACH`, `ENETUNREACH`, or an `ORMError` with `config-error` reason / connection-level cause), middleware logs `fatal` and schedules `process.exit(1)` after Sentry flush.
-
-```ts
-export const startInstance = createStart(() => ({
-  functionMiddleware: [serverFnErrorMiddleware],
-}));
-```
+- On failure: `log.error({ err, serverFn: { id, name } }, ...)` + `Sentry.captureException` + rethrow
+- DB-unavailable signatures (`ECONNREFUSED` / `ENOTFOUND` / `ETIMEDOUT` / `EHOSTUNREACH` / `ENETUNREACH`, or `ORMError` with `config-error` / connection-level cause) → log `fatal` + `process.exit(1)` after Sentry flush
 
 ```ts
 export const serverFnErrorMiddleware = createMiddleware({ type: "function" }).server(
@@ -255,36 +227,19 @@ export const serverFnErrorMiddleware = createMiddleware({ type: "function" }).se
 
 Sources: `instrument.server.mjs`, `instrument.critical.mjs`.
 
-The process-level handlers are a final safety net for failures that happen outside request/function middleware (for example during bootstrap or detached async paths):
+Final safety net for failures outside request/function middleware (bootstrap, detached async):
 
-- Register `process.on("uncaughtException", ...)` and `process.on("unhandledRejection", ...)`
-- Emit one structured fatal JSON line via `console.error` (logger is not available this early)
-- `Sentry.captureException(...)`
-- Attempt `Sentry.flush(2000)` when available
-- Exit with status code `1` to let the orchestrator restart the process
-- Additionally, startup and interval critical dependency checks run via a generic checker (`instrument.critical.mjs`) triggered from `instrument.server.mjs`:
-  - Postgres (`DATABASE_URL`) is checked at startup and every 15s
-  - Redis (`REDIS_URL`) and Kafka (`KAFKA_BROKERS`) are checked when those env vars are present
-  - Any failed check triggers `criticalDependencyUnavailable` and exits the process
-
-```js
-process.on("uncaughtException", (error) => {
-  void flushAndExit(error, "uncaughtException");
-});
-
-process.on("unhandledRejection", (reason) => {
-  void flushAndExit(reason, "unhandledRejection");
-});
-```
+- `process.on("uncaughtException" | "unhandledRejection", ...)` → structured fatal JSON line + `Sentry.captureException` + `Sentry.flush(2000)` + `exit(1)`
+- Startup/interval critical dependency checks (`instrument.critical.mjs`): Postgres (`DATABASE_URL`) at startup + every 15s; Redis (`REDIS_URL`) and Kafka (`KAFKA_BROKERS`) when present. Any failed check → `criticalDependencyUnavailable` → exit.
 
 ## Client-Side Consumption
 
 Source: `src/lib/error-report.ts`.
 
-All frontend catches must route through `reportError(error, options?)`:
+Frontend catches route through `reportError(error, options?)`:
 
 - `isDefinedError(error)` narrows to typed codes; `FORBIDDEN` / `NOT_FOUND` / `CONFLICT` / `RATE_LIMITED` / `UNAUTHORIZED` / `INTERNAL_ERROR` → user-facing toast.
-- `INPUT_VALIDATION_FAILED` is intentionally silent — callers render field errors inline (e.g. with TanStack Form) because a top-level toast would be redundant.
+- `INPUT_VALIDATION_FAILED` is intentionally silent — callers render field errors inline (e.g. with TanStack Form).
 - Non-typed errors → `Sentry.captureException` + fallback toast.
 
 ```ts
@@ -295,11 +250,24 @@ try {
 }
 ```
 
-Root-level fallback: `src/routes/__root.tsx` declares `errorComponent: RootErrorFallback`, so uncaught render errors produce a branded error page with retry + home navigation.
+Root-level fallback: `src/routes/__root.tsx` declares `errorComponent: RootErrorFallback`.
+
+### BA 客户端错误走 `translateAuthError`（不走 `reportError`）
+
+Better Auth 客户端（`authClient.*`）抛出的错误结构是 `{ code: string, message, status }`，**不是** `ORPCError`，`isDefinedError()` 识别不到。
+
+| 错误来源 | catch 处理 |
+|---|---|
+| oRPC typed errors | `reportError(error)` |
+| BA client errors / hooks throw | `translateAuthError(error)` → 中文 toast |
+
+混合页面：先 `"code" in error && /^[A-Z_]+$/.test(error.code)` 判定走 BA 分支，否则走 `reportError`。
+
+**锚点**：`src/lib/auth-errors.ts`（集中映射 BA code → 中文；BA 升级时一处改完）。
 
 ## MCP Error Envelope Contract (unchanged)
 
-On MCP handler failure, return the JSON-RPC error envelope with code `-32603` and HTTP status `500`. This path is separate from oRPC typed errors.
+On MCP handler failure, return the JSON-RPC error envelope with code `-32603` and HTTP status `500`. Separate from oRPC typed errors.
 
 Source: `src/utils/mcp-handler.ts`.
 
@@ -320,7 +288,7 @@ return Response.json(
 
 ## Boundary Validation Rule
 
-Validate request input at boundary declarations (`os.input(...)`, `.inputValidator(...)`, MCP `inputSchema`). Boundary Zod errors are automatically upgraded to `INPUT_VALIDATION_FAILED` by the interceptor chain.
+Validate request input at boundary declarations (`os.input(...)`, `.inputValidator(...)`, MCP `inputSchema`). Boundary Zod errors are auto-upgraded to `INPUT_VALIDATION_FAILED` by the interceptor chain.
 
 ```ts
 base.input(z.object({ name: z.string() })).handler(({ input }) => ...)
@@ -328,11 +296,7 @@ base.input(z.object({ name: z.string() })).handler(({ input }) => ...)
 
 ## Catch Narrowing Pattern
 
-In generic catches, narrow error values before serialization/logging.
-
-```ts
-data: error instanceof Error ? error.message : String(error)
-```
+Narrow error values before serialization/logging: `error instanceof Error ? error.message : String(error)`.
 
 ## Forbidden / Anti-Patterns
 
@@ -340,52 +304,32 @@ data: error instanceof Error ? error.message : String(error)
 - Defining procedures directly on `os` (must derive from `base`).
 - Manually mapping ZenStack `ORMError` reasons inside handlers when `pub` already handles them.
 - Reporting typed (`.defined === true`) errors to Sentry — they are expected signals.
-- Returning internal stack/error internals in public responses — keep defaults; `INTERNAL_ERROR` is opaque on purpose.
-- Displaying raw `INPUT_VALIDATION_FAILED` toast; render the `fieldErrors` inline instead.
-- Handling server function errors ad hoc per route when a global `functionMiddleware` can enforce one contract.
+- Returning internal stack/error internals in public responses — `INTERNAL_ERROR` is opaque on purpose.
+- Displaying raw `INPUT_VALIDATION_FAILED` toast; render `fieldErrors` inline instead.
+- Handling server function errors ad hoc per route when a global `functionMiddleware` enforces one contract.
 - Empty `catch {}` that swallows exceptions.
 
 ---
 
 ## Common Mistake: `import.meta.env` in Node.js Scripts
 
-### Symptom
+`import.meta.env` is a **Vite-only** API. Node.js scripts (`tsx src/seed.ts`, `vitest`, etc.) see `undefined`, so any property access throws:
 
 ```
 TypeError: Cannot read properties of undefined (reading 'VITE_APP_TITLE')
-    at src/env.ts:57
 ```
 
-Occurs when running `pnpm db:seed` (`tsx src/seed.ts`) or any other Node.js script that imports `src/env.ts`.
-
-### Cause
-
-`import.meta.env` is a **Vite-only** API. When the file is executed by Node.js (`tsx`, `vitest`, etc.), `import.meta.env` is `undefined`, so accessing any property on it throws immediately.
-
-### Fix
-
-Guard all `VITE_*` reads with a `typeof` check and fall back to `process.env`:
+**Fix**: guard every `VITE_*` read in `src/env.ts` `runtimeEnv` with a `typeof` check:
 
 ```ts
-// src/env.ts — runtimeEnv section
 VITE_APP_TITLE:
   typeof import.meta.env !== "undefined"
     ? import.meta.env.VITE_APP_TITLE
     : process.env.VITE_APP_TITLE,
-VITE_APP_URL:
-  typeof import.meta.env !== "undefined"
-    ? import.meta.env.VITE_APP_URL
-    : process.env.VITE_APP_URL,
-VITE_SENTRY_DSN:
-  typeof import.meta.env !== "undefined"
-    ? import.meta.env.VITE_SENTRY_DSN
-    : process.env.VITE_SENTRY_DSN,
 ```
 
-### Rule
-
-> Every new `VITE_*` variable added to `runtimeEnv` in `src/env.ts` **must** use this guard pattern, not a bare `import.meta.env.*` access.
+**Rule**: every new `VITE_*` in `runtimeEnv` **must** use this guard — not bare `import.meta.env.*`.
 
 ### Evidence
 
-Source: `src/orpc/errors.ts`, `src/orpc/middleware/orm-error.ts`, `src/orpc/middleware/auth.ts`, `src/orpc/interceptors.ts`, `src/routes/api.$.ts`, `src/routes/api.rpc.$.ts`, `src/start.ts`, `src/lib/server-fn-middleware.ts`, `src/lib/error-report.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.
+Source: `src/orpc/errors.ts`, `src/orpc/middleware/{orm-error,auth}.ts`, `src/orpc/interceptors.ts`, `src/routes/api.{$,rpc.$}.ts`, `src/start.ts`, `src/lib/{server-fn-middleware,error-report,auth-errors}.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.

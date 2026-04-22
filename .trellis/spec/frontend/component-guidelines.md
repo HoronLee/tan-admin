@@ -6,25 +6,21 @@
 
 ## Component Tiers
 
-This project has two explicit tiers:
+Two explicit tiers:
 
-- Primitive UI tier: `src/components/ui/*` (shadcn-style, variant-driven, reusable primitives).
-- Domain/UI composition tier: `src/components/*.tsx` and `src/integrations/**/*.tsx`.
-
-### Evidence
-
-Source: `src/components/ui/button.tsx:7-39` and `src/components/Header.tsx:6-8`.
+- **Primitive UI tier**: `src/components/ui/*` (shadcn-style, variant-driven, reusable primitives).
+- **Domain/UI composition tier**: `src/components/*.tsx` and `src/integrations/**/*.tsx`.
 
 ```ts
+// src/components/ui/button.tsx (primitive)
 const buttonVariants = cva(...)
+
+// src/components/Header.tsx (composition)
 export default function Header() {
   return <header ...>
 }
-```
 
-Source: `src/integrations/better-auth/header-user.tsx:4-6`.
-
-```ts
+// src/integrations/better-auth/header-user.tsx (integration)
 export default function BetterAuthHeader() {
   const { data: session, isPending } = authClient.useSession()
 }
@@ -32,23 +28,17 @@ export default function BetterAuthHeader() {
 
 ## Props Typing Conventions
 
-- Prefer inline prop typing with `React.ComponentProps<"..."></...>` and `VariantProps<typeof variants>`.
-- Do not introduce `React.FC` for new components.
-
-### Evidence
-
-Source: `src/components/ui/button.tsx:47-50`.
+- Prefer inline `React.ComponentProps<"...">` + `VariantProps<typeof variants>`.
+- Do NOT introduce `React.FC` for new components.
 
 ```ts
+// src/components/ui/button.tsx
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
-```
 
-Source: `src/components/ThemeToggle.tsx:34-35` (plain function component, no `React.FC`).
-
-```ts
+// src/components/ThemeToggle.tsx — plain function, no React.FC
 export default function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>('auto')
 }
@@ -56,33 +46,24 @@ export default function ThemeToggle() {
 
 ## Class Composition
 
-Always compose Tailwind classes with `cn()` from `#/lib/utils` for merge safety.
-
-### Evidence
-
-Source: `src/lib/utils.ts:5-6`.
+Always compose Tailwind classes with `cn()` from `#/lib/utils` for merge safety:
 
 ```ts
+// src/lib/utils.ts
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-```
 
-Source: `src/components/ui/button.tsx:58`.
-
-```tsx
+// src/components/ui/button.tsx
 className={cn(buttonVariants({ variant, size, className }))}
 ```
 
 ## Variant and Composition Pattern (`cva` + `asChild`)
 
-Use `cva` for structured variants and the Radix `Slot.Root` pattern for composability.
-
-### Evidence
-
-Source: `src/components/ui/button.tsx:7-39,51-56`.
+Use `cva` for structured variants + Radix `Slot.Root` for composability:
 
 ```ts
+// src/components/ui/button.tsx
 const buttonVariants = cva("...", {
   variants: { variant: {...}, size: {...} },
   defaultVariants: { variant: "default", size: "default" },
@@ -90,21 +71,9 @@ const buttonVariants = cva("...", {
 const Comp = asChild ? Slot.Root : "button"
 ```
 
-Source: `src/components/ui/button.tsx:55-57`.
-
-```tsx
-data-slot="button"
-data-variant={variant}
-data-size={size}
-```
-
 ## Data Attributes Are Styling Contract
 
-For primitive components, keep `data-slot`, `data-variant`, and `data-size` attributes stable because styles and selectors depend on them.
-
-### Evidence
-
-Source: `src/components/ui/button.tsx:55-58`.
+For primitive components, keep `data-slot` / `data-variant` / `data-size` stable — styles and selectors depend on them:
 
 ```tsx
 <Comp
@@ -117,21 +86,14 @@ Source: `src/components/ui/button.tsx:55-58`.
 
 ## React Compiler Guidance
 
-The repo enables `babel-plugin-react-compiler`; avoid introducing manual memoization by default.
-
-### Evidence
-
-Source: `vite.config.ts:21-24`.
+Repo enables `babel-plugin-react-compiler`; avoid manual memoization by default:
 
 ```ts
-viteReact({
-  babel: {
-    plugins: ['babel-plugin-react-compiler'],
-  },
-})
+// vite.config.ts
+viteReact({ babel: { plugins: ['babel-plugin-react-compiler'] } })
 ```
 
-Source: `src/routes/demo/orpc-todo.tsx:34-36` shows one explicit `useCallback` usage that should be treated as an exception, not baseline style.
+One explicit `useCallback` in `src/routes/demo/orpc-todo.tsx` should be treated as an exception, not baseline style:
 
 ```ts
 const submitTodo = useCallback(() => {
@@ -141,49 +103,33 @@ const submitTodo = useCallback(() => {
 
 ## Accessibility Baseline
 
-Interactive elements without visible text must include accessible labeling (`aria-label`, `aria-pressed`, or `sr-only`).
-
-### Evidence
-
-Source: `src/components/ThemeToggle.tsx:74-75`.
+Interactive elements without visible text must include accessible labeling (`aria-label`, `aria-pressed`, or `sr-only`):
 
 ```tsx
+// src/components/ThemeToggle.tsx
 aria-label={label}
 title={label}
-```
 
-Source: `src/components/LocaleSwitcher.tsx:18,28`.
-
-```tsx
+// src/components/LocaleSwitcher.tsx
 aria-label={m.language_label()}
 aria-pressed={locale === currentLocale}
-```
 
-Source: `src/components/Header.tsx:27,41`.
-
-```tsx
+// src/components/Header.tsx
 <span className="sr-only">Follow TanStack on X</span>
-<span className="sr-only">Go to TanStack GitHub</span>
 ```
+
+**i18n gotcha**: all a11y labels (`aria-label`, `alt`, `sr-only`, `title`) must route through Paraglide `m.xxx()` — never hard-coded CJK/EN. See `frontend/i18n.md`.
 
 ## Forbidden Patterns
 
 - Building class strings manually (`className={a + " " + b}`) instead of `cn()`.
 - Importing shadcn primitives from npm packages instead of local `src/components/ui/*`.
 - Hand-editing generated artifacts (`src/routeTree.gen.ts`, `zenstack/*.ts`, `src/paraglide/*`).
-
-### Evidence
-
-Source: local primitive import style in `src/components/demo.FormComponents.tsx:5-12`.
+- Hard-coded CJK/EN text in JSX (use `m.xxx()`).
+- Custom CSS variables (`--sea-ink`, etc.) — use shadcn tokens (`frontend/theming.md`).
 
 ```ts
+// ✅ Local primitive re-export
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
-```
-
-Source: generated-file warning in `src/routeTree.gen.ts:7-9`.
-
-```ts
-// This file was automatically generated by TanStack Router.
-// You should NOT make any changes in this file as it will be overwritten.
+import { Input }  from '#/components/ui/input'
 ```

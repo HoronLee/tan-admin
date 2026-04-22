@@ -6,11 +6,7 @@
 
 ## Overview
 
-Frontend and backend code share `src/`, so placement is by runtime role:
-
-- Browser UI and client helpers live in `src/components/`, `src/hooks/`, `src/integrations/`, and client-facing `src/lib/*`.
-- Route UI trees live in `src/routes/**/*.tsx`.
-- Generated artifacts are committed but treated as read-only.
+Frontend and backend share `src/`; placement is by runtime role. For backend role (routes API, oRPC, ZenStack, MCP) see `backend/directory-structure.md`. This spec covers browser UI, client helpers, and route trees.
 
 ## Top-Level Layout (`src/`)
 
@@ -18,7 +14,6 @@ Frontend and backend code share `src/`, so placement is by runtime role:
 src/
 ├── components/            # UI composition + shadcn primitives in components/ui/
 ├── data/                  # static demo datasets
-├── generated/prisma/      # generated Prisma client artifacts (do not edit)
 ├── hooks/                 # custom hook factories and contexts
 ├── integrations/          # third-party integrations (better-auth, tanstack-query)
 ├── lib/                   # shared helpers (auth-client, demo-store, cn utils)
@@ -26,7 +21,7 @@ src/
 ├── paraglide/             # generated i18n runtime/messages (do not edit)
 ├── routes/                # file-based routes (flat + directory style)
 ├── utils/                 # utility modules
-├── db.ts                  # server-side Prisma singleton (backend role)
+├── db.ts                  # server-side singleton (backend role)
 ├── env.ts                 # typed env schema
 ├── polyfill.ts            # server polyfill for oRPC hosting routes
 ├── routeTree.gen.ts       # generated route tree (do not edit)
@@ -34,110 +29,80 @@ src/
 └── styles.css             # Tailwind entry + CSS tokens
 ```
 
-### Evidence
-
-Source: `src/routes` file set shows both route styles and server/client mix.
+Two route-file styles active, mixed deliberately:
 
 ```text
-src/routes/demo.i18n.tsx
-src/routes/demo/orpc-todo.tsx
-src/routes/api.$.ts
-src/routes/api.rpc.$.ts
+src/routes/demo.i18n.tsx              # flat dot style
+src/routes/demo/orpc-todo.tsx          # directory style
+src/routes/api.$.ts                    # backend HTTP entry
+src/routes/api.rpc.$.ts                # backend HTTP entry
 ```
 
-Source: `src/components` and `src/components/ui` split.
+Components split by primitive vs composition:
 
 ```text
-src/components/Header.tsx
+src/components/Header.tsx              # app-level composition
 src/components/ThemeToggle.tsx
-src/components/ui/button.tsx
+src/components/ui/button.tsx           # shadcn primitives
 src/components/ui/select.tsx
 ```
 
-## Import Alias (`#/*`) Rules
+## Import Alias (`#/*`)
 
-Use `#/*` for cross-module imports. The runtime source of truth is `package.json#imports`; TypeScript bundler resolution aligns with it.
-
-### Evidence
-
-Source: `package.json:5-7`
+Use `#/*` for cross-module imports. Runtime source of truth is `package.json#imports`; TypeScript bundler resolution aligns.
 
 ```json
+// package.json
 "imports": {
   "#/*": "./src/*"
 }
 ```
 
-Source: `tsconfig.json:16` (bundler module resolution that understands package imports).
-
 ```json
+// tsconfig.json
 "moduleResolution": "bundler"
 ```
 
-Source: `src/orpc/client.ts:10`, `src/routes/demo/prisma.tsx:3`.
-
 ```ts
+// call sites
 import router from "#/orpc/router"
-import { prisma } from "#/db"
+import { db } from "#/db"
 ```
+
+Do NOT use `tsconfig.json#paths` — the project intentionally uses the `package.json` mechanism so Node.js (seed, tsx scripts) resolves the same way as the bundler.
 
 ## Route Naming Conventions
 
-Two naming conventions are both in active use:
+Both conventions in active use:
 
-- Flat dot style for grouped siblings: `demo.i18n.tsx` -> `/demo/i18n`, `api.rpc.$.ts` -> `/api/rpc/$`.
-- Directory style for deeper feature routes: `demo/orpc-todo.tsx` -> `/demo/orpc-todo`.
+- **Flat dot style** for grouped siblings sharing one prefix: `demo.i18n.tsx` → `/demo/i18n`, `api.rpc.$.ts` → `/api/rpc/$`.
+- **Directory style** for deeper feature routes: `demo/orpc-todo.tsx` → `/demo/orpc-todo`.
 
-Use flat style for a small cluster sharing one prefix; use directories once a feature has multiple related pages/endpoints.
-
-### Evidence
-
-Source: `src/routes/demo.i18n.tsx:6`, `src/routes/demo/orpc-todo.tsx:7`.
+Use flat for a small cluster; switch to directory once a feature grows multiple related pages/endpoints.
 
 ```ts
 createFileRoute('/demo/i18n')
 createFileRoute('/demo/orpc-todo')
 ```
 
-Source: generated route mapping in `src/routeTree.gen.ts:21-29`.
-
-```ts
-import { Route as DemoI18nRouteImport } from './routes/demo.i18n'
-import { Route as DemoOrpcTodoRouteImport } from './routes/demo/orpc-todo'
-import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
-```
+**`_layout.tsx` nesting rule**: Pages sharing a `_layout.tsx` must live **inside** the `_layout/` directory — otherwise `parentRoute` resolves to `__root__` and the shared layout doesn't apply.
 
 ## Generated Artifacts (Do Not Edit)
 
-Treat these as generated outputs, not hand-authored code:
+- `src/routeTree.gen.ts` — TanStack Router
+- `src/paraglide/**` — Paraglide i18n runtime
+- `zenstack/{schema,models,input}.ts` — ZenStack generated (git-ignored)
 
-- `src/routeTree.gen.ts`
-- `src/generated/prisma/**`
-- `src/paraglide/**`
-
-Regenerate through framework/tooling commands instead of manual edits.
-
-### Evidence
-
-Source: `src/routeTree.gen.ts:7-9`.
+Regenerate via tooling (`pnpm dev` / `pnpm build` / `pnpm db:generate`), never hand-edit.
 
 ```ts
+// src/routeTree.gen.ts header
 // This file was automatically generated by TanStack Router.
 // You should NOT make any changes in this file as it will be overwritten.
 ```
 
-Source: `prisma/schema.prisma:1-4`.
-
-```prisma
-generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-}
-```
-
-Source: `vite.config.ts:14-18`.
-
 ```ts
+// vite.config.ts
 paraglideVitePlugin({
   project: './project.inlang',
   outdir: './src/paraglide',
@@ -147,26 +112,21 @@ paraglideVitePlugin({
 
 ## Concern-to-Directory Mapping
 
-- Auth server: `src/lib/auth.ts`; auth client UI hook: `src/lib/auth-client.ts`; auth integration widget: `src/integrations/better-auth/header-user.tsx`.
-- Database: schema/migrations/seed in `prisma/`; runtime singleton in `src/db.ts`; generated client in `src/generated/prisma/`.
-- i18n usage in components/routes via `#/paraglide/messages` and `#/paraglide/runtime`.
-- Shared class merging helper is centralized in `src/lib/utils.ts` (`cn`).
-
-### Evidence
-
-Source: `src/lib/auth.ts:4-9`, `src/lib/auth-client.ts:1-3`, `src/integrations/better-auth/header-user.tsx:1-6`.
+- **Auth**: server `src/lib/auth.ts`; client hook `src/lib/auth-client.ts`; UI integration `src/integrations/better-auth/*`; error translator `src/lib/auth-errors.ts`.
+- **Database**: schema `zenstack/schema.zmodel`; runtime singleton `src/db.ts`; generated artifacts `zenstack/*.ts` (git-ignored).
+- **i18n**: components/routes import from `#/paraglide/messages` (compiled fns) and `#/paraglide/runtime` (`getLocale` / `setLocale`).
+- **Class merging**: single helper `src/lib/utils.ts` (`cn`) — never duplicate inline.
 
 ```ts
-export const auth = betterAuth({ ... })
+// src/lib/auth-client.ts
 export const authClient = createAuthClient()
 const { data: session, isPending } = authClient.useSession()
-```
 
-Source: `src/components/LocaleSwitcher.tsx:4-5`, `src/lib/utils.ts:5-6`.
-
-```ts
+// src/components/LocaleSwitcher.tsx
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
-import { m } from '#/paraglide/messages'
+import * as m from '#/paraglide/messages'
+
+// src/lib/utils.ts
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

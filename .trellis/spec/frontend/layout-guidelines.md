@@ -1,16 +1,14 @@
 # Layout Guidelines
 
-> Admin shell layout + TanStack Router route-group / layout-nesting conventions for the TanStack Start frontend.
+> Admin shell layout + TanStack Router route-group / layout-nesting conventions.
 
 ---
 
 ## TanStack Router Route Groups + `_layout.tsx` — 关键约定（坑区）
 
-本项目同一个"已登录后台"布局由 `(admin)/_layout.tsx` 承载。两个独立的路由器约定合在一起决定了目录结构：
-
 ### 约定 1：`(admin)/` 是 **Route Group**
 
-括号目录**不进入 URL**，仅用作文件系统分组。同一 app 常见要并存不同布局（登录前裸页 / 登录后后台 / 邮件模板预览...），路由组让你在**不加 URL 前缀**的情况下共享一个 `_layout`。
+括号目录**不进入 URL**，仅用作文件系统分组。同一 app 常见要并存不同布局（登录前裸页 / 登录后后台 / 邮件预览...），路由组让你在**不加 URL 前缀**的情况下共享 `_layout`。
 
 ```
 src/routes/
@@ -19,21 +17,18 @@ src/routes/
 └── index.tsx              → /
 ```
 
-### 约定 2：`_layout.tsx` 必须有**子目录同名伙伴** `_layout/`
+### 约定 2：`_layout.tsx` 必须有子目录同名伙伴 `_layout/`
 
-这是本次任务踩过的大坑：**`_layout.tsx` 不会自动 wrap 同级 sibling 文件**。要让一组页面共享 `_layout`，它们必须作为 `_layout` 的 child —— 放在名为 `_layout/` 的子目录里。
+**`_layout.tsx` 不会自动 wrap 同级 sibling 文件**。要让一组页面共享 `_layout`，它们必须作为 child —— 放在名为 `_layout/` 的子目录里。
 
-**错误结构**（曾导致 dashboard 绕过 SidebarProvider，没有侧栏 / header）：
 ```
+// ❌ 错误：dashboard.tsx 和 _layout.tsx 同级 → parent 是 root
 (admin)/
 ├── _layout.tsx
-├── dashboard.tsx          ← 和 _layout.tsx 同级 → parent 是 root，不是 layout
-└── settings/$path.tsx     ← 同上
-```
-routeTree.gen 证据：`getParentRoute: () => rootRouteImport`。
+├── dashboard.tsx          ← 绕过 SidebarProvider，没有侧栏 / header
+└── settings/$path.tsx
 
-**正确结构**：
-```
+// ✅ 正确：放在 _layout/ 子目录
 (admin)/
 ├── _layout.tsx            ← 布局文件
 └── _layout/               ← 子路由容器
@@ -44,27 +39,28 @@ routeTree.gen 证据：`getParentRoute: () => rootRouteImport`。
     ├── menus/index.tsx            → /menus
     └── settings/$path.tsx         → /settings/$path
 ```
-`createFileRoute` 字符串参数要带上 `_layout` 段：
+
+`createFileRoute` 路径要带 `_layout` 段：
+
 ```ts
 createFileRoute("/(admin)/_layout/dashboard")({ ... })
 createFileRoute("/(admin)/_layout/settings/$path")({ ... })
 ```
 
-等价的 flat 命名法（本项目没用，仅作参考）：`_layout.dashboard.tsx` / `_layout.settings.$path.tsx`。
+等价 flat 命名（本项目没用，仅参考）：`_layout.dashboard.tsx` / `_layout.settings.$path.tsx`。
 
 ### 识别症状
 
-如果你发现页面**渲染了**但没有 Sidebar / Header / Tabbar —— 第一件事就是查 `routeTree.gen.ts` 里该 route 的 `getParentRoute` 是不是 `adminLayoutRoute`。不是就说明路由没挂到 layout 下，检查文件位置 + `createFileRoute` 的路径参数。
+页面**渲染了**但没有 Sidebar / Header / Tabbar —— 第一件事查 `routeTree.gen.ts` 里该 route 的 `getParentRoute` 是不是 `adminLayoutRoute`。不是就说明没挂到 layout 下，检查文件位置 + `createFileRoute` 的路径参数。
 
 ---
 
 ## Admin Shell 组成
 
-**前置**：`<ThemeProvider>` 挂在 `__root.tsx` 的 `<body>` 内、`<Providers>` 外层（因为 `<Providers>` 里 `useTheme()` 要接通 `AuthProvider appearance`）。详见 `./theming.md`。
-
-`(admin)/_layout.tsx` 组合以下组件：
+**前置**：`<ThemeProvider>` 挂在 `__root.tsx` 的 `<body>` 内、`<Providers>` 外层（`<Providers>` 里 `useTheme()` 要接通 `AuthProvider appearance`）。详见 `./theming.md`。
 
 ```tsx
+// (admin)/_layout.tsx
 <SidebarProvider>
   <AppSidebar />
   <SidebarInset>
@@ -73,7 +69,7 @@ createFileRoute("/(admin)/_layout/settings/$path")({ ... })
       <Separator orientation="vertical" />
       <div className="flex flex-1 flex-col">{/* Management title */}</div>
       <div className="flex items-center gap-2">
-        <OrganizationSwitcher />    {/* 自写，切换 activeOrganizationId */}
+        <OrganizationSwitcher />    {/* 自写，切 activeOrganizationId */}
         <ThemeToggle />
         <UserButton />              {/* ba-ui shadcn 变体 */}
       </div>
@@ -86,16 +82,20 @@ createFileRoute("/(admin)/_layout/settings/$path")({ ... })
 
 ### Sidebar 数据来源：动态菜单
 
-Sidebar 内容不再硬编码，而是从 `orpc.getUserMenus` server handler 拉取。该 handler：
+Sidebar 内容从 `orpc.getUserMenus` server handler 拉取：
 1. 读 `Menu` 表所有 `status=ACTIVE` 节点
-2. 对每个带 `requiredPermission` 的节点，调 `auth.api.hasPermission({ organizationId, permissions })` 过滤
+2. 带 `requiredPermission` 的节点调 `auth.api.hasPermission({ organizationId, permissions })` 过滤
 3. 返回树形结构，前端 `menuStore` 保存，`AppSidebar` 订阅渲染
 
-**前置条件**：session 必须有 `activeOrganizationId`。参考 `backend/authorization-boundary.md` 的 "Session Active Org 自动填充" 段。
+**前置**：session 必须有 `activeOrganizationId`。见 `backend/authorization-boundary.md` "Session Active Org 自动填充"。
 
 ### Tabbar 同步
 
-`_layout.tsx` 内部 `useTabSync` hook 监听 `pathname` 变化，自动把当前页加到 `tabbarStore`。tab 标题从 `menuStore` 的 `meta.title` 解析，未命中时用 pathname 末段。`/dashboard` 为不可关闭的固定 tab。
+`_layout.tsx` 内 `useTabSync` hook 监听 `pathname`，自动把当前页加进 `tabbarStore`。tab 标题从 `menuStore` 的 `meta.title` 解析（通过 `resolveMenuLabel`，见 `frontend/i18n.md`），未命中时用 pathname 末段。`/dashboard` 为不可关闭的固定 tab。
+
+### Teams 菜单 gating
+
+`AppSidebar.getDisabledReason("/teams")` 基于 `VITE_TEAM_ENABLED` 返回禁用原因。`false` → 灰化 + tooltip "feature disabled"，click no-op；`true` → 正常渲染。见 `backend/tenancy-modes.md` "TEAM_ENABLED contract"。
 
 ---
 
@@ -113,21 +113,18 @@ Sidebar 内容不再硬编码，而是从 `orpc.getUserMenus` server handler 拉
 
 ### DataTable
 
-所有数据列表用 `#/components/data-table/data-table.tsx` 的 `<DataTable>`，统一 skeleton 加载 + 分页 + 空态。列定义走 TanStack Table `ColumnDef<T>[]`。
+所有数据列表用 `#/components/data-table/data-table.tsx` 的 `<DataTable>`，统一 skeleton + 分页 + 空态。列定义走 TanStack Table `ColumnDef<T>[]`。
 
 ---
 
 ## 路径别名（`#/*`）
 
-- 由 `package.json` 的 `imports` 字段声明（**不是** `tsconfig.json#paths`）
-- 跨目录引用必须用 `#/*`，同级相对 import 可用 `./xxx`
-- `import` 顺序 Biome organizeImports 自动排序
+由 `package.json#imports` 声明（**不是** `tsconfig.json#paths`）。跨目录引用用 `#/*`，同级相对 import 可用 `./xxx`。`import` 顺序 Biome organizeImports 自动排。
 
 ---
 
-## Out of Scope（将来可能加的）
+## Out of Scope（将来可能加）
 
 - 多层嵌套菜单折叠展开动画
 - 面包屑（`Router.state.matches` 驱动）
 - 菜单拖拽排序
-- 可配置化主题色板（当前 `src/styles.css` 有 TanStack Start 模板遗留的 `--sea-ink` 等 demo 变量，应择日清理，全量切回 shadcn zinc token）

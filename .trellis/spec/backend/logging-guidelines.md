@@ -6,20 +6,15 @@
 
 ## Overview
 
-Backend logging is now standardized on `pino` via `src/lib/logger.ts`.
-
-### Default rules
+Backend logging standardized on `pino` via `src/lib/logger.ts`.
 
 - Use `createModuleLogger("module-name")` in server modules.
 - Prefer structured fields (`{ err, title, requestId }`) over string concatenation.
-- Dev mode (`APP_ENV=dev`) uses single-line colorized stdout via `pino-pretty`.
-- Prod mode (`APP_ENV=prod`) uses JSON to stdout and optional rotating file output via `pino-roll` when `LOG_FILE` is set.
-- Base log metadata is intentionally minimal: `service` and `instanceId` only.
-- Do **not** attach `version` and `env` to every line unless a specific incident requires it.
+- `APP_ENV=dev` → single-line colorized stdout via `pino-pretty`.
+- `APP_ENV=prod` → JSON to stdout + optional rotating file via `pino-roll` when `LOG_FILE` is set.
+- Base metadata intentionally minimal: `service` and `instanceId` only. Do **not** attach `version` / `env` to every line.
 
-### Allowed exception
-
-`instrument.server.mjs` may still use `console.warn` during very early bootstrap when the logger is not yet safe to initialize.
+**Allowed exception**: `instrument.server.mjs` may use `console.warn` during early bootstrap when the logger isn't yet safe to initialize.
 
 ---
 
@@ -27,12 +22,7 @@ Backend logging is now standardized on `pino` via `src/lib/logger.ts`.
 
 ### 1. Scope / Trigger
 
-Use this contract when changing any of the following:
-
-- server boundary logging in route handlers, oRPC, MCP, or auth
-- logger transport behavior for dev/prod
-- env wiring for logging config
-- trace correlation with Sentry / OpenTelemetry
+When changing: server boundary logging (route handlers / oRPC / MCP / auth) · logger transport for dev/prod · env wiring for logging config · trace correlation with Sentry/OTel.
 
 ### 2. Signatures
 
@@ -54,7 +44,7 @@ logger: {
 }
 ```
 
-Boundary handlers should log caught failures with structured error payloads:
+Boundary handlers log caught failures with structured error payloads:
 
 ```ts
 log.error({ err: error }, "oRPC handler error");
@@ -65,7 +55,7 @@ log.error({ err: error }, "MCP handler error");
 
 #### Env contract
 
-All logging env keys must be declared in `src/env.ts` and validated with Zod:
+All logging env keys declared in `src/env.ts` + validated with Zod:
 
 - `APP_NAME?: string`
 - `APP_ENV?: "dev" | "prod" | "test"`
@@ -78,131 +68,85 @@ All logging env keys must be declared in `src/env.ts` and validated with Zod:
 #### Runtime contract
 
 - Non-`VITE_` server vars must be read from `process.env`.
-- `import.meta.env` is only valid for `VITE_*` values on the client/Vite boundary.
+- `import.meta.env` is only valid for `VITE_*` on the client/Vite boundary.
 - `appConfig.env` maps runtime into the project enum: `dev`, `prod`, `test`.
 
 #### Output contract
 
-Each normal server log line should contain:
-
-- `level`
-- `time`
-- `msg`
-- `service`
-- `instanceId`
-- `module` when using a child logger
-- `traceId`, `spanId`, `traceFlags` when an active span exists
+Each normal server log line contains: `level`, `time`, `msg`, `service`, `instanceId`, `module` (when child logger), `traceId`/`spanId`/`traceFlags` (when active span).
 
 Sensitive values must be redacted to `[Redacted]`.
 
-### 4. Validation & Error Matrix
+### 4. Validation Matrix
 
-| Condition | Expected behavior |
+| Condition | Expected |
 |---|---|
 | `APP_ENV` invalid | env parsing fails at startup |
-| `LOG_FILE` unset | log to stdout only |
-| `LOG_FILE` set in prod | stdout JSON + rotating file logs |
-| no active OTel span | omit trace fields gracefully |
-| missing `VITE_SENTRY_DSN` | warn once during bootstrap; app continues |
-| raw token/cookie/password included in meta | logger redact layer must mask it |
-| server env read from `import.meta.env` | treat as bug; move to `process.env` mapping in `src/env.ts` |
+| `LOG_FILE` unset | stdout only |
+| `LOG_FILE` set in prod | stdout JSON + rotating file |
+| No active OTel span | trace fields omitted gracefully |
+| Missing `VITE_SENTRY_DSN` | warn once during bootstrap; app continues |
+| Raw token/cookie/password in meta | logger redact layer masks it |
+| Server env read from `import.meta.env` | treat as bug; move to `process.env` mapping in `src/env.ts` |
 
-### 5. Good / Base / Bad Cases
-
-#### Good
+### 5. Good / Bad Cases
 
 ```ts
+// ✅ Structured error with module logger
 const log = createModuleLogger("orpc");
 log.error({ err: error }, "oRPC handler error");
-```
 
-#### Base
-
-```ts
+// ✅ Debug with module context
 const log = createModuleLogger("demo:prisma");
 log.debug("getTodos called");
+
+// ❌ Unstructured / leaky
+console.error(error);                             // no structure, no redaction
+console.log("env=%s version=%s", env, version);  // noisy metadata
+log.info({ headers: request.headers }, "request received");  // leaks cookies/auth
 ```
-
-#### Bad
-
-```ts
-console.error(error);
-console.log("env=%s version=%s", env, version);
-log.info({ headers: request.headers }, "request received");
-```
-
-Why bad:
-- loses structure and redaction guarantees
-- adds noisy metadata to every line
-- may leak secrets / cookies / auth headers
 
 ### 6. Tests Required
 
-Required verification for logging changes:
-
-1. **Dev output**
-   - Run `pnpm dev`
-   - Assert logs are colorized and single-line in `APP_ENV=dev`
-
-2. **Prod output**
-   - Set `APP_ENV=prod` and `LOG_FILE=logs/app.log`
-   - Assert terminal output is JSON
-   - Assert rotating file output is created under `logs/` with `current.log` symlink
-
-3. **Boundary error path**
-   - Trigger one oRPC or MCP error
-   - Assert the log line contains `module` and structured `err`
-
-4. **Auth integration**
-   - Trigger one Better Auth action
-   - Assert the `better-auth` module logger writes through the shared logger
-
-5. **Trace correlation**
-   - With Sentry/OTel active, assert `traceId` / `spanId` fields appear
+1. **Dev output**: `pnpm dev` → logs colorized and single-line when `APP_ENV=dev`.
+2. **Prod output**: `APP_ENV=prod` + `LOG_FILE=logs/app.log` → stdout JSON + rotating file under `logs/` with `current.log` symlink.
+3. **Boundary error path**: trigger one oRPC/MCP error → log line contains `module` and structured `err`.
+4. **Auth integration**: trigger a BA action → `better-auth` module logger writes through shared logger.
+5. **Trace correlation**: with Sentry/OTel active → `traceId` / `spanId` fields appear.
 
 ### 7. Wrong vs Correct
 
-#### Wrong
-
 ```ts
+// ❌ runtimeEnv: import.meta.env — server vars won't resolve in Vite SSR
 runtimeEnv: import.meta.env
 
-const transport = pino.transport({
-  target: "pino-pretty",
-});
-```
+// ❌ transport without pre-initialized stream
+const transport = pino.transport({ target: "pino-pretty" });
 
-#### Correct
-
-```ts
+// ✅ Per-var mapping with server/client split
 runtimeEnv: {
-  APP_ENV: process.env.APP_ENV,
-  LOG_FILE: process.env.LOG_FILE,
+  APP_ENV:        process.env.APP_ENV,
+  LOG_FILE:       process.env.LOG_FILE,
   VITE_APP_TITLE: import.meta.env.VITE_APP_TITLE,
 }
 
+// ✅ Stream initialized before logger exported
 const pretty = require("pino-pretty");
 export const logger = pino(pinoOptions, await buildStream());
 ```
 
-Why correct:
-- server envs resolve reliably in Vite SSR
-- stream initialization happens before the logger is exported
-- transport behavior matches the actual runtime model
+Why correct: server envs resolve reliably in Vite SSR; stream initialization happens before the logger is exported; transport behavior matches actual runtime model.
 
 ---
 
 ## Redaction Rules
 
-Always redact or avoid logging these fields:
+Always redact or avoid logging:
 
 - `authorization`
-- `cookie`
-- `set-cookie`
+- `cookie` / `set-cookie`
 - `password`
-- `token`
-- `refreshToken`
-- `accessToken`
+- `token` / `refreshToken` / `accessToken`
 - `DATABASE_URL`
 
-Do not attach full request headers or full auth/session objects unless they are explicitly sanitized first.
+Do not attach full request headers or full auth/session objects unless explicitly sanitized first.

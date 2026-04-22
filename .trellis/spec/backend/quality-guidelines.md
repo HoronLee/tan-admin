@@ -6,66 +6,49 @@
 
 ## Core Baseline
 
-- Use `pnpm` scripts for all quality/build/database actions.
+- Use `pnpm` scripts for all quality/build/database actions. No npm/yarn.
 - Keep formatting/linting under Biome (`pnpm check`).
-- Use `#/*` imports for cross-module source access.
+- Use `#/*` imports (declared in `package.json#imports`) for cross-module source access.
 - Do not edit generated artifacts.
 
-### Evidence
-
-Source: scripts in `package.json:12-22` and import alias in `package.json:5-7`.
-
 ```json
+// package.json
 "imports": { "#/*": "./src/*" },
 "check": "biome check",
-"db:migrate": "dotenv -e .env.local -- prisma migrate dev"
+"db:migrate": "dotenv -e .env.local -- zen migrate dev"
 ```
 
-Source: Biome exclusions in `biome.json:15-16`.
-
 ```json
+// biome.json — generated files excluded
 "!**/src/routeTree.gen.ts",
-"!**/src/styles.css"
+"!**/src/styles.css",
+"!**/src/paraglide/**",
+"!**/zenstack/{schema,models,input}.ts"
 ```
 
 ## Polyfill Rule for oRPC Hosting Routes
 
-Any route file that hosts oRPC handlers must import `#/polyfill` as line 1.
-
-### Evidence
-
-Source: `src/routes/api.rpc.$.ts:1`, `src/routes/api.$.ts:1`.
+Any route file that hosts oRPC handlers must import `#/polyfill` as line 1:
 
 ```ts
+// src/routes/api.rpc.$.ts / src/routes/api.$.ts
 import '#/polyfill'
 ```
 
-Source: polyfill purpose in `src/polyfill.ts:4-8`.
-
-```ts
-/**
- * This file aims to polyfill missing APIs in Node.js 18 that oRPC depends on.
- * ...use Node.js 20 or later for full compatibility.
- */
-```
+Purpose (`src/polyfill.ts`): polyfill missing Node 18 APIs that oRPC depends on. Use Node 20+ for full compatibility.
 
 ## Env Access and Validation
 
-- Backend runtime reads server vars through `process.env`.
+- Backend runtime reads server vars through `process.env` (or T3Env proxy).
 - Keep env schema declarations in `src/env.ts` for fail-fast validation and client prefix enforcement.
-
-### Evidence
-
-Source: process-env usage `src/db.ts:6`, `instrument.server.mjs:3`.
+- Client-visible vars must use `VITE_` prefix (`clientPrefix` in env schema).
+- **Gotcha**: `VITE_*` in `runtimeEnv` must guard `import.meta.env` with `typeof` check — bare access throws in Node scripts (see `backend/error-handling.md` "Common Mistake" section).
 
 ```ts
+// src/db.ts
 connectionString: process.env.DATABASE_URL!
-const sentryDsn = import.meta.env?.VITE_SENTRY_DSN ?? process.env.VITE_SENTRY_DSN
-```
 
-Source: env schema prefix in `src/env.ts:13-17`.
-
-```ts
+// src/env.ts
 clientPrefix: 'VITE_',
 client: {
   VITE_APP_TITLE: z.string().min(1).optional(),
@@ -80,55 +63,38 @@ Every new backend boundary must validate input:
 - MCP tools with `inputSchema`
 - Server functions with `.inputValidator(...)` (prefer zod schema for non-trivial payloads)
 
-### Evidence
-
-Source: oRPC and server function validators: `src/orpc/router/todos.ts:15`, `src/routes/demo/prisma.tsx:16-17`.
-
 ```ts
+// oRPC
 .input(z.object({ name: z.string() }))
+
+// Server fn
 .inputValidator((data: { title: string }) => data)
+
+// MCP
+inputSchema: { title: z.string().describe('The title of the todo') }
 ```
 
-Source: MCP input schema `src/routes/mcp.ts:19-21`.
-
-```ts
-inputSchema: {
-  title: z.string().describe('The title of the todo'),
-},
-```
+Zod failures at oRPC boundary are auto-upgraded to `INPUT_VALIDATION_FAILED` by the interceptor chain — no manual remapping needed. See `backend/error-handling.md`.
 
 ## Isomorphic Discipline
 
 Do not import server-only modules into client-only component runtime.
 
-- Server-only examples: `#/db`, `#/lib/auth`, `#/mcp-todos`, `#/orpc/router/*`.
+- **Server-only**: `#/db` / `#/lib/auth` / `#/mcp-todos` / `#/orpc/router/*` / `#/lib/email*`.
 - Use server functions or oRPC clients for UI access to backend logic.
 
-### Evidence
-
-Source: server-only module usage in server contexts:
-
 ```ts
-// src/routes/demo/prisma.tsx:3
-import { prisma } from '#/db'
+// Server context — OK
+import { db } from '#/db'                        // src/routes/api/model/$.ts
+import { auth } from '#/lib/auth'                // src/routes/api/auth/$.ts
 
-// src/routes/api/auth/$.ts:2
-import { auth } from '#/lib/auth'
-```
-
-Source: client route uses oRPC client, not router internals (`src/routes/demo/orpc-todo.tsx:5`).
-
-```ts
-import { orpc } from '#/orpc/client'
+// Client route — use client, NOT router internals
+import { orpc } from '#/orpc/client'             // src/routes/demo/orpc-todo.tsx
 ```
 
 ## Testing Expectations
 
-Vitest is installed. Backend testing should start with in-process oRPC router/client tests (without HTTP transport), then add route-level integration tests as needed.
-
-### Evidence
-
-Source: test tooling in `package.json:12,83` and oRPC in-process server client utility in `src/orpc/client.ts:1,14`.
+Vitest is installed. Backend testing should start with in-process oRPC router/client tests (no HTTP transport), then add route-level integration tests.
 
 ```json
 "test": "vitest run",
@@ -136,64 +102,55 @@ Source: test tooling in `package.json:12,83` and oRPC in-process server client u
 ```
 
 ```ts
+// src/orpc/client.ts
 import { createRouterClient } from '@orpc/server'
 createRouterClient(router, { context: () => ({ headers: getRequestHeaders() }) })
 ```
 
 ## Sentry Wiring Must Not Be Removed
 
-`instrument.server.mjs` is loaded only via startup import flags.
-
-### Evidence
-
-Source: `package.json:9,16` and `instrument.server.mjs:1`.
+`instrument.server.mjs` is loaded only via startup `--import` flags:
 
 ```json
-"dev": "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
+"dev":   "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
 "start": "node --import ./.output/server/instrument.server.mjs ..."
 ```
 
 ```js
+// instrument.server.mjs
 import * as Sentry from '@sentry/tanstackstart-react'
 ```
 
+Sentry init is limited to DSN + tracing — it does NOT install custom `uncaughtException` / `unhandledRejection` handlers; see `backend/error-handling.md` for the fatal-fallback contract.
+
 ## OpenAPI Security Declaration
 
-OpenAPI route declares `bearerAuth` scheme and a docs token placeholder. Treat docs token as playground-only text, never as a real credential.
-
-### Evidence
-
-Source: `src/routes/api.$.ts:34-40,45-49`.
+OpenAPI route declares `bearerAuth` scheme + a docs token placeholder. Treat docs token as playground-only text, **never** a real credential:
 
 ```ts
+// src/routes/api.$.ts
 security: [{ bearerAuth: [] }],
 components: {
-  securitySchemes: {
-    bearerAuth: { type: 'http', scheme: 'bearer' },
-  },
+  securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } },
 },
 docsConfig: {
   authentication: {
-    securitySchemes: {
-      bearerAuth: { token: 'default-token' },
-    },
+    securitySchemes: { bearerAuth: { token: 'default-token' } },
   },
 },
 ```
 
 ## Hard NO Anti-Patterns
 
-- Importing `#/db` or `#/lib/auth` from client-only route components.
+- Importing `#/db` / `#/lib/auth` / `#/lib/email*` from client-only route components.
 - Skipping `import '#/polyfill'` in new oRPC-hosting route files.
-- Hardcoding secrets (`DATABASE_URL`, auth tokens).
-- Creating ad hoc `new PrismaClient()` outside `src/db.ts` for request handling.
-- Logging cookies/tokens/password payloads.
-- Editing generated files (`src/generated/prisma/*`, `src/routeTree.gen.ts`).
-
-### Evidence
-
-Source: singleton standard `src/db.ts:13`; generated warning `src/routeTree.gen.ts:7-9`; polyfill-first routes `src/routes/api.$.ts:1`.
+- Hardcoding secrets (`DATABASE_URL`, auth tokens, SMTP creds).
+- Creating ad-hoc `new ZenStackClient()` / `new Pool()` outside `src/db.ts`.
+- Logging cookies / tokens / password payloads (pino redacts, but new call sites must not leak into `msg`).
+- Hand-editing generated files (`src/routeTree.gen.ts`, `src/paraglide/**`, `zenstack/{schema,models,input}.ts`).
+- Using `npm`/`yarn` instead of `pnpm`.
 
 ```ts
-export const prisma = globalThis.__prisma || new PrismaClient({ adapter })
+// src/db.ts (singleton standard)
+export const db = globalThis.__db ?? new ZenStackClient(schema, { dialect: ... })
 ```

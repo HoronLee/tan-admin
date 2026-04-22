@@ -1,19 +1,12 @@
 # Email Infrastructure
 
-> Executable contract for transactional email: transport abstraction, react-email templates, boot-time validation, and the i18n-aware send path.
+> Executable contract for transactional email: transport abstraction, react-email templates, boot-time validation, i18n-aware send path.
 
 ---
 
 ## 1. Scope / Trigger
 
-Triggers when work touches any of:
-
-- `src/lib/email.tsx` (high-level `sendEmail` entry)
-- `src/lib/email-transport.ts` (low-level driver factory)
-- `src/emails/*.tsx` (react-email templates or shared layout)
-- `src/lib/auth.ts` hooks that send mail (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`)
-- `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` env declarations in `src/env.ts`
-- Adding a new email template or transport driver
+Triggers when work touches: `src/lib/email.tsx` · `src/lib/email-transport.ts` · `src/emails/*.tsx` · `src/lib/auth.ts` mail hooks (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`) · `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` in `src/env.ts` · adding a new template or driver.
 
 ---
 
@@ -31,8 +24,8 @@ export type EmailPayload =
 export async function sendEmail(payload: EmailPayload): Promise<void>;
 ```
 
-- Discriminated union — each template's required props are checked at the call site.
-- Subject line resolved via Paraglide `m.email_subject_*()` (i18n).
+- Discriminated union — each template's required props are checked at call site.
+- Subject resolved via Paraglide `m.email_subject_*()` (i18n).
 - Honours `EMAIL_VERIFICATION_SKIP_LIST` (dev skip).
 - Renders HTML + plaintext fallback via `render` + `toPlainText` from `@react-email/render`.
 
@@ -50,17 +43,16 @@ export interface MailMessage {
 export async function sendMail(message: MailMessage): Promise<void>;
 ```
 
-- Driver is picked **once at module-load time** based on `env.EMAIL_TRANSPORT`.
-- `sendMail` is exported for tests / tooling; production code goes through `sendEmail`.
+- Driver picked **once at module-load** based on `env.EMAIL_TRANSPORT`.
+- `sendMail` exported for tests / tooling; production code goes through `sendEmail`.
 
 ### Template component contract (`src/emails/*.tsx`)
 
 ```ts
-// Each template exports its own typed Props interface.
-export interface VerifyEmailProps      { url: string; userName?: string }
-export interface ResetPasswordProps    { url: string; userName?: string }
-export interface InviteMemberProps     { url: string; inviterName: string; organizationName: string }
-export interface TransferOwnershipProps{ url: string; inviterName: string; organizationName: string }
+export interface VerifyEmailProps       { url: string; userName?: string }
+export interface ResetPasswordProps     { url: string; userName?: string }
+export interface InviteMemberProps      { url: string; inviterName: string; organizationName: string }
+export interface TransferOwnershipProps { url: string; inviterName: string; organizationName: string }
 
 export function VerifyEmail(props: VerifyEmailProps): JSX.Element;
 // same shape for ResetPassword / InviteMember / TransferOwnership
@@ -80,44 +72,37 @@ All templates wrap `<EmailLayout preview=...>` from `src/emails/components/email
 | `smtp` | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (+ `SMTP_PORT` / `SMTP_SECURE` opt) | `nodemailer` pool; `verify()` on boot (warn-only); `sendMail({ from, to, subject, html, text })`. |
 | `resend` | `RESEND_API_KEY` | `Resend().emails.send(...)`; throws on non-null `{ error }` result. |
 
-Always-required: `EMAIL_FROM` (email address); optional `EMAIL_FROM_NAME` composes `"Name" <address>` format.
+Always-required: `EMAIL_FROM`; optional `EMAIL_FROM_NAME` composes `"Name" <address>`.
 
-### Boot-time validation rules
+### Boot-time validation (`validateTransportEnv()` at module load)
 
-Performed in `validateTransportEnv()` at module load of `email-transport.ts`:
+- `appConfig.env === "prod"` **and** `EMAIL_TRANSPORT === "console"` → throw. Stops prod from silently swallowing emails.
+- `smtp` missing any of `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` → throw naming missing fields.
+- `resend` without `RESEND_API_KEY` → throw.
 
-- `appConfig.env === "prod"` **and** `EMAIL_TRANSPORT === "console"` → throw. Stops prod from silently swallowing verification emails.
-- `EMAIL_TRANSPORT === "smtp"` with any of `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` missing → throw naming the missing fields.
-- `EMAIL_TRANSPORT === "resend"` without `RESEND_API_KEY` → throw.
+Runs **once at import time**. Mis-configured deployment crashes before serving traffic — not 30 min later on first verify email.
 
-Validation runs **once**, at import time. A mis-configured deployment crashes before it accepts traffic — not 30 minutes later on the first verification email.
+### Skip-list
 
-### Skip-list semantics
-
-- `EMAIL_VERIFICATION_SKIP_LIST` is a comma-separated string.
-- `sendEmail` compares each entry case-insensitively after `trim().toLowerCase()`.
-- Matching addresses are logged as skipped and `sendEmail` returns without rendering or dispatching.
-- Intended for dev (e.g. `admin@tan-admin.local`) so the super-admin can log in without a real inbox. **Keep empty in production.**
+`EMAIL_VERIFICATION_SKIP_LIST` is comma-separated. `sendEmail` compares each entry case-insensitively after `trim().toLowerCase()`. Matching → logged as skipped, returns without render/dispatch. Intended for dev (e.g. `admin@tan-admin.local`). **Keep empty in production.**
 
 ### Template / transport interaction
 
-- Template rendering uses `pretty: true` in dev (`appConfig.env !== "prod"`) and `pretty: false` in prod — minified HTML saves bandwidth in production.
-- Plain-text `text` is always generated via `toPlainText(html)` so every transport has a multipart fallback (deliverability signal).
-- Errors from `sendMail` are logged with `{ err, to, type }` and rethrown by `sendEmail`. Callers (Better Auth hooks) decide whether to retry or surface.
+- `pretty: true` in dev (`appConfig.env !== "prod"`), `pretty: false` in prod (minified HTML saves bandwidth).
+- `text` always generated via `toPlainText(html)` for multipart fallback (deliverability).
+- `sendMail` errors logged with `{ err, to, type }` and rethrown by `sendEmail`. Callers (BA hooks) decide retry/surface.
 
 ### Better Auth wiring
-
-Three BA hooks currently call `sendEmail`:
 
 ```ts
 // src/lib/auth.ts
 emailAndPassword: {
   sendResetPassword: ({ user, url }) =>
-    sendEmail({ type: "reset",   to: user.email, props: { url, userName: user.name } }),
+    sendEmail({ type: "reset",  to: user.email, props: { url, userName: user.name } }),
 },
 emailVerification: {
   sendVerificationEmail: ({ user, url }) =>
-    sendEmail({ type: "verify",  to: user.email, props: { url, userName: user.name } }),
+    sendEmail({ type: "verify", to: user.email, props: { url, userName: user.name } }),
 },
 organization({
   sendInvitationEmail: ({ email, inviter, organization: org, invitation }) => {
@@ -135,38 +120,37 @@ organization({
 
 ---
 
-## 4. Validation & Error Matrix
+## 4. Validation Matrix
 
-| Condition | Expected behaviour |
+| Condition | Expected |
 |---|---|
-| `EMAIL_TRANSPORT=smtp` missing `SMTP_HOST` | Module load throws: `"...SMTP_TRANSPORT=smtp requires: SMTP_HOST..."` |
-| `EMAIL_TRANSPORT=resend` missing `RESEND_API_KEY` | Module load throws |
-| `APP_ENV=prod` + `EMAIL_TRANSPORT=console` | Module load throws |
+| `smtp` missing creds | Module load throws naming missing field |
+| `resend` missing key | Module load throws |
+| `APP_ENV=prod` + `console` | Module load throws |
 | `EMAIL_FROM_NAME` unset | From header = bare `EMAIL_FROM` |
 | `EMAIL_FROM_NAME` set | From header = `"Name" <email>` |
-| `to` in `EMAIL_VERIFICATION_SKIP_LIST` (case-insensitive) | Logged as skipped, no render/send |
-| SMTP `verify()` fails at boot | Warn log only; provider may reject verify but accept sendMail |
-| `sendMail` throws inside BA hook | `sendEmail` logs + rethrows; BA's hook is post-commit (#7260), so signup still succeeds |
-| React-email render throws | Propagates out of `sendEmail`; caller sees the error |
+| `to` in skip-list (case-insensitive) | Logged, no render/send |
+| SMTP `verify()` fails at boot | Warn-only; provider may reject verify but accept `sendMail` |
+| `sendMail` throws in BA hook | `sendEmail` logs + rethrows; BA hook is post-commit (#7260), signup still succeeds |
+| React-email render throws | Propagates; caller sees error |
 | Resend returns `{ error }` | `sendMail` throws `Error("[resend] <message>")` |
 
-**Post-commit hook caveat**: Because `sendVerificationEmail` fires after the user row is committed, a transport failure does **not** roll back signup. Operators need a manual "resend verification email" path for failed sends (out of scope for Phase 1).
+**Post-commit caveat**: `sendVerificationEmail` fires after user row committed, so transport failure does not roll back signup. Operators need manual "resend verification" path (out of scope Phase 1).
 
 ---
 
-## 5. Good / Base / Bad Cases
+## 5. Good / Bad Cases
 
-### Good — dev console transport
+### Good — dev console
 
 ```bash
-# .env.local
 EMAIL_TRANSPORT=console
 EMAIL_VERIFICATION_SKIP_LIST=admin@tan-admin.local
 ```
 
-Dev signup logs `"[EMAIL_TRANSPORT=console] mail skipped (dev)"` with the extracted verify URL; super-admin auto-verified via skip list.
+Signup logs `"[EMAIL_TRANSPORT=console] mail skipped (dev)"` + extracted verify URL; super-admin auto-verified via skip-list.
 
-### Base — production SMTP (Aliyun Direct Mail)
+### Good — prod SMTP (Aliyun Direct Mail)
 
 ```bash
 EMAIL_TRANSPORT=smtp
@@ -174,79 +158,63 @@ SMTP_HOST=smtpdm.aliyun.com
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=noreply@yourdomain.com
-SMTP_PASS=...           # SMTP auth code, not mailbox password
+SMTP_PASS=...              # SMTP auth code, not mailbox password
 EMAIL_FROM=noreply@yourdomain.com
 EMAIL_FROM_NAME=Tan Admin
 EMAIL_VERIFICATION_SKIP_LIST=
 ```
 
-Boot logs `"SMTP transporter verified"`; verify/reset/invite/transfer emails deliver.
+Boot logs `"SMTP transporter verified"`; all 4 mails deliver.
 
 ### Bad — misconfig silently continues
 
 ```bash
-# Prod with console transport
 APP_ENV=prod
-EMAIL_TRANSPORT=console   # ← no validation → every verify email lost
+EMAIL_TRANSPORT=console    # ← no validation → every verify email lost
+# or: EMAIL_TRANSPORT=smtp with SMTP_* all unset
 ```
 
-Or:
-
-```bash
-EMAIL_TRANSPORT=smtp
-# SMTP_HOST / SMTP_USER / SMTP_PASS all unset
-```
-
-Either of these **must** crash at boot. If you see them silently start, the validation was bypassed (e.g. lazy driver init instead of module-load).
+Both **must** crash at boot. If they silently start, validation was bypassed (e.g. lazy driver init instead of module-load).
 
 ---
 
 ## 6. Tests Required
 
-| Test | Assertion point | Type |
-|---|---|---|
-| `email-transport.boot.test.ts` | `EMAIL_TRANSPORT=smtp` without creds throws at import | Integration (reset modules) |
-| `email-transport.boot.test.ts` | `EMAIL_TRANSPORT=resend` without key throws at import | Integration |
-| `email-transport.boot.test.ts` | `APP_ENV=prod` + `EMAIL_TRANSPORT=console` throws | Integration |
-| `email.test.ts` | `shouldSkip("AdMin@Tan-Admin.LOCAL")` when list has `admin@tan-admin.local` (case-insensitive match) | Unit |
-| `email.test.ts` | Each `type` dispatches the correct template (mock `render`, assert it was called with the right component) | Unit |
-| `email.test.ts` | Subject line comes from `m.email_subject_*()` (import Paraglide, assert output) | Unit |
-| `email.test.ts` | `sendMail` failure bubbles out of `sendEmail` after logging | Unit |
+| Test | Assertion |
+|---|---|
+| `email-transport.boot.test.ts` | `smtp` without creds throws at import |
+| `email-transport.boot.test.ts` | `resend` without key throws at import |
+| `email-transport.boot.test.ts` | `prod` + `console` throws |
+| `email.test.ts` | `shouldSkip("AdMin@Tan-Admin.LOCAL")` matches `admin@tan-admin.local` (case-insensitive) |
+| `email.test.ts` | Each `type` dispatches correct template (mock `render`) |
+| `email.test.ts` | Subject from `m.email_subject_*()` |
+| `email.test.ts` | `sendMail` failure bubbles out of `sendEmail` after logging |
 
-No end-to-end SMTP test — covered by manual QA against a real provider (Aliyun / QQ) during release.
+No e2e SMTP test — manual QA against real provider (Aliyun / QQ) during release.
 
 ---
 
-## 7. Wrong vs Correct
-
-### Wrong — lazy driver init (validation deferred)
+## 7. Wrong vs Correct — module-load factory, not lazy
 
 ```ts
-// src/lib/email-transport.ts  (anti-pattern)
+// ❌ Lazy init — validation deferred
 let driver: Driver | null = null;
-
 export async function sendMail(msg: MailMessage) {
   if (!driver) {
-    // validate + build here
     validateTransportEnv();
     driver = buildDriver();
   }
   await driver(msg);
 }
-```
+// 1) First email request pays the boot cost
+// 2) Misconfigured prod starts happily; error surfaces only when user hits signup
+// 3) SMTP verify() moves from boot-time warning to inline blocking
 
-Problems:
-1. First email request pays the boot cost.
-2. Mis-configured prod starts happily; error only surfaces when a user hits signup.
-3. `SMTP transporter.verify()` moves from boot-time warning to inline blocking.
-
-### Correct — module-load factory
-
-```ts
-// src/lib/email-transport.ts
+// ✅ Module-load factory — validation and driver construction are one-time,
+//    deterministic, fail-fast. Server either starts with a working email
+//    path, or it doesn't start.
 function buildDriver(): Driver { /* switch on env */ }
-
-validateTransportEnv();          // throws on bad config
+validateTransportEnv();
 const driver: Driver = buildDriver();
 
 export async function sendMail(m: MailMessage): Promise<void> {
@@ -254,13 +222,11 @@ export async function sendMail(m: MailMessage): Promise<void> {
 }
 ```
 
-Rationale: validation and driver construction are one-time, deterministic, and fail fast. The server either starts with a working email path, or it does not start.
-
 ---
 
 ## Related
 
-- `.trellis/spec/frontend/i18n.md` — email templates consume Paraglide `m.email_*()`; subject lines too
-- `.trellis/spec/backend/tenancy-modes.md` — `sendInvitationEmail` branches on `invitation.role === "owner"` for transfer flow
-- `.trellis/spec/backend/authorization-boundary.md` — BA organization plugin owns the invitation table; email path is a thin adapter
-- `docs/research/plugin-organization-deep.md` — real-world BA 1.6.5 findings (transfer ownership + `beforeAcceptInvitation` signature)
+- `frontend/i18n.md` — email templates consume Paraglide `m.email_*()`; subject lines too
+- `backend/tenancy-modes.md` — `sendInvitationEmail` branches on `invitation.role === "owner"` for transfer flow
+- `backend/authorization-boundary.md` — BA organization plugin owns invitation table; email path is a thin adapter
+- `docs/research/plugin-organization-deep.md` — BA 1.6.5 findings (transfer ownership + `beforeAcceptInvitation`)

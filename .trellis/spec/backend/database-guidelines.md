@@ -13,7 +13,7 @@
 
 ### Evidence
 
-Source: `zenstack/schema.zmodel:1-14`.
+Source: `zenstack/schema.zmodel`.
 
 ```zmodel
 datasource db {
@@ -32,7 +32,7 @@ model Menu {
 }
 ```
 
-Source: `src/db.ts:1-4`.
+Source: `src/db.ts`.
 
 ```ts
 import { ZenStackClient } from "@zenstackhq/orm";
@@ -48,15 +48,15 @@ One `pg.Pool` per process, shared by ZenStack (business tables) and Better Auth 
 ```
 new pg.Pool(DATABASE_URL)
    ├─ ZenStackClient(schema, { dialect: PostgresDialect({ pool }) })
-   │     → business tables (Todo, …)
+   │     → business tables (Menu, …)
    │
    └─ betterAuth({ database: pool })
-         → user / session / account / verification
+         → user / session / account / verification / organization / member / ...
 ```
 
 ### Evidence
 
-Source: shared pool singleton in `src/db.ts:16-33`.
+Source: `src/db.ts` (shared pool singleton).
 
 ```ts
 export const pool =
@@ -69,7 +69,7 @@ export const db =
   });
 ```
 
-Source: Better Auth consuming the same pool in `src/lib/auth.ts:8-10`.
+Source: `src/lib/auth.ts` (BA consumes same pool).
 
 ```ts
 export const auth = betterAuth({
@@ -85,30 +85,18 @@ Always import DB access from `#/db`; never instantiate `ZenStackClient` or `Pool
 
 ### Evidence
 
-Source: module-load fail-fast handshake in `src/db.ts:38-42`.
-
-```ts
-// Fail-fast: any connection error terminates the process before
-// the server accepts traffic.
-await db.$connect();
-```
-
-Source: route usage imports singleton in `src/orpc/router/todos.ts:2`.
-
-```ts
-import { db } from "#/db";
-```
+Module-load fail-fast handshake (`src/db.ts`): `await db.$connect()` at import time — any connection error terminates the process before serving traffic. Route usage: `import { db } from "#/db"` (see `src/orpc/router/*.ts`).
 
 ## Migration and CLI Workflow
 
 - Business schema (ZenStack): `pnpm db:push` | `pnpm db:migrate` | `pnpm db:generate`.
-- Auth schema (Better Auth): `pnpm auth:migrate` — creates / updates `user` / `session` / `account` / `verification` / `organization` / `member` / `invitation` / `team` / `teamMember` (interactive, press `y`).
+- Auth schema (Better Auth): `pnpm auth:migrate` — creates/updates `user` / `session` / `account` / `verification` / `organization` / `member` / `invitation` / `team` / `teamMember` (interactive, press `y`).
 - Seed: `pnpm db:seed` → `tsx src/seed.ts`.
 - All scripts run through `.env.local` injection; missing `.env.local` blocks everything.
 
-### No `db:reset` — use a manual full reset
+### No `db:reset` — manual full reset
 
-ZenStack CLI has no "reset" command (Prisma's `migrate reset` isn't proxied). To wipe the dev DB:
+ZenStack CLI has no "reset" command. To wipe the dev DB:
 
 ```bash
 pnpm exec dotenv -e .env.local -- psql "$DATABASE_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
@@ -117,40 +105,36 @@ pnpm auth:migrate      # BA tables (interactive y)
 pnpm db:seed           # data
 ```
 
-Only business-table churn (e.g. dropped the `Todo` model)? `pnpm db:push` suffices — it will prompt before DROP.
+Only business-table churn? `pnpm db:push` suffices (prompts before DROP).
 
 ### Evidence
 
-Source: `package.json:18-24`.
+Source: `package.json`.
 
 ```json
 "db:generate": "dotenv -e .env.local -- zen generate",
-"db:push": "dotenv -e .env.local -- zen db push",
-"db:migrate": "dotenv -e .env.local -- zen migrate dev",
-"db:studio": "dotenv -e .env.local -- zen studio",
-"db:seed": "dotenv -e .env.local -- tsx src/seed.ts",
-"auth:migrate": "dotenv -e .env.local -- npx @better-auth/cli@latest migrate"
+"db:push":     "dotenv -e .env.local -- zen db push",
+"db:migrate":  "dotenv -e .env.local -- zen migrate dev",
+"db:studio":   "dotenv -e .env.local -- zen studio",
+"db:seed":     "dotenv -e .env.local -- tsx src/seed.ts",
+"auth:migrate":"dotenv -e .env.local -- npx @better-auth/cli@latest migrate"
 ```
 
 ## Seeding Convention
 
 - Seed script is TypeScript (`tsx`), logs via `createModuleLogger("seed")` — no `console.*`.
-- **Idempotent full-rebuild for skeleton tables**: for tables the seed fully owns (e.g. `Menu` — the navigation tree), TRUNCATE before upsert so removed entries don't linger from earlier runs. Use `CASCADE` when the table has self-referencing FKs (`parentId`).
-- **Business/user data**: use `upsert({ where, update: {}, create })` to preserve manual edits on re-seed.
-- **Auth-managed rows** (user / organization / member): creating the super admin goes through `auth.api.signUpEmail(...)` so the password hash + auth columns are correct; binding to default org uses direct `pool.query` because seed has no HTTP request context for `auth.api.organization.*`.
-
-### Evidence
-
-Source: `src/seed.ts`.
+- **Skeleton tables fully owned by seed** (e.g. `Menu` navigation tree): TRUNCATE before upsert so removed entries don't linger. Use `CASCADE` when self-referencing FKs exist (`parentId`).
+- **Business/user data**: `upsert({ where, update: {}, create })` to preserve manual edits on re-seed.
+- **Auth-managed rows** (user / organization / member): super admin via `auth.api.signUpEmail(...)` (correct password hash + auth columns); binding to default org uses direct `pool.query` because seed has no HTTP request context for `auth.api.organization.*`.
 
 ```ts
-// Menu skeleton is fully owned by seed — CASCADE handles the parentId self-FK.
+// Menu skeleton — CASCADE handles parentId self-FK.
 await pool.query('TRUNCATE TABLE "Menu" RESTART IDENTITY CASCADE');
 
-// Super admin via Better Auth API (password hashing, auth columns).
+// Super admin via BA API (password hashing, auth columns).
 await auth.api.signUpEmail({ body: { email, password, name: "Super Admin" } });
 
-// Direct pg INSERT when auth.api.* would require a request/session context.
+// Direct pg INSERT — auth.api.* would require request/session context.
 await pool.query(
   'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
   [randomUUID(), orgId, adminUserId, "owner"],
@@ -163,11 +147,8 @@ await pool.query(
 - Never import `db` from client-only components.
 - CRUD via `db.<model>.<op>` (Prisma-compatible API).
 
-### Evidence
-
-Source: oRPC procedure in `src/orpc/router/todos.ts:5-7`.
-
 ```ts
+// src/orpc/router/todos.ts
 export const listTodos = authed.input(z.object({})).handler(async () => {
   return await db.todo.findMany({ orderBy: { createdAt: "desc" } });
 });
@@ -194,7 +175,7 @@ Applies whenever ZenStack access-control policies (`@@allow` / `@@deny` in `.zmo
 pnpm add @zenstackhq/plugin-policy
 ```
 
-`PolicyPlugin` lives in `@zenstackhq/plugin-policy`, NOT in `@zenstackhq/orm`.
+`PolicyPlugin` lives in `@zenstackhq/plugin-policy`, **not** `@zenstackhq/orm`.
 
 ### 3. Signatures
 
@@ -230,15 +211,14 @@ Fields passed to `$setAuth()` must exactly match the `type Auth` block.
 | `@@allow('all', auth().isAdmin == true)` | isAdmin users bypass all restrictions |
 | `@@allow('read', auth() != null && userId == auth().userId)` | Own-record access (UserRole pattern) |
 
-> **Gotcha**: For `findMany` / `findFirst`, policy violations on **read** return empty results, not thrown errors. Only **mutations** (create/update/delete) throw `ORMError`. Tests must account for this distinction.
+> **Gotcha**: For `findMany` / `findFirst`, policy violations on **read** return empty results, not thrown errors. Only **mutations** throw `ORMError`. Tests must account for this.
 
-### 6. isAdmin Determination (Shared Util)
+### 6. Per-Request Auth Context
 
-`isAdmin` is **not** stored in Better Auth's `user` table. It is derived from the `UserRole` join: a user is admin iff they are bound to the `super-admin` Role. This logic is centralised in `src/lib/auth-session.ts` and reused by both the oRPC middleware and the ZenStack Server Adapter — do not inline it at either call site.
-
-Source: `src/lib/auth-session.ts:20-44`.
+`isAdmin` is **not** stored in BA `user` table. It derives from the `UserRole` join: admin iff bound to `super-admin` Role. Centralised in `src/lib/auth-session.ts` and reused by oRPC middleware and ZenStack Server Adapter — **do not** inline it.
 
 ```ts
+// src/lib/auth-session.ts
 export async function getSessionUser(
   input: Request | Headers,
 ): Promise<AuthSessionContext | null> {
@@ -249,17 +229,11 @@ export async function getSessionUser(
     include: { role: true },
   })
   const isAdmin = userRoles.some((ur) => ur.role.code === "super-admin")
-  return {
-    session,
-    user: session.user,
-    policyAuth: { userId: session.user.id, isAdmin },
-  }
+  return { session, user: session.user, policyAuth: { userId: session.user.id, isAdmin } }
 }
 ```
 
-### 6a. Applying auth per request
-
-**oRPC middleware** — gate on session presence and expose `context.authDb`:
+**oRPC middleware** — gate on session presence, expose `context.authDb`:
 
 ```ts
 // src/orpc/middleware/auth.ts
@@ -268,33 +242,28 @@ if (!session) throw errors.UNAUTHORIZED()
 context.authDb = authDb.$setAuth(session.policyAuth)
 ```
 
-**ZenStack adapter** — must pass `$setAuth` on **every** request, including unauthenticated ones, so `auth() == null` evaluates predictably. Do not return a bare `authDb` on the null branch.
-
-Source: `src/routes/api/model/$.ts:8-17`.
+**ZenStack adapter** — must pass `$setAuth` on **every** request (including unauthenticated) so `auth() == null` evaluates predictably. Do not return bare `authDb` on the null branch:
 
 ```ts
+// src/routes/api/model/$.ts
 // ✅ Explicit: pass undefined when there's no session so `auth() == null`
 getClient: async (request) => {
   const sessionContext = await getSessionUser(request)
   return authDb.$setAuth(sessionContext?.policyAuth)
 }
-```
 
-```ts
-// ❌ Relying on default semantics: `authDb` without $setAuth may or may not
-//    evaluate `auth() == null` the same way across ZenStack versions.
+// ❌ Relying on default semantics — behavior may vary across ZenStack versions.
 getClient: async (request) => {
   const sessionContext = await getSessionUser(request)
   return sessionContext ? authDb.$setAuth(sessionContext.policyAuth) : authDb
 }
 ```
 
-### 6b. Querying `@@ignore` Tables (BaUser / BaSession / ...)
+### 6a. Querying `@@ignore` Tables (BaUser / BaSession / ...)
 
-Ignored models do not appear on the ZenStack ORM client. Reach for the raw Kysely builder instead — `db.$qbRaw` is untyped Kysely over the same pool.
+Ignored models do not appear on the ZenStack ORM client. Use the raw Kysely builder — `db.$qbRaw` is untyped Kysely over the same pool:
 
 ```ts
-// src/seed.ts
 const user = await db.$qbRaw
   .selectFrom("user")
   .where("email", "=", email)
@@ -302,25 +271,25 @@ const user = await db.$qbRaw
   .executeTakeFirst()
 ```
 
-Do **not** attempt `db.baUser.findFirst(...)` — the property does not exist.
+Do **not** `db.baUser.findFirst(...)` — the property does not exist.
 
-### 6c. Super-admin Bootstrap
+### 6b. Super-admin Bootstrap (chicken-and-egg)
 
-Because the `Role` model enforces `@@allow('all', auth().isAdmin == true)`, a freshly migrated database has **no principal who can create a Role** — a chicken-and-egg. The seed script resolves this by creating the first super-admin user up front (opt-in via env):
+`Role` model enforces `@@allow('all', auth().isAdmin == true)` → freshly migrated DB has no principal who can create a Role. Seed resolves this by creating the first super-admin up front (opt-in via env):
 
 - `SEED_SUPER_ADMIN_EMAIL` + `SEED_SUPER_ADMIN_PASSWORD` in `.env.local`
-- `pnpm db:seed` calls `auth.api.signUpEmail(...)` (idempotent — catches "user exists") then upserts the `UserRole(super-admin)` binding
-- Without the env vars set, seed skips the bootstrap and logs an info line
+- `pnpm db:seed` calls `auth.api.signUpEmail(...)` (idempotent) then upserts `UserRole(super-admin)` binding
+- Without env vars set, seed skips bootstrap and logs info
 
-Source: `src/seed.ts` `bootstrapSuperAdmin`. Keep the bootstrap strictly env-gated — never auto-promote "the first user" implicitly (security risk in shared dev databases).
+Never auto-promote "the first user" implicitly (security risk in shared dev DBs).
 
-### 7. Validation & Error Matrix
+### 7. Validation Matrix
 
 | Scenario | Expected |
 |---|---|
 | Unauthenticated `findMany` | Returns `[]` (filtered) |
 | Unauthenticated `create` | Throws `ORMError` (`REJECTED_BY_POLICY`) |
-| Non-admin `create` on Role | Throws `ORMError` (`REJECTED_BY_POLICY` or `NOT_FOUND`) |
+| Non-admin `create` on Role | Throws `ORMError` |
 | isAdmin user `create` | Succeeds |
 | Own-record `findMany` | Returns only own rows |
 | Other user's records | Filtered out (not thrown) |
@@ -329,33 +298,25 @@ Source: `src/seed.ts` `bootstrapSuperAdmin`. Keep the bootstrap strictly env-gat
 
 See `src/orpc/middleware/rbac-policy.test.ts`. Assertion points:
 - Unauthenticated write → `rejects.toThrow()`
-- Unauthenticated read → `resolves` with length `0`
+- Unauthenticated read → `resolves` length 0
 - Non-admin write → `rejects.toSatisfy(err => err instanceof ORMError)`
-- Own-record read → `resolves` with rows where `userId == self`
+- Own-record read → rows where `userId == self`
 - Admin write → `resolves` (no throw)
 
 ### 9. Wrong vs Correct
 
-#### Wrong
-
 ```ts
-// WRONG: importing PolicyPlugin from the wrong package
-import { PolicyPlugin } from "@zenstackhq/orm";  // ❌ PolicyPlugin does not exist here
+// ❌ Importing PolicyPlugin from the wrong package
+import { PolicyPlugin } from "@zenstackhq/orm";
 
-// WRONG: sharing one authDb across requests without $setAuth
-context.db = authDb;  // ❌ auth() == null, all writes rejected
-```
+// ❌ Sharing authDb across requests without $setAuth
+context.db = authDb;  // auth() == null, all writes rejected
 
-#### Correct
-
-```ts
-// src/db.ts
-import { PolicyPlugin } from "@zenstackhq/plugin-policy"; // ✅
+// ✅
+import { PolicyPlugin } from "@zenstackhq/plugin-policy";
 export const authDb = db.$use(new PolicyPlugin());
-
-// src/orpc/middleware/auth.ts (per request)
-const userDb = authDb.$setAuth({ userId, isAdmin });       // ✅
-context.db = userDb;
+// per request:
+context.db = authDb.$setAuth({ userId, isAdmin });
 ```
 
 ---
@@ -364,11 +325,11 @@ context.db = userDb;
 
 ### Problem
 
-`zen db push` compares the generated `~schema.prisma` against the live database. Because Better Auth tables (`user`, `session`, `account`, `verification`) are managed by `pnpm auth:migrate` and **not** declared in `schema.zmodel`, Prisma sees them as unknown tables and proposes to drop them.
+`zen db push` compares generated `~schema.prisma` against the live database. BA tables (`user`, `session`, `account`, `verification`, ...) are managed by `pnpm auth:migrate` and **not** declared in `schema.zmodel`, so Prisma sees them as unknown and proposes to drop them.
 
 ### Fix: `@@ignore` Placeholder Models
 
-Declare all 4 BA tables in `schema.zmodel` with `@@ignore`. This tells Prisma they exist but stops ZenStack from generating CRUD helpers for them.
+Declare all BA tables in `schema.zmodel` with `@@ignore`. This tells Prisma they exist but stops ZenStack from generating CRUD helpers.
 
 ```zmodel
 model BaUser {
@@ -437,17 +398,11 @@ model BaVerification {
 
 ### Wrong vs Correct
 
-#### Wrong
-
 ```
-# zen db push output without @@ignore models:
+# ❌ zen db push output without @@ignore models:
 ⚠️  You are about to drop the `user` table, which is not empty (N rows).
 ⚠️  You are about to drop the `session` table …
-```
 
-#### Correct
-
-```
-# zen db push output with @@ignore models:
+# ✅ with @@ignore models:
 🚀  Your database is now in sync with your Prisma schema. Done in 170ms
 ```

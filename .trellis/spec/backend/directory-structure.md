@@ -4,10 +4,6 @@
 
 ---
 
-## Overview
-
-Backend entry points are route files with `server.handlers`, supported by oRPC router modules, ZenStack-backed database access, auth handler wiring, and MCP transport/business modules.
-
 ## HTTP Entry Points (`src/routes/*.$.ts` + `src/routes/mcp.ts`)
 
 Each route below is an HTTP backend surface:
@@ -23,26 +19,15 @@ Each route below is an HTTP backend surface:
 
 ### Evidence
 
-Source: `src/routes/api.rpc.$.ts:19-28`.
-
 ```ts
-server: {
-  handlers: {
-    HEAD: handle,
-    GET: handle,
-    POST: handle,
-    PUT: handle,
-    PATCH: handle,
-    DELETE: handle,
-  },
-},
-```
+// src/routes/api.rpc.$.ts
+server: { handlers: { HEAD: handle, GET: handle, POST: handle, PUT: handle, PATCH: handle, DELETE: handle } },
 
-Source: `src/routes/api/auth/$.ts:7-8`, `src/routes/mcp.ts:49-51`.
-
-```ts
+// src/routes/api/auth/$.ts
 GET: ({ request }) => auth.handler(request),
 POST: ({ request }) => auth.handler(request),
+
+// src/routes/mcp.ts
 POST: async ({ request }) => handleMcpRequest(request, server),
 ```
 
@@ -53,23 +38,14 @@ POST: async ({ request }) => handleMcpRequest(request, server),
 - Shared schemas: `src/orpc/schema.ts`
 - Isomorphic client wiring: `src/orpc/client.ts`
 
-Keep exported router map flat until namespace growth requires sub-routers.
-
-### Evidence
-
-Source: `src/orpc/router/index.ts:1-6`.
+Keep the exported router map flat until namespace growth requires sub-routers.
 
 ```ts
+// src/orpc/router/index.ts
 import { addTodo, listTodos } from './todos'
-export default {
-  listTodos,
-  addTodo,
-}
-```
+export default { listTodos, addTodo }
 
-Source: `src/orpc/router/todos.ts:5-13`.
-
-```ts
+// src/orpc/router/todos.ts
 export const listTodos = authed.input(z.object({})).handler(async () => ...)
 export const addTodo = authed.input(z.object({ title: z.string().min(1) })).handler(async ({ input }) => ...)
 ```
@@ -78,20 +54,15 @@ export const addTodo = authed.input(z.object({ title: z.string().min(1) })).hand
 
 - Server auth instance: `src/lib/auth.ts`
 - Client auth SDK wrapper: `src/lib/auth-client.ts`
-- HTTP handler route delegates to server instance.
-
-### Evidence
-
-Source: `src/lib/auth.ts:4-9`, `src/lib/auth-client.ts:1-3`.
+- HTTP handler route delegates to the server instance.
 
 ```ts
+// src/lib/auth.ts
 export const auth = betterAuth({ ... plugins: [tanstackStartCookies()] })
+// src/lib/auth-client.ts
 export const authClient = createAuthClient()
-```
 
-Source: `src/routes/api/auth/$.ts:2,7-8`.
-
-```ts
+// src/routes/api/auth/$.ts
 import { auth } from '#/lib/auth'
 GET: ({ request }) => auth.handler(request)
 POST: ({ request }) => auth.handler(request)
@@ -99,32 +70,28 @@ POST: ({ request }) => auth.handler(request)
 
 ## Database Layout and Ownership
 
-- ZModel schema lives in `zenstack/schema.zmodel`.
-- Generated runtime artifacts (`schema.ts`, `models.ts`, `input.ts`) are produced in-place at `zenstack/` by `zen generate`; all three are git-ignored.
-- Runtime singleton (shared `pg.Pool` + `ZenStackClient`) lives in `src/db.ts`.
-- Better Auth schema (`user` / `session` / `account` / `verification`) is managed by `@better-auth/cli migrate` — NOT declared in `.zmodel`.
+- ZModel schema: `zenstack/schema.zmodel`.
+- Generated artifacts (`schema.ts` / `models.ts` / `input.ts`) produced in-place at `zenstack/` by `zen generate`; all git-ignored.
+- Runtime singleton (shared `pg.Pool` + `ZenStackClient`): `src/db.ts`.
+- Better Auth schema (`user` / `session` / `account` / `verification` / `organization` / `member` / ...) managed by `@better-auth/cli migrate` — NOT declared in `.zmodel`.
 - Seed script: `src/seed.ts` (TypeScript, runs via `tsx`).
 
-### Evidence
-
-Source: `zenstack/schema.zmodel:1-14`.
-
 ```zmodel
+// zenstack/schema.zmodel
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Todo {
+model Menu {
   id        Int      @id @default(autoincrement())
-  title     String
-  createdAt DateTime @default(now())
+  name      String?  @unique
+  // ...
 }
 ```
 
-Source: `src/db.ts:20-28`.
-
 ```ts
+// src/db.ts
 export const pool =
   globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
 
@@ -141,47 +108,36 @@ export const db =
 - JSON-RPC transport bridge: `src/utils/mcp-handler.ts`
 - Business/state module: `src/mcp-todos.ts`
 
-### Evidence
-
-Source: `src/routes/mcp.ts:5,47-51`.
-
 ```ts
-import { handleMcpRequest } from '#/utils/mcp-handler'
+// src/routes/mcp.ts
 POST: async ({ request }) => handleMcpRequest(request, server)
-```
 
-Source: `src/utils/mcp-handler.ts:6-9`, `src/mcp-todos.ts:24-33`.
-
-```ts
+// src/utils/mcp-handler.ts
 export async function handleMcpRequest(request: Request, server: McpServer): Promise<Response>
-export function addTodo(title: string) {
-  todos.push({ id: todos.length + 1, title })
-  fs.writeFileSync(todosPath, JSON.stringify(todos, null, 2))
-}
 ```
 
 ## Dual-Stack Topology: oRPC + ZenStack
 
-Two separate HTTP stacks co-exist under `/api/**`:
+Two HTTP stacks co-exist under `/api/**`:
 
 | Concern | Stack | Route prefix | Why |
 |---------|-------|--------------|-----|
 | Model CRUD (`list` / `get` / `create` / `update` / `delete`) | ZenStack Server Adapter | `/api/model/**` | Auto-derived from `zenstack/schema.zmodel` — no per-model procedures |
-| Business actions (batch ops, cross-model tx, device commands, background jobs) | oRPC | `/api/rpc/**` | Needs explicit handler logic, typed inputs, custom error codes |
+| Business actions (batch ops, cross-model tx, device commands, jobs) | oRPC | `/api/rpc/**` | Needs explicit handler logic, typed inputs, custom error codes |
 | Auth | Better Auth | `/api/auth/**` | Owned by Better Auth — do not proxy or intercept |
 
-**Route-space rule**: ZenStack must be mounted at the sub-path `/api/model/$`, **never at `/api/$`** — a catch-all at `/api/$` would shadow `/api/auth/**` and `/api/rpc/**`.
+**Route-space rule**: ZenStack must be mounted at `/api/model/$`, **never at `/api/$`** — a catch-all at `/api/$` would shadow `/api/auth/**` and `/api/rpc/**`.
 
 ### Shared Session Resolution
 
-Both stacks derive the active principal from the same util so policy binding stays consistent:
+Both stacks derive the active principal from the same util:
 
 ```ts
 // src/lib/auth-session.ts
 export async function getSessionUser(request: Request): Promise<SessionUser | null>
 ```
 
-- oRPC middleware `src/orpc/middleware/auth.ts` calls it to build `context.authDb` via `authDb.$setAuth({ userId, isAdmin })`.
+- oRPC middleware `src/orpc/middleware/auth.ts` → `context.authDb = authDb.$setAuth({ userId, isAdmin })`.
 - ZenStack adapter passes it into `getClient`:
 
 ```ts
@@ -192,72 +148,44 @@ const handler = TanStackStartHandler({
 })
 ```
 
-Do not inline `auth.api.getSession()` and isAdmin resolution at either call site — reuse `getSessionUser`.
+Do not inline `auth.api.getSession()` + isAdmin resolution at either call site — reuse `getSessionUser`.
 
-### Why Split This Way
+### Why split this way
 
-- Boilerplate CRUD for 10+ RBAC / audit models becomes auto-generated; hand-written procedures are reserved for real business logic.
-- PolicyPlugin is applied once on `authDb`; both stacks automatically enforce the same row-level policies.
+- Boilerplate CRUD for 10+ RBAC / audit models becomes auto-generated; hand-written procedures reserved for real business logic.
+- PolicyPlugin applied once on `authDb`; both stacks enforce the same row-level policies.
 - ZenStack's TanStack Query client ships cache-invalidation that oRPC's generic client cannot express.
 
 ## Polyfill Ordering Rule
 
-Any oRPC-hosting route must import `#/polyfill` first.
-
-### Evidence
-
-Source: first line in `src/routes/api.rpc.$.ts:1` and `src/routes/api.$.ts:1`.
+Any oRPC-hosting route must import `#/polyfill` first:
 
 ```ts
+// first line in src/routes/api.rpc.$.ts and src/routes/api.$.ts
 import '#/polyfill'
 ```
 
 ## Where New Backend Code Goes
 
-- **Model CRUD**: add a model to `zenstack/schema.zmodel` with `@@allow/@@deny` policies; no new backend code needed — `/api/model/**` serves it automatically.
-- **Business action / cross-model tx / device command**: new procedure in `src/orpc/router/<domain>.ts` and export from `src/orpc/router/index.ts`.
-- New database model: `zenstack/schema.zmodel` then run `pnpm db:push` (dev) or `pnpm db:migrate` (prod).
-- New HTTP endpoint for a non-CRUD / non-RPC concern: `src/routes/<feature>.$.ts` or specific route with `server.handlers`.
+- **Model CRUD**: add a model to `zenstack/schema.zmodel` with `@@allow/@@deny`; no new backend code — `/api/model/**` serves it automatically.
+- **Business action / cross-model tx / device command**: new procedure in `src/orpc/router/<domain>.ts` + export from `src/orpc/router/index.ts`.
+- New database model: `zenstack/schema.zmodel` then `pnpm db:push` (dev) or `pnpm db:migrate` (prod).
+- New HTTP endpoint for non-CRUD/non-RPC concerns: `src/routes/<feature>.$.ts` or specific route with `server.handlers`.
 
-**Decision rule**: if the operation maps 1:1 to a single model mutation and can be expressed with policy-based access control, prefer ZenStack. Reach for oRPC only when the operation orchestrates multiple models, calls external systems, or needs custom input/output shapes beyond what the generic CRUD contract provides.
-
-### Evidence
-
-Source: current procedure placement (`src/orpc/router/todos.ts`) and export (`src/orpc/router/index.ts`).
-
-```ts
-export const addTodo = authed.input(...).handler(...)
-export default { listTodos, addTodo }
-```
-
-Source: db push command and schema ownership in `package.json:19`, `zenstack/schema.zmodel:10-14`.
-
-```json
-"db:push": "dotenv -e .env.local -- zen db push"
-```
-
-```zmodel
-model Todo {
-  id        Int      @id @default(autoincrement())
-  title     String
-  createdAt DateTime @default(now())
-}
-```
+**Decision rule**: if the operation maps 1:1 to a single model mutation and can be expressed with policy-based access control, prefer ZenStack. Reach for oRPC only when orchestrating multiple models, calling external systems, or needing custom shapes beyond the generic CRUD contract.
 
 ## Sentry Bootstrap Location
 
-Sentry server bootstrap is at repository root and loaded by startup script flags.
-
-### Evidence
-
-Source: `instrument.server.mjs:1,8-16` and `package.json:9,16`.
+Sentry server bootstrap lives at repo root, loaded via `--import`:
 
 ```js
+// instrument.server.mjs
 import * as Sentry from '@sentry/tanstackstart-react'
 Sentry.init({ dsn: sentryDsn, sendDefaultPii: true, ... })
 ```
 
 ```json
-"dev": "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
+// package.json
+"dev":   "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
 "start": "node --import ./.output/server/instrument.server.mjs .output/server/index.mjs"
 ```

@@ -41,11 +41,16 @@
 				"rules": {
 					"a11y": {
 						"useSemanticElements": "off",
-						"useKeyWithClickEvents": "off"
+						"useKeyWithClickEvents": "off",
+						"useFocusableInteractive": "off"
 					},
 					"suspicious": {
 						"noArrayIndexKey": "off",
-						"noDoubleEquals": "off"
+						"noDoubleEquals": "off",
+						"noDocumentCookie": "off"
+					},
+					"correctness": {
+						"useExhaustiveDependencies": "off"
 					}
 				}
 			}

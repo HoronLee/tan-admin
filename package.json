@@ -27,6 +27,7 @@
     "@better-auth-ui/react": "^1.6.3",
     "@better-auth/passkey": "^1.6.6",
     "@faker-js/faker": "^10.4.0",
+    "@fontsource-variable/noto-sans": "^5.2.10",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opentelemetry/api": "^1.9.1",
@@ -73,6 +74,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.73.1",
+    "shadcn": "^4.4.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.3",
@@ -104,12 +106,13 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@better-auth/cli",
       "@prisma/engines",
       "@sentry/cli",
       "esbuild",
       "lightningcss",
-      "prisma",
-      "@better-auth/cli"
+      "msw",
+      "prisma"
     ]
   }
 }

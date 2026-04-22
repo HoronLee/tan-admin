@@ -10,6 +10,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { Providers } from "#/components/providers";
+import { ThemeProvider } from "#/components/theme-provider";
 import { Toaster } from "#/components/ui/sonner";
 import { getLocale } from "#/paraglide/runtime";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -27,8 +28,6 @@ void initSentryClient();
 interface MyRouterContext {
 	queryClient: QueryClient;
 }
-
-const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`;
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: async () => {
@@ -84,20 +83,18 @@ function RootErrorFallback({ error, reset }: ErrorComponentProps) {
 	return (
 		<div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
 			<h1 className="text-2xl font-semibold">Something went wrong</h1>
-			<p className="max-w-lg text-sm text-[var(--muted-foreground,#64748b)]">
-				{message}
-			</p>
+			<p className="max-w-lg text-sm text-muted-foreground">{message}</p>
 			<div className="flex gap-3">
 				<button
 					type="button"
 					onClick={reset}
-					className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-[var(--accent,#f1f5f9)]"
+					className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
 				>
 					Try again
 				</button>
 				<Link
 					to="/"
-					className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-[var(--accent,#f1f5f9)]"
+					className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
 				>
 					Go home
 				</Link>
@@ -110,12 +107,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang={getLocale()} suppressHydrationWarning>
 			<head>
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script to avoid theme flash before hydration */}
-				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
 			</head>
 			<body className="font-sans antialiased [overflow-wrap:anywhere]">
-				<Providers>{children}</Providers>
+				<ThemeProvider defaultTheme="system" storageKey="theme">
+					<Providers>{children}</Providers>
+				</ThemeProvider>
 				<Toaster position="top-right" />
 				<TanStackDevtools
 					config={{

@@ -1,6 +1,7 @@
 import { Link as RouterLink, useNavigate } from "@tanstack/react-router";
 import type { ComponentType, PropsWithChildren, ReactNode } from "react";
 import { AuthProvider } from "#/components/auth/auth-provider";
+import { useTheme } from "#/components/theme-provider";
 import { authClient } from "#/lib/auth-client";
 
 type LinkProps = PropsWithChildren<{
@@ -20,6 +21,7 @@ const Link: ComponentType<LinkProps> = ({ href, to, className, children }) => (
 
 export function Providers({ children }: { children: ReactNode }) {
 	const routerNavigate = useNavigate();
+	const { theme, setTheme } = useTheme();
 
 	const navigate = (options: { to: string; replace?: boolean }) => {
 		routerNavigate({
@@ -28,12 +30,19 @@ export function Providers({ children }: { children: ReactNode }) {
 		});
 	};
 
+	const setThemeFromAuth = (next: string) => {
+		if (next === "light" || next === "dark" || next === "system") {
+			setTheme(next);
+		}
+	};
+
 	return (
 		<AuthProvider
 			authClient={authClient}
 			navigate={navigate}
 			Link={Link}
 			redirectTo="/dashboard"
+			appearance={{ theme, setTheme: setThemeFromAuth }}
 			// Capability flags — UI renders only what the server supports.
 			// multiSession() is installed on the server; passkey / magicLink are not.
 			multiSession={true}

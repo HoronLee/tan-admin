@@ -115,6 +115,64 @@ model SomeTable {
 
 ---
 
+## Session Active Org 自动填充（必配 hook）
+
+Better Auth 默认 `session.activeOrganizationId = null`，新用户登录后 **所有**
+org-scoped `hasPermission(...)` 返回 false——侧栏菜单如果带 `requiredPermission`
+会被 `getUserMenus` 过滤光，用户看到"空后台"。
+
+修复：`betterAuth({ databaseHooks: { session: { create: { before } } } })` 在
+session 创建时自动查用户 `member` 表里最早绑定的 org，填入 activeOrganizationId：
+
+```ts
+betterAuth({
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const { rows } = await pool.query<{ organizationId: string }>(
+            'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+            [session.userId],
+          );
+          const organizationId = rows[0]?.organizationId;
+          if (!organizationId) return { data: session };
+          return { data: { ...session, activeOrganizationId: organizationId } };
+        },
+      },
+    },
+  },
+});
+```
+
+**锚点**：`src/lib/auth.ts`（`databaseHooks.session.create.before`）。
+
+---
+
+## Better Auth Plugin 与 UI Capability Flag 一致性
+
+`better-auth-ui` shadcn 变体（auth / user-button / settings 三个 registry）
+在组件里无条件探测某些能力端点，例如 `<UserButton>` 渲染"Switch account"
+子菜单会 probe `/api/auth/multi-session/list-device-sessions`。如果 server
+没装对应 plugin，结果是永续 404 刷 console（不影响功能，但脏）。
+
+**一致性约束**：server 的 `plugins: [...]` 必须与 `<AuthProvider>` 的 capability
+flag 一一对应。当前项目：
+
+| server plugin | AuthProvider flag | 状态 |
+|---|---|---|
+| `admin()` | — | 装 |
+| `organization({ teams: true })` | — | 装 |
+| `multiSession()` | `multiSession={true}` | 装（impersonate 不丢主账户的前提）|
+| `passkey()` | `passkey={false}` | 不装 |
+| `magicLink()` | `magicLink={false}` | 不装 |
+
+**multiSession + impersonate 协同**：admin plugin 的 `impersonateUser` 默认
+"取代"当前 session（管理员主账户 session 丢失，需手动 stopImpersonating 才能回）。
+multiSession 启用后 impersonate 变"再开一个并行 session"，主账户保留在
+device sessions 列表，切回瞬时无感。企业后台必备。
+
+---
+
 ## Auth Context Bridge
 
 Better Auth session → ZenStack `auth()` 的字段流通过 `authed` middleware 完成：

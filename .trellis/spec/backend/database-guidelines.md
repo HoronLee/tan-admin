@@ -21,10 +21,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Todo {
-  id        Int      @id @default(autoincrement())
-  title     String
-  createdAt DateTime @default(now())
+model Menu {
+  id                 Int       @id @default(autoincrement())
+  name               String?   @unique
+  path               String?
+  parentId           Int?
+  requiredPermission String?   // "user:read" / "menu:write" / ...
+  organizationId     String?   // soft link to BA organization.id
+  // ...
 }
 ```
 
@@ -98,9 +102,22 @@ import { db } from "#/db";
 ## Migration and CLI Workflow
 
 - Business schema (ZenStack): `pnpm db:push` | `pnpm db:migrate` | `pnpm db:generate`.
-- Auth schema (Better Auth): `pnpm auth:migrate` — creates `user` / `session` / `account` / `verification`.
+- Auth schema (Better Auth): `pnpm auth:migrate` — creates / updates `user` / `session` / `account` / `verification` / `organization` / `member` / `invitation` / `team` / `teamMember` (interactive, press `y`).
 - Seed: `pnpm db:seed` → `tsx src/seed.ts`.
-- All scripts run through `.env.local` injection.
+- All scripts run through `.env.local` injection; missing `.env.local` blocks everything.
+
+### No `db:reset` — use a manual full reset
+
+ZenStack CLI has no "reset" command (Prisma's `migrate reset` isn't proxied). To wipe the dev DB:
+
+```bash
+pnpm exec dotenv -e .env.local -- psql "$DATABASE_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+pnpm db:push           # business tables
+pnpm auth:migrate      # BA tables (interactive y)
+pnpm db:seed           # data
+```
+
+Only business-table churn (e.g. dropped the `Todo` model)? `pnpm db:push` suffices — it will prompt before DROP.
 
 ### Evidence
 
@@ -117,23 +134,27 @@ Source: `package.json:18-24`.
 
 ## Seeding Convention
 
-Seed script is TypeScript (`tsx`), logs via `createModuleLogger("seed")` — no `console.*` in production paths.
+- Seed script is TypeScript (`tsx`), logs via `createModuleLogger("seed")` — no `console.*`.
+- **Idempotent full-rebuild for skeleton tables**: for tables the seed fully owns (e.g. `Menu` — the navigation tree), TRUNCATE before upsert so removed entries don't linger from earlier runs. Use `CASCADE` when the table has self-referencing FKs (`parentId`).
+- **Business/user data**: use `upsert({ where, update: {}, create })` to preserve manual edits on re-seed.
+- **Auth-managed rows** (user / organization / member): creating the super admin goes through `auth.api.signUpEmail(...)` so the password hash + auth columns are correct; binding to default org uses direct `pool.query` because seed has no HTTP request context for `auth.api.organization.*`.
 
 ### Evidence
 
-Source: `src/seed.ts:1-9`.
+Source: `src/seed.ts`.
 
 ```ts
-import { db } from "#/db";
-import { createModuleLogger } from "#/lib/logger";
+// Menu skeleton is fully owned by seed — CASCADE handles the parentId self-FK.
+await pool.query('TRUNCATE TABLE "Menu" RESTART IDENTITY CASCADE');
 
-const log = createModuleLogger("seed");
+// Super admin via Better Auth API (password hashing, auth columns).
+await auth.api.signUpEmail({ body: { email, password, name: "Super Admin" } });
 
-async function main() {
-  log.info("Seeding database…");
-  await db.todo.deleteMany({});
-  // …
-}
+// Direct pg INSERT when auth.api.* would require a request/session context.
+await pool.query(
+  'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
+  [randomUUID(), orgId, adminUserId, "owner"],
+);
 ```
 
 ## Query Location Rules

@@ -31,9 +31,13 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { requireSiteAdmin } from "#/lib/admin-guards";
 import { orpc } from "#/orpc/client";
 
 export const Route = createFileRoute("/(admin)/_layout/menus/")({
+	beforeLoad: async () => {
+		await requireSiteAdmin();
+	},
 	component: MenusPage,
 });
 

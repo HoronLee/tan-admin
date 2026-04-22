@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ShieldCheckIcon, WorkflowIcon } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import {
 	Card,
 	CardContent,
@@ -7,12 +9,48 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
+import * as m from "#/paraglide/messages";
+
+type DeniedReason = "site-admin" | "org-role" | "no-active-org";
 
 export const Route = createFileRoute("/(admin)/_layout/dashboard")({
+	validateSearch: (search): { denied?: DeniedReason } => {
+		const denied = search.denied;
+		if (
+			denied === "site-admin" ||
+			denied === "org-role" ||
+			denied === "no-active-org"
+		) {
+			return { denied };
+		}
+		return {};
+	},
 	component: AdminDashboardPage,
 });
 
+function useDenialToast() {
+	const { denied } = Route.useSearch();
+	const navigate = useNavigate();
+	useEffect(() => {
+		if (!denied) return;
+		const messageFn =
+			denied === "site-admin"
+				? m.denied_site_admin
+				: denied === "org-role"
+					? m.denied_org_role
+					: m.denied_no_active_org;
+		toast.error(messageFn());
+		// Strip the query param so refresh / back-navigation doesn't re-fire.
+		navigate({
+			to: "/dashboard",
+			search: {},
+			replace: true,
+		});
+	}, [denied, navigate]);
+}
+
 function AdminDashboardPage() {
+	useDenialToast();
 	return (
 		<div className="space-y-6">
 			<Card>

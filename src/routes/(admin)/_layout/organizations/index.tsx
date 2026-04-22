@@ -39,11 +39,15 @@ import {
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
 import { env } from "#/env";
+import { requireSiteAdmin } from "#/lib/admin-guards";
 import { authClient } from "#/lib/auth-client";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(admin)/_layout/organizations/")({
+	beforeLoad: async () => {
+		await requireSiteAdmin();
+	},
 	component: OrganizationsPage,
 });
 

@@ -57,6 +57,10 @@
 
 	"common_empty_data": "暂无数据",
 
+	"denied_site_admin": "该页面仅限站点管理员访问",
+	"denied_org_role": "该页面需要当前组织的管理员或所有者权限",
+	"denied_no_active_org": "未选择组织，请先激活一个组织",
+
 	"confirm_dialog_default_title": "确认删除",
 	"confirm_dialog_default_confirm": "确认删除",
 	"confirm_dialog_typed_hint_before": "请输入",

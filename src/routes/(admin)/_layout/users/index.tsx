@@ -32,9 +32,13 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { requireSiteAdmin } from "#/lib/admin-guards";
 import { authClient } from "#/lib/auth-client";
 
 export const Route = createFileRoute("/(admin)/_layout/users/")({
+	beforeLoad: async () => {
+		await requireSiteAdmin();
+	},
 	component: UsersPage,
 });
 

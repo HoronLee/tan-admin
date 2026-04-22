@@ -57,6 +57,10 @@
 
 	"common_empty_data": "",
 
+	"denied_site_admin": "",
+	"denied_org_role": "",
+	"denied_no_active_org": "",
+
 	"confirm_dialog_default_title": "",
 	"confirm_dialog_default_confirm": "",
 	"confirm_dialog_typed_hint_before": "",

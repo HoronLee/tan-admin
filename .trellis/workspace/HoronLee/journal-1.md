@@ -260,3 +260,42 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: theme-cleanup: shadcn 2026 迁移（Vega + Neutral + 自写 ThemeProvider）
+
+**Date**: 2026-04-22
+**Task**: theme-cleanup: shadcn 2026 迁移（Vega + Neutral + 自写 ThemeProvider）
+**Branch**: `main`
+
+### Summary
+
+把项目从 TanStack Start demo 水绿色 + new-york/zinc 迁到 shadcn 2026 radix-vega + neutral。关键决策链：原定 base-nova → 发现含 primitive 库切换 → 改 radix-nova → 主人追问发现 shadcn/create Web UI 默认 Vega + 发现 shadcn apply --preset 命令 → 最终选 radix-vega。用一条 shadcn apply 替代手工 28 组件 re-add，保留 Radix primitive 避免 48 处 asChild 迁移。Dark mode 按 shadcn 官方 TanStack Start 指南自写 theme-provider（ScriptOnce + useTheme，零依赖），弃用 next-themes / tanstack-theme-kit。修复 Building2 icon 缺映射。legacy 清理 styles.css 从 361 行减到 140 行。ba-ui 保留 Vega 源码天然匹配，零视觉割裂。Memory 沉淀 3 条 feedback（子代 jina 优先、验证最佳实践、shadcn runtime dep）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `20f934f` | (see git log) |
+| `7126b04` | (see git log) |
+| `0d55632` | (see git log) |
+| `95eb244` | (see git log) |
+| `bb7c104` | (see git log) |
+| `e54cbfc` | (see git log) |
+| `b86323e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

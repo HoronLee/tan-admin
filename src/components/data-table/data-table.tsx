@@ -13,6 +13,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table";
+import * as m from "#/paraglide/messages";
 import { DataTablePagination } from "./data-table-pagination";
 
 interface PaginationProps {
@@ -44,9 +45,10 @@ export function DataTable<TData, TValue>({
 	data,
 	loading = false,
 	pagination,
-	emptyText = "暂无数据",
+	emptyText,
 	rowKey,
 }: DataTableProps<TData, TValue>) {
+	const resolvedEmptyText = emptyText ?? m.common_empty_data();
 	const table = useReactTable({
 		data,
 		columns,
@@ -98,7 +100,7 @@ export function DataTable<TData, TValue>({
 								colSpan={columns.length}
 								className="h-24 text-center text-muted-foreground"
 							>
-								{emptyText}
+								{resolvedEmptyText}
 							</TableCell>
 						</TableRow>
 					) : (

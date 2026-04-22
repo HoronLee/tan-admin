@@ -24,6 +24,50 @@ pnpm db:push | db:migrate | db:generate | db:studio | db:seed | auth:migrate
 pnpm dlx shadcn@latest add button card ...
 ```
 
+## 首次部署 seed 流程
+
+### 产品形态开关（两对 env，必须成对维护）
+
+```bash
+# 服务端（运行时真源）
+TENANCY_MODE=single      # single=交付单租户 / multi=多租户 SaaS
+TEAM_ENABLED=false       # 用 z.stringbool()，别写 z.coerce.boolean()
+
+# 客户端 UI 门控（必须跟服务端同值，UI 用它避免 loader 往返）
+VITE_TENANCY_MODE=single
+VITE_TEAM_ENABLED=false
+```
+
+不同步就会出现"服务端允许、UI 不开"或反过来——先查 env，再查代码。
+
+### 何时跑 seed
+
+- **首次部署必须跑**：`pnpm db:seed`。建菜单骨架 + super-admin + （single 模式下）default org。
+- **后续部署可选**：seed 默认幂等 safe，菜单走 upsert，不删运营在 UI 新建的条目；user / organization / member 也都 upsert。
+- **`pnpm db:seed -- --reset-menus`**：仅开发或重大菜单迁移时用，会 `TRUNCATE Menu` —— 生产**永远别加**。
+
+### 邮件传输按部署目标选 driver
+
+| 目标 | EMAIL_TRANSPORT | 必需 env |
+|---|---|---|
+| 开发 | `console` | 无（URL 打 log） |
+| 国内生产 | `smtp` | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`（阿里云邮件推送首选） |
+| 海外生产 | `resend` | `RESEND_API_KEY` |
+
+`APP_ENV=prod` + `EMAIL_TRANSPORT=console` 会**直接 boot 失败**——这是有意的 guardrail。
+
+### super-admin 凭据
+
+```bash
+SEED_SUPER_ADMIN_EMAIL=admin@acme.com
+SEED_SUPER_ADMIN_PASSWORD=...
+
+# dev 场景加入跳过列表，省去邮箱验证
+EMAIL_VERIFICATION_SKIP_LIST=admin@acme.com
+```
+
+详见 `.trellis/spec/backend/tenancy-modes.md` 和 `.trellis/spec/backend/email-infrastructure.md`。
+
 ## 关键约束（读 spec 前也要知道）
 
 - **包管理器只用 pnpm**，不接受 npm/yarn

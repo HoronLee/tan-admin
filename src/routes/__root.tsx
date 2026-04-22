@@ -30,12 +30,6 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-	beforeLoad: async () => {
-		if (typeof document !== "undefined") {
-			document.documentElement.setAttribute("lang", getLocale());
-		}
-	},
-
 	head: () => ({
 		meta: [
 			{

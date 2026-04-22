@@ -26,5 +26,6 @@ zenstack/*.ts
 .claude/
 .codex/
 .opencode/
+.playwright-mcp
 
 /logs/

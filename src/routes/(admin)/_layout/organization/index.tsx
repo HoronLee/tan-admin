@@ -32,6 +32,8 @@ import {
 	SelectValue,
 } from "#/components/ui/select";
 import { authClient } from "#/lib/auth-client";
+import { translateAuthError } from "#/lib/auth-errors";
+import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(admin)/_layout/organization/")({
 	component: OrganizationPage,
@@ -58,18 +60,22 @@ interface Invitation {
 function OrganizationPage() {
 	const { data: activeOrg, isPending: orgPending } =
 		authClient.useActiveOrganization();
+	const { data: session } = authClient.useSession();
+	const currentUserId = session?.user?.id;
 
 	if (orgPending) {
-		return <div className="text-sm text-muted-foreground">Loading...</div>;
+		return (
+			<div className="text-sm text-muted-foreground">{m.common_loading()}</div>
+		);
 	}
 
 	if (!activeOrg) {
 		return (
 			<Card>
 				<CardHeader>
-					<CardTitle>No active organization</CardTitle>
+					<CardTitle>{m.organization_page_no_active_title()}</CardTitle>
 					<CardDescription>
-						Use the organization switcher in the header to pick one.
+						{m.organization_page_no_active_desc()}
 					</CardDescription>
 				</CardHeader>
 			</Card>
@@ -83,7 +89,7 @@ function OrganizationPage() {
 				name={activeOrg.name}
 				slug={activeOrg.slug}
 			/>
-			<MembersSection orgId={activeOrg.id} />
+			<MembersSection orgId={activeOrg.id} currentUserId={currentUserId} />
 			<PendingInvitationsSection orgId={activeOrg.id} />
 		</div>
 	);
@@ -110,10 +116,10 @@ function OrgInfoSection({
 		});
 		setSubmitting(false);
 		if (error) {
-			toast.error(error.message ?? "Update failed");
+			toast.error(translateAuthError(error));
 			return;
 		}
-		toast.success("Organization updated");
+		toast.success(m.organization_page_updated_toast());
 		setDrawerOpen(false);
 	}
 
@@ -132,20 +138,20 @@ function OrgInfoSection({
 						setDrawerOpen(true);
 					}}
 				>
-					Edit
+					{m.organization_page_edit_button()}
 				</Button>
 			</CardHeader>
 			<FormDrawer
 				open={drawerOpen}
 				onOpenChange={setDrawerOpen}
-				title="Edit organization"
-				submitText="Save"
+				title={m.organization_page_edit_title()}
+				submitText={m.common_save()}
 				submitting={submitting}
 				onSubmit={handleSubmit}
 			>
 				<div className="space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="org-name">Name</Label>
+						<Label htmlFor="org-name">{m.organization_page_name()}</Label>
 						<Input
 							id="org-name"
 							value={form.name}
@@ -153,7 +159,7 @@ function OrgInfoSection({
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label htmlFor="org-slug">Slug</Label>
+						<Label htmlFor="org-slug">{m.organization_page_slug()}</Label>
 						<Input
 							id="org-slug"
 							value={form.slug}
@@ -166,7 +172,13 @@ function OrgInfoSection({
 	);
 }
 
-function MembersSection({ orgId }: { orgId: string }) {
+function MembersSection({
+	orgId,
+	currentUserId,
+}: {
+	orgId: string;
+	currentUserId: string | undefined;
+}) {
 	const queryClient = useQueryClient();
 	const { data, isPending } = useQuery({
 		queryKey: ["organization", "members", orgId],
@@ -180,6 +192,9 @@ function MembersSection({ orgId }: { orgId: string }) {
 	});
 
 	const members = (data?.members ?? []) as unknown as Member[];
+	const isCurrentUserOwner = members.some(
+		(m) => m.user.id === currentUserId && m.role === "owner",
+	);
 
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [inviteForm, setInviteForm] = useState<{
@@ -193,6 +208,8 @@ function MembersSection({ orgId }: { orgId: string }) {
 		role: MemberRole;
 	} | null>(null);
 	const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
+	const [transferTarget, setTransferTarget] = useState<Member | null>(null);
+	const [transferring, setTransferring] = useState(false);
 
 	const removeMutation = useMutation({
 		mutationFn: async (memberId: string) => {
@@ -203,7 +220,7 @@ function MembersSection({ orgId }: { orgId: string }) {
 			if (error) throw new Error(error.message);
 		},
 		onSuccess: () => {
-			toast.success("Member removed");
+			toast.success(m.organization_page_removed_toast());
 			queryClient.invalidateQueries({
 				queryKey: ["organization", "members", orgId],
 			});
@@ -228,7 +245,7 @@ function MembersSection({ orgId }: { orgId: string }) {
 			if (error) throw new Error(error.message);
 		},
 		onSuccess: () => {
-			toast.success("Member role updated");
+			toast.success(m.organization_page_role_updated_toast());
 			queryClient.invalidateQueries({
 				queryKey: ["organization", "members", orgId],
 			});
@@ -236,6 +253,26 @@ function MembersSection({ orgId }: { orgId: string }) {
 		},
 		onError: (err: Error) => toast.error(err.message),
 	});
+
+	async function handleTransferOwnership() {
+		if (!transferTarget) return;
+		setTransferring(true);
+		const { error } = await authClient.organization.inviteMember({
+			email: transferTarget.user.email,
+			role: "owner",
+			organizationId: orgId,
+		});
+		setTransferring(false);
+		if (error) {
+			toast.error(translateAuthError(error));
+			return;
+		}
+		toast.success(m.organization_page_transfer_sent());
+		setTransferTarget(null);
+		queryClient.invalidateQueries({
+			queryKey: ["organization", "invitations", orgId],
+		});
+	}
 
 	async function handleInvite() {
 		if (!inviteForm.email) return;
@@ -247,10 +284,10 @@ function MembersSection({ orgId }: { orgId: string }) {
 		});
 		setInviting(false);
 		if (error) {
-			toast.error(error.message ?? "Invite failed");
+			toast.error(translateAuthError(error));
 			return;
 		}
-		toast.success("Invitation sent");
+		toast.success(m.organization_page_invite_sent());
 		setInviteOpen(false);
 		setInviteForm({ email: "", role: "member" });
 		queryClient.invalidateQueries({
@@ -261,7 +298,7 @@ function MembersSection({ orgId }: { orgId: string }) {
 	const columns: ColumnDef<Member>[] = [
 		{
 			id: "user",
-			header: "User",
+			header: m.organization_page_col_user(),
 			cell: ({ row }) => (
 				<div className="flex flex-col">
 					<span className="font-medium">{row.original.user.name}</span>
@@ -273,12 +310,12 @@ function MembersSection({ orgId }: { orgId: string }) {
 		},
 		{
 			accessorKey: "role",
-			header: "Role",
+			header: m.organization_page_col_role(),
 			cell: ({ row }) => <Badge variant="outline">{row.original.role}</Badge>,
 		},
 		{
 			accessorKey: "createdAt",
-			header: "Joined",
+			header: m.organization_page_col_joined(),
 			cell: ({ row }) => (
 				<span className="text-sm text-muted-foreground">
 					{new Date(row.original.createdAt).toLocaleDateString()}
@@ -288,33 +325,46 @@ function MembersSection({ orgId }: { orgId: string }) {
 		{
 			id: "actions",
 			header: "",
-			cell: ({ row }) => (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="size-8">
-							<MoreHorizontalIcon className="size-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem
-							onSelect={() =>
-								setRoleDialog({
-									member: row.original,
-									role: row.original.role as MemberRole,
-								})
-							}
-						>
-							Change role
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							variant="destructive"
-							onSelect={() => setRemoveTarget(row.original)}
-						>
-							Remove
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			),
+			cell: ({ row }) => {
+				const canTransfer =
+					isCurrentUserOwner &&
+					row.original.user.id !== currentUserId &&
+					row.original.role !== "owner";
+				return (
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" className="size-8">
+								<MoreHorizontalIcon className="size-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								onSelect={() =>
+									setRoleDialog({
+										member: row.original,
+										role: row.original.role as MemberRole,
+									})
+								}
+							>
+								{m.organization_page_action_change_role()}
+							</DropdownMenuItem>
+							{canTransfer && (
+								<DropdownMenuItem
+									onSelect={() => setTransferTarget(row.original)}
+								>
+									{m.organization_page_action_transfer()}
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuItem
+								variant="destructive"
+								onSelect={() => setRemoveTarget(row.original)}
+							>
+								{m.organization_page_action_remove()}
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				);
+			},
 		},
 	];
 
@@ -322,14 +372,14 @@ function MembersSection({ orgId }: { orgId: string }) {
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
 				<div>
-					<CardTitle>Members</CardTitle>
+					<CardTitle>{m.organization_page_members_title()}</CardTitle>
 					<CardDescription>
-						Manage who can access this organization.
+						{m.organization_page_members_desc()}
 					</CardDescription>
 				</div>
 				<Button size="sm" onClick={() => setInviteOpen(true)}>
 					<UserPlusIcon className="size-4" />
-					Invite member
+					{m.organization_page_invite_member()}
 				</Button>
 			</CardHeader>
 			<CardContent>
@@ -344,14 +394,16 @@ function MembersSection({ orgId }: { orgId: string }) {
 			<FormDrawer
 				open={inviteOpen}
 				onOpenChange={setInviteOpen}
-				title="Invite member"
-				submitText="Send invitation"
+				title={m.organization_page_invite_title()}
+				submitText={m.organization_page_invite_submit()}
 				submitting={inviting}
 				onSubmit={handleInvite}
 			>
 				<div className="space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="invite-email">Email</Label>
+						<Label htmlFor="invite-email">
+							{m.organization_page_col_email()}
+						</Label>
 						<Input
 							id="invite-email"
 							type="email"
@@ -363,7 +415,7 @@ function MembersSection({ orgId }: { orgId: string }) {
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label>Role</Label>
+						<Label>{m.organization_page_col_role()}</Label>
 						<Select
 							value={inviteForm.role}
 							onValueChange={(v) =>
@@ -391,8 +443,10 @@ function MembersSection({ orgId }: { orgId: string }) {
 					onOpenChange={(open) => {
 						if (!open) setRoleDialog(null);
 					}}
-					title={`Change role — ${roleDialog.member.user.name}`}
-					submitText="Save"
+					title={m.organization_page_change_role_title({
+						name: roleDialog.member.user.name,
+					})}
+					submitText={m.common_save()}
 					submitting={roleMutation.isPending}
 					onSubmit={() =>
 						roleMutation.mutate({
@@ -402,7 +456,7 @@ function MembersSection({ orgId }: { orgId: string }) {
 					}
 				>
 					<div className="space-y-2">
-						<Label>Role</Label>
+						<Label>{m.organization_page_col_role()}</Label>
 						<Select
 							value={roleDialog.role}
 							onValueChange={(v) =>
@@ -429,21 +483,42 @@ function MembersSection({ orgId }: { orgId: string }) {
 				onOpenChange={(open) => {
 					if (!open) setRemoveTarget(null);
 				}}
-				title="Remove member"
+				title={m.organization_page_remove_title()}
 				description={
 					removeTarget ? (
 						<>
-							Remove{" "}
-							<span className="font-medium">{removeTarget.user.name}</span> from
-							this organization?
+							{m.organization_page_remove_desc_prefix()}{" "}
+							<span className="font-medium">{removeTarget.user.name}</span>{" "}
+							{m.organization_page_remove_desc_suffix()}
 						</>
 					) : null
 				}
-				confirmText="Remove"
+				confirmText={m.organization_page_remove_confirm()}
 				confirming={removeMutation.isPending}
 				onConfirm={() => {
 					if (removeTarget) removeMutation.mutate(removeTarget.id);
 				}}
+			/>
+
+			<ConfirmDialog
+				open={transferTarget !== null}
+				onOpenChange={(open) => {
+					if (!open) setTransferTarget(null);
+				}}
+				title={m.organization_page_transfer_title()}
+				description={
+					transferTarget ? (
+						<>
+							{m.organization_page_transfer_desc_prefix()}{" "}
+							<span className="font-medium">{transferTarget.user.email}</span>
+							{m.organization_page_transfer_desc_suffix()}
+						</>
+					) : null
+				}
+				confirmText={m.organization_page_transfer_confirm()}
+				variant="destructive"
+				confirming={transferring}
+				onConfirm={handleTransferOwnership}
 			/>
 		</Card>
 	);
@@ -473,7 +548,7 @@ function PendingInvitationsSection({ orgId }: { orgId: string }) {
 			if (error) throw new Error(error.message);
 		},
 		onSuccess: () => {
-			toast.success("Invitation canceled");
+			toast.success(m.organization_page_invitation_canceled());
 			queryClient.invalidateQueries({
 				queryKey: ["organization", "invitations", orgId],
 			});
@@ -482,17 +557,40 @@ function PendingInvitationsSection({ orgId }: { orgId: string }) {
 	});
 
 	const columns: ColumnDef<Invitation>[] = [
-		{ accessorKey: "email", header: "Email" },
+		{
+			accessorKey: "email",
+			header: m.organization_page_col_email(),
+			cell: ({ row }) => {
+				const isTransfer = row.original.role === "owner";
+				return (
+					<div className="flex flex-col gap-1">
+						<span>{row.original.email}</span>
+						{isTransfer && (
+							<span className="text-xs text-muted-foreground">
+								{m.organization_page_invitation_transfer_tag()}
+							</span>
+						)}
+					</div>
+				);
+			},
+		},
 		{
 			accessorKey: "role",
-			header: "Role",
-			cell: ({ row }) => (
-				<Badge variant="outline">{row.original.role ?? "—"}</Badge>
-			),
+			header: m.organization_page_col_role(),
+			cell: ({ row }) => {
+				const isTransfer = row.original.role === "owner";
+				return (
+					<Badge variant={isTransfer ? "destructive" : "outline"}>
+						{isTransfer
+							? m.organization_page_invitation_transfer_badge()
+							: (row.original.role ?? "—")}
+					</Badge>
+				);
+			},
 		},
 		{
 			accessorKey: "expiresAt",
-			header: "Expires",
+			header: m.organization_page_col_expires(),
 			cell: ({ row }) => (
 				<span className="text-sm text-muted-foreground">
 					{new Date(row.original.expiresAt).toLocaleString()}
@@ -509,7 +607,7 @@ function PendingInvitationsSection({ orgId }: { orgId: string }) {
 					disabled={cancelMutation.isPending}
 					onClick={() => cancelMutation.mutate(row.original.id)}
 				>
-					Cancel
+					{m.common_cancel()}
 				</Button>
 			),
 		},
@@ -518,9 +616,9 @@ function PendingInvitationsSection({ orgId }: { orgId: string }) {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Pending invitations</CardTitle>
+				<CardTitle>{m.organization_page_invitations_title()}</CardTitle>
 				<CardDescription>
-					Invitations sent but not yet accepted.
+					{m.organization_page_invitations_desc()}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -529,7 +627,7 @@ function PendingInvitationsSection({ orgId }: { orgId: string }) {
 					data={pending}
 					loading={isPending}
 					rowKey={(row) => row.id}
-					emptyText="No pending invitations"
+					emptyText={m.organization_page_invitations_empty()}
 				/>
 			</CardContent>
 		</Card>

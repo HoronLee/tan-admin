@@ -341,3 +341,20 @@ const { success } = await auth.api.hasPermission({
 ```
 
 性能优化（N+1）目前**没做**——seed 只 5 条菜单，每条一次 hasPermission 调用可接受。未来菜单多了改为"按 requiredPermission unique 值批量查"。
+
+## 实施反馈（2026-04-22 tenancy-phase1 task 完成）
+
+Phase 1 在 BA 1.6.5 上落地了 transfer-ownership / 多 owner 保护 / additionalFields / invitation 取消策略。对原研究的修正与补充如下：
+
+- ✅ **`beforeRemoveMember` / `beforeUpdateMemberRole` 是 BA 原生 hook**。早期研究曾判断"没有这两个 hook，必须在 oRPC wrapper 层做保护"——错。现行 BA types 明确暴露它们，抛错即中止操作，错误消息被客户端收到。本项目 last-owner 保护已经放回 `organizationHooks`（`src/lib/auth.ts`），**不在** oRPC wrapper。
+- ✅ **`beforeAcceptInvitation` 签名是 `Promise<void>`**——throw 来拒绝，不需要 `return { data: invitation }`。旧 BA 文档片段误导；实测 1.6.5 的类型定义和运行时行为都是 void。transfer-ownership 降级逻辑写在这里：收到 role=owner 的 accept 时 `UPDATE member SET role='admin' WHERE role='owner'`，失败则 throw 终止。
+- ✅ **`additionalFields` 如文档运作**：`plan` / `industry` / `billingEmail` 由 `auth:migrate` 建列；seed 不需要显式填默认值（DDL 自带）；BA 前端 API 读写透明。
+- ⚠️ **客户端 TS 必须 `inferOrgAdditionalFields<typeof auth>()`**——没有这个 `org.plan` 访问会 any，甚至在 strict 下编译失败。固定写法：
+  ```ts
+  // src/lib/auth-client.ts
+  import { inferOrgAdditionalFields } from "better-auth/client/plugins";
+  organizationClient({ schema: inferOrgAdditionalFields<typeof auth>() })
+  ```
+- ✅ **`cancelPendingInvitationsOnReInvite: true` 与 transfer ownership 并存正常**。对同邮箱连续发两次邀请（比如先 member 后 owner），BA 会先取消旧的再创建新的，不会出现"一封 pending member + 一封 pending owner"的双 pending 状态——这是我们想要的。
+- ⚠️ **客户端 `teams.enabled` 是字面量类型门**：`CO["teams"] extends { enabled: true }` 控制 `createTeam` / `listTeams` / ... 方法是否被 infer 出。传运行时 `boolean` 会塌陷到 `never`。本项目妥协：`src/lib/auth-client.ts` 里硬编码 `teams: { enabled: true }`，运行时 gate 放在服务端（`auth.ts` `env.TEAM_ENABLED`）+ UI（`VITE_TEAM_ENABLED` + sidebar `getDisabledReason`）。
+- ✅ **signup hook 不能嵌套调 `auth.api.createOrganization`**（#6791 死锁再确认）。单租户自动入组走 `pool` raw SQL + `ON CONFLICT DO NOTHING` 等价方案（本项目用的是"先 SELECT 后 INSERT"的显式幂等）。#7260 修复后 after-hook 在事务提交后运行，幂等 insert 作为并发兜底仍保留。

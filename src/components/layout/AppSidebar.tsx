@@ -14,6 +14,7 @@ import {
 	MenuIcon,
 	SettingsIcon,
 	ShieldIcon,
+	Users2Icon,
 	UsersIcon,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -32,7 +33,15 @@ import {
 	SidebarMenuSubItem,
 } from "#/components/ui/sidebar";
 import { Skeleton } from "#/components/ui/skeleton";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "#/components/ui/tooltip";
+import { env } from "#/env";
 import { orpc } from "#/orpc/client";
+import * as m from "#/paraglide/messages";
 import {
 	type MenuNode,
 	menuStore,
@@ -43,6 +52,7 @@ import {
 const ICON_MAP: Record<string, LucideIcon> = {
 	LayoutDashboard: LayoutDashboardIcon,
 	Users: UsersIcon,
+	Users2: Users2Icon,
 	Shield: ShieldIcon,
 	Key: KeyIcon,
 	Menu: MenuIcon,
@@ -55,9 +65,36 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	BookOpen: BookOpenIcon,
 };
 
+/**
+ * Menu paths that become disabled when their feature flag is off. The map
+ * is kept tiny on purpose — feature flags in this shape are the exception,
+ * not the rule; adding entries implies a real product-shape switch.
+ */
+function getDisabledReason(path: string | null): string | null {
+	if (path === "/teams" && !env.VITE_TEAM_ENABLED) {
+		return m.sidebar_team_disabled_tooltip();
+	}
+	return null;
+}
+
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
 	if (!iconName) return null;
 	return ICON_MAP[iconName] ?? null;
+}
+
+/**
+ * Menu.meta.title in the DB is an i18n key (e.g. `menu.dashboard`). Paraglide
+ * compiles JSON keys with dots as string-named exports, so dynamic access via
+ * `m["menu.dashboard"]()` works at runtime. Fall back to the raw string for
+ * operator-added menus that kept a plain Chinese literal.
+ */
+function resolveMenuLabel(title: string | undefined): string | undefined {
+	if (!title) return undefined;
+	if (title.startsWith("menu.") && title in m) {
+		const fn = (m as unknown as Record<string, () => string>)[title];
+		if (typeof fn === "function") return fn();
+	}
+	return title;
 }
 
 interface MenuItemProps {
@@ -86,7 +123,11 @@ function SubMenuItems({
 							<SidebarMenuSubButton asChild isActive={isActive}>
 								<Link to={child.path ?? "#"}>
 									{Icon && <Icon className="size-4" />}
-									<span>{child.meta?.title ?? child.name ?? child.path}</span>
+									<span>
+										{resolveMenuLabel(child.meta?.title) ??
+											child.name ??
+											child.path}
+									</span>
 								</Link>
 							</SidebarMenuSubButton>
 						</SidebarMenuSubItem>
@@ -107,7 +148,12 @@ function MenuItem({ node, pathname }: MenuItemProps) {
 		(pathname === node.path || pathname.startsWith(`${node.path}/`));
 
 	const Icon = resolveIcon(node.meta?.icon);
-	const label = node.meta?.title ?? node.name ?? node.path ?? String(node.id);
+	const label =
+		resolveMenuLabel(node.meta?.title) ??
+		node.name ??
+		node.path ??
+		String(node.id);
+	const disabledReason = getDisabledReason(node.path);
 
 	if (hasVisibleChildren && node.children) {
 		return (
@@ -117,6 +163,30 @@ function MenuItem({ node, pathname }: MenuItemProps) {
 					<span>{label}</span>
 				</SidebarMenuButton>
 				<SubMenuItems nodes={node.children} pathname={pathname} />
+			</SidebarMenuItem>
+		);
+	}
+
+	if (disabledReason) {
+		return (
+			<SidebarMenuItem>
+				<TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<SidebarMenuButton
+								aria-disabled="true"
+								className="cursor-not-allowed opacity-50 hover:bg-transparent hover:text-sidebar-foreground/70 focus-visible:ring-0"
+								onClick={(e) => {
+									e.preventDefault();
+								}}
+							>
+								{Icon && <Icon className="size-4" />}
+								<span>{label}</span>
+							</SidebarMenuButton>
+						</TooltipTrigger>
+						<TooltipContent side="right">{disabledReason}</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
 			</SidebarMenuItem>
 		);
 	}
@@ -153,7 +223,7 @@ function SidebarEmpty() {
 		<SidebarGroup>
 			<SidebarGroupContent>
 				<p className="px-4 py-6 text-center text-sm text-muted-foreground">
-					暂无可访问的菜单
+					{m.sidebar_empty()}
 				</p>
 			</SidebarGroupContent>
 		</SidebarGroup>
@@ -197,7 +267,7 @@ export default function AppSidebar() {
 					<SidebarEmpty />
 				) : (
 					<SidebarGroup>
-						<SidebarGroupLabel>导航</SidebarGroupLabel>
+						<SidebarGroupLabel>{m.sidebar_nav_label()}</SidebarGroupLabel>
 						<SidebarGroupContent>
 							<SidebarMenu>
 								{menus

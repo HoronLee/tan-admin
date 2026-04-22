@@ -1,51 +1,67 @@
-// Locale switcher refs:
-// - Paraglide docs: https://inlang.com/m/gerre34r/library-inlang-paraglideJs
-// - Router example: https://github.com/TanStack/router/tree/main/examples/react/i18n-paraglide#switching-locale
+// LocaleSwitcher — shadcn DropdownMenu variant.
+//
+// Uses Paraglide v2 runtime. Strategy `["cookie", "preferredLanguage", "baseLocale"]`
+// means `setLocale` writes the PARAGLIDE_LOCALE cookie and the default
+// `reload: true` triggers a full page reload so SSR picks up the new locale
+// on the next render (no hydration mismatch).
+//
+// Refs:
+// - https://inlang.com/m/gerre34r/library-inlang-paraglideJs/basics (setLocale reload behavior)
+// - https://github.com/TanStack/router/tree/main/examples/react/start-i18n-paraglide
 
+import { Check, Globe } from "lucide-react";
+import { Button } from "#/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/ui/dropdown-menu";
 import { m } from "#/paraglide/messages";
-import { getLocale, locales, setLocale } from "#/paraglide/runtime";
+import {
+	getLocale,
+	type Locale,
+	locales,
+	setLocale,
+} from "#/paraglide/runtime";
 
-export default function ParaglideLocaleSwitcher() {
-	const currentLocale = getLocale();
+const LABEL_GETTERS: Record<string, () => string> = {
+	zh: m.locale_zh,
+	en: m.locale_en,
+};
+
+function getLocaleLabel(locale: Locale): string {
+	const getter = LABEL_GETTERS[locale];
+	if (getter) {
+		const label = getter();
+		if (label) return label;
+	}
+	return locale.toUpperCase();
+}
+
+export default function LocaleSwitcher() {
+	const current = getLocale();
+	const label = m.locale_switcher_label() || "Switch language";
 
 	return (
-		<fieldset
-			style={{
-				display: "flex",
-				gap: "0.5rem",
-				alignItems: "center",
-				color: "inherit",
-				border: "none",
-				margin: 0,
-				padding: 0,
-			}}
-			aria-label={m.language_label()}
-		>
-			<span style={{ opacity: 0.85 }}>
-				{m.current_locale({ locale: currentLocale })}
-			</span>
-			<div style={{ display: "flex", gap: "0.25rem" }}>
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button variant="ghost" size="icon" aria-label={label}>
+					<Globe className="size-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
 				{locales.map((locale) => (
-					<button
+					<DropdownMenuItem
 						key={locale}
-						type="button"
-						onClick={() => setLocale(locale)}
-						aria-pressed={locale === currentLocale}
-						style={{
-							cursor: "pointer",
-							padding: "0.35rem 0.75rem",
-							borderRadius: "999px",
-							border: "1px solid #d1d5db",
-							background: locale === currentLocale ? "#0f172a" : "transparent",
-							color: locale === currentLocale ? "#f8fafc" : "inherit",
-							fontWeight: locale === currentLocale ? 700 : 500,
-							letterSpacing: "0.01em",
-						}}
+						onSelect={() => setLocale(locale)}
+						className="justify-between gap-4"
 					>
-						{locale.toUpperCase()}
-					</button>
+						<span>{getLocaleLabel(locale)}</span>
+						{locale === current && <Check className="size-4" />}
+					</DropdownMenuItem>
 				))}
-			</div>
-		</fieldset>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

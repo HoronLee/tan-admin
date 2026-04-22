@@ -4,10 +4,153 @@ import { env } from "#/env";
 import { auth } from "#/lib/auth";
 import { createModuleLogger } from "#/lib/logger";
 
-const DEFAULT_ORG_SLUG = "default";
-const DEFAULT_ORG_NAME = "Default Organization";
-
 const log = createModuleLogger("seed");
+
+const resetMenus = process.argv.slice(2).includes("--reset-menus");
+
+/**
+ * Minimal menu skeleton. `meta.title` is an i18n key (e.g. `menu.dashboard`);
+ * the sidebar renderer resolves it via Paraglide `m[key]` with a literal
+ * fallback, so user-created menus can keep storing plain Chinese strings.
+ */
+interface SeedMenu {
+	name: string;
+	type: "MENU";
+	path: string;
+	component: string;
+	meta: { title: string; icon?: string; order?: number };
+	status: "ACTIVE";
+	order: number;
+	requiredPermission: string | null;
+}
+
+const MENUS: SeedMenu[] = [
+	{
+		name: "dashboard",
+		type: "MENU",
+		path: "/dashboard",
+		component: "dashboard",
+		meta: { title: "menu.dashboard", icon: "LayoutDashboard", order: 1 },
+		status: "ACTIVE",
+		order: 1,
+		requiredPermission: null,
+	},
+	{
+		name: "users",
+		type: "MENU",
+		path: "/users",
+		component: "users",
+		meta: { title: "menu.users", icon: "Users", order: 10 },
+		status: "ACTIVE",
+		order: 10,
+		requiredPermission: "user:read",
+	},
+	{
+		name: "organization",
+		type: "MENU",
+		path: "/organization",
+		component: "organization",
+		meta: { title: "menu.organization", icon: "Building2", order: 20 },
+		status: "ACTIVE",
+		order: 20,
+		requiredPermission: "organization:read",
+	},
+	{
+		// R10: super-admin cross-tenant organization list. Gated via the
+		// admin plugin's site-level `user.role === "admin"`; the sidebar
+		// permission filter (`getUserMenus`) does not currently know about
+		// site-level admin, so we leave `requiredPermission` null and rely
+		// on the route-level gate + server-side `requireSuperAdmin`
+		// middleware. A non-admin user who sees this menu will hit the 403
+		// card on navigation. The menu stays visible for discoverability.
+		name: "organizations",
+		type: "MENU",
+		path: "/organizations",
+		component: "organizations",
+		meta: { title: "menu.organizations", icon: "Building", order: 25 },
+		status: "ACTIVE",
+		order: 25,
+		requiredPermission: null,
+	},
+	{
+		name: "menus",
+		type: "MENU",
+		path: "/menus",
+		component: "menus",
+		meta: { title: "menu.menus", icon: "Menu", order: 30 },
+		status: "ACTIVE",
+		order: 30,
+		requiredPermission: "menu:write",
+	},
+	{
+		name: "teams",
+		type: "MENU",
+		path: "/teams",
+		component: "teams",
+		// Sidebar gating (TEAM_ENABLED=false -> greyed w/ tooltip) is driven
+		// by the client env flag — the menu row is always seeded so users
+		// discover the feature exists.
+		meta: { title: "menu.teams", icon: "Users2", order: 40 },
+		status: "ACTIVE",
+		order: 40,
+		requiredPermission: null,
+	},
+	{
+		name: "settings",
+		type: "MENU",
+		path: "/settings/account",
+		component: "settings",
+		meta: { title: "menu.settings", icon: "Settings", order: 99 },
+		status: "ACTIVE",
+		order: 99,
+		requiredPermission: null,
+	},
+	{
+		name: "settings-organization",
+		type: "MENU",
+		path: "/settings/organization",
+		component: "settings-organization",
+		meta: {
+			title: "menu.settings_organization",
+			icon: "Building2",
+			order: 100,
+		},
+		status: "ACTIVE",
+		order: 100,
+		requiredPermission: "organization:write",
+	},
+];
+
+async function seedMenus(): Promise<void> {
+	if (resetMenus) {
+		await pool.query('TRUNCATE TABLE "Menu" RESTART IDENTITY CASCADE');
+		log.warn(
+			"--reset-menus flag set: Menu table truncated. Operator-added menus are gone.",
+		);
+	}
+
+	for (const m of MENUS) {
+		// Idempotent upsert keyed by unique `name`. Update meta/path/... so the
+		// skeleton can evolve across deployments without losing operator data.
+		await db.menu.upsert({
+			where: { name: m.name },
+			update: {
+				type: m.type,
+				path: m.path,
+				component: m.component,
+				meta: m.meta,
+				status: m.status,
+				order: m.order,
+				requiredPermission: m.requiredPermission,
+			},
+			create: m,
+		});
+	}
+	log.info(
+		{ count: MENUS.length, reset: resetMenus },
+		"Menu skeleton upserted.",
+	);
+}
 
 async function bootstrapSuperAdmin(): Promise<string | null> {
 	const email = env.SEED_SUPER_ADMIN_EMAIL;
@@ -57,26 +200,29 @@ async function bootstrapSuperAdmin(): Promise<string | null> {
 
 /**
  * Create the default organization and bind the super-admin as owner.
- * Uses direct pg INSERTs because Better Auth's server APIs require a
- * request/session context we don't have in a seed script.
+ * Single-tenancy only: multi-tenancy starts with zero orgs; super-admin
+ * creates them via the `/organizations` UI.
  */
 async function seedDefaultOrg(adminUserId: string): Promise<void> {
+	const slug = env.SEED_DEFAULT_ORG_SLUG;
+	const name = env.SEED_DEFAULT_ORG_NAME;
+
 	const existing = await pool.query<{ id: string }>(
 		'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
-		[DEFAULT_ORG_SLUG],
+		[slug],
 	);
 
 	let orgId: string;
 	if (existing.rows.length > 0) {
 		orgId = existing.rows[0].id;
-		log.info({ orgId }, "Default organization already exists.");
+		log.info({ orgId, slug }, "Default organization already exists.");
 	} else {
 		orgId = randomUUID();
 		await pool.query(
-			'INSERT INTO "organization" (id, name, slug, "createdAt") VALUES ($1, $2, $3, now())',
-			[orgId, DEFAULT_ORG_NAME, DEFAULT_ORG_SLUG],
+			'INSERT INTO "organization" (id, name, slug, "createdAt", plan) VALUES ($1, $2, $3, now(), $4)',
+			[orgId, name, slug, "free"],
 		);
-		log.info({ orgId }, "Default organization created.");
+		log.info({ orgId, slug, name }, "Default organization created.");
 	}
 
 	const existingMember = await pool.query<{ id: string }>(
@@ -102,109 +248,41 @@ async function seedDefaultOrg(adminUserId: string): Promise<void> {
 	);
 }
 
-async function main() {
-	log.info("Seeding database…");
-
-	// --- Menus (system skeleton) ---
-	// Menu tree is fully owned by seed — wipe first so removed entries don't linger.
-	// CASCADE handles the self-referencing parentId FK.
-	await pool.query('TRUNCATE TABLE "Menu" RESTART IDENTITY CASCADE');
-	log.info("Menu table cleared.");
-
-	const dashboardMenu = await db.menu.upsert({
-		where: { name: "dashboard" },
-		update: {},
-		create: {
-			name: "dashboard",
-			type: "MENU",
-			path: "/dashboard",
-			component: "dashboard",
-			meta: { title: "Dashboard", icon: "LayoutDashboard", order: 1 },
-			status: "ACTIVE",
-			order: 1,
-			requiredPermission: null,
-		},
-	});
-
-	// Flat top-level menus — (admin) is a TanStack Router *route group*
-	// (parentheses strip from URL), so real paths stay short: /users, /menus, ...
-	const usersMenu = await db.menu.upsert({
-		where: { name: "users" },
-		update: {},
-		create: {
-			name: "users",
-			type: "MENU",
-			path: "/users",
-			component: "users",
-			meta: { title: "Users", icon: "Users", order: 10 },
-			status: "ACTIVE",
-			order: 10,
-			requiredPermission: "user:read",
-		},
-	});
-
-	const orgMenu = await db.menu.upsert({
-		where: { name: "organization" },
-		update: {},
-		create: {
-			name: "organization",
-			type: "MENU",
-			path: "/organization",
-			component: "organization",
-			meta: { title: "Organization", icon: "Building2", order: 20 },
-			status: "ACTIVE",
-			order: 20,
-			requiredPermission: "organization:read",
-		},
-	});
-
-	const menusMenu = await db.menu.upsert({
-		where: { name: "menus" },
-		update: {},
-		create: {
-			name: "menus",
-			type: "MENU",
-			path: "/menus",
-			component: "menus",
-			meta: { title: "Menus", icon: "Menu", order: 30 },
-			status: "ACTIVE",
-			order: 30,
-			requiredPermission: "menu:write",
-		},
-	});
-
-	const settingsMenu = await db.menu.upsert({
-		where: { name: "settings" },
-		update: {},
-		create: {
-			name: "settings",
-			type: "MENU",
-			path: "/settings/account",
-			component: "settings",
-			meta: { title: "Settings", icon: "Settings", order: 99 },
-			status: "ACTIVE",
-			order: 99,
-			requiredPermission: null,
-		},
-	});
-
+function printBanner(): void {
+	const tablesTouched: string[] = ["Menu"];
+	if (env.TENANCY_MODE === "single") {
+		tablesTouched.push("organization", "member");
+	}
+	if (env.SEED_SUPER_ADMIN_EMAIL && env.SEED_SUPER_ADMIN_PASSWORD) {
+		tablesTouched.push("user");
+	}
 	log.info(
 		{
-			dashboardId: dashboardMenu.id,
-			usersId: usersMenu.id,
-			orgId: orgMenu.id,
-			menusId: menusMenu.id,
-			settingsId: settingsMenu.id,
+			tenancyMode: env.TENANCY_MODE,
+			teamEnabled: env.TEAM_ENABLED,
+			resetMenus,
+			tablesTouched,
 		},
-		"Menus seeded.",
+		"Seed starting.",
 	);
+}
+
+async function main() {
+	printBanner();
+
+	// --- Menus (system skeleton) ---
+	await seedMenus();
 
 	// --- Super-admin user bootstrap (opt-in via env) ---
 	const adminUserId = await bootstrapSuperAdmin();
 
-	// --- Default organization + super-admin binding ---
-	if (adminUserId) {
+	// --- Default organization binding (single-tenancy only) ---
+	if (env.TENANCY_MODE === "single" && adminUserId) {
 		await seedDefaultOrg(adminUserId);
+	} else if (env.TENANCY_MODE === "multi") {
+		log.info(
+			"TENANCY_MODE=multi: skipping default organization. Super-admin creates orgs via UI.",
+		);
 	}
 
 	log.info("Seed complete.");

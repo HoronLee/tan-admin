@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { pool } from "#/db";
+import { env } from "#/env";
+import { sendEmail } from "#/lib/email";
 import { createModuleLogger } from "#/lib/logger";
 import { ac, adminRole, member, owner } from "#/lib/permissions";
 
@@ -11,6 +14,25 @@ export const auth = betterAuth({
 	database: pool,
 	emailAndPassword: {
 		enabled: true,
+		requireEmailVerification: true,
+		autoSignInAfterVerification: true,
+		sendResetPassword: async ({ user, url }) => {
+			await sendEmail({
+				type: "reset",
+				to: user.email,
+				props: { url, userName: user.name },
+			});
+		},
+	},
+	emailVerification: {
+		sendVerificationEmail: async ({ user, url }) => {
+			await sendEmail({
+				type: "verify",
+				to: user.email,
+				props: { url, userName: user.name },
+			});
+		},
+		autoSignInAfterVerification: true,
 	},
 	databaseHooks: {
 		session: {
@@ -31,13 +53,163 @@ export const auth = betterAuth({
 				},
 			},
 		},
+		user: {
+			create: {
+				// R4: single-tenancy auto-join. After a user is created (e.g. via
+				// /signup), bind them as `member` of the default org. Raw SQL via
+				// the shared `pool` — do NOT call `auth.api.createOrganization`
+				// from here (better-auth#6791 nested-call deadlock).
+				after: async (user) => {
+					if (env.TENANCY_MODE !== "single") return;
+					// The super-admin bootstrap is handled by seed. Skip to avoid
+					// double binding (seed pins them as `owner`).
+					if (
+						env.SEED_SUPER_ADMIN_EMAIL &&
+						user.email === env.SEED_SUPER_ADMIN_EMAIL
+					) {
+						return;
+					}
+
+					try {
+						const { rows } = await pool.query<{ id: string }>(
+							'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
+							[env.SEED_DEFAULT_ORG_SLUG],
+						);
+						const orgId = rows[0]?.id;
+						if (!orgId) {
+							log.warn(
+								{ slug: env.SEED_DEFAULT_ORG_SLUG, userId: user.id },
+								"Default organization missing — cannot auto-join new user.",
+							);
+							return;
+						}
+
+						// Idempotent: bail if already a member (concurrency / retry safe).
+						// No unique (orgId, userId) constraint in BA schema, so guard here.
+						const existing = await pool.query(
+							'SELECT 1 FROM "member" WHERE "organizationId" = $1 AND "userId" = $2 LIMIT 1',
+							[orgId, user.id],
+						);
+						if (existing.rowCount && existing.rowCount > 0) return;
+
+						await pool.query(
+							'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
+							[randomUUID(), orgId, user.id, "member"],
+						);
+						log.info(
+							{ userId: user.id, orgId },
+							"New user auto-joined default organization (single-tenancy mode).",
+						);
+					} catch (err) {
+						// Swallow — registration already succeeded; auto-join is best-effort.
+						// User can be manually bound later if this path fails.
+						log.error(
+							{ err, userId: user.id },
+							"Failed to auto-join new user into default org.",
+						);
+					}
+				},
+			},
+		},
 	},
 	plugins: [
 		admin(),
 		organization({
 			ac,
 			roles: { owner, admin: adminRole, member },
-			teams: { enabled: true },
+			teams: { enabled: env.TEAM_ENABLED },
+			// R1/R4: in single-tenancy mode, users must not self-create orgs —
+			// the default org is seeded and users are auto-joined to it.
+			allowUserToCreateOrganization: env.TENANCY_MODE === "multi",
+			// R12: avoid duplicate pending invitations for the same email.
+			cancelPendingInvitationsOnReInvite: true,
+			// R8: business-profile columns on `organization`. Mirrored on the
+			// client via `inferOrgAdditionalFields` in auth-client.ts.
+			schema: {
+				organization: {
+					additionalFields: {
+						plan: { type: "string", defaultValue: "free" },
+						industry: { type: "string", required: false },
+						billingEmail: { type: "string", required: false },
+					},
+				},
+			},
+			// R7/R11: one unified invitation path. `role === "owner"` marks a
+			// transfer-of-ownership flow (stronger wording + warning).
+			sendInvitationEmail: async ({
+				email,
+				inviter,
+				organization: org,
+				invitation,
+			}) => {
+				const isTransfer = invitation.role === "owner";
+				const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?token=${invitation.id}`;
+				await sendEmail({
+					type: isTransfer ? "transfer" : "invite",
+					to: email,
+					props: {
+						url: acceptUrl,
+						inviterName: inviter.user.name,
+						organizationName: org.name,
+					},
+				});
+			},
+			organizationHooks: {
+				// R7: Transfer-ownership via invitation. When an invitation with
+				// role=owner is accepted, atomically downgrade all existing
+				// owners to `admin` before BA proceeds to create the accepting
+				// user's member row with role=owner. If the downgrade fails we
+				// re-throw so BA aborts the accept (partial state is worse than
+				// a blocked accept — user can retry).
+				beforeAcceptInvitation: async ({ invitation, user, organization }) => {
+					if (invitation.role !== "owner") return;
+					try {
+						await pool.query(
+							'UPDATE "member" SET role = $1 WHERE "organizationId" = $2 AND role = $3',
+							["admin", organization.id, "owner"],
+						);
+						log.info(
+							{ orgId: organization.id, newOwnerUserId: user.id },
+							"Owner transferred via invitation accept; previous owner(s) downgraded to admin.",
+						);
+					} catch (err) {
+						log.error(
+							{ err, orgId: organization.id, newOwnerUserId: user.id },
+							"Failed to downgrade previous owner during transfer — aborting accept.",
+						);
+						throw err;
+					}
+				},
+				// R11: last-owner protection. BA exposes these hooks (verified in
+				// installed types); throwing aborts the action with the thrown
+				// message surfaced to the client.
+				beforeUpdateMemberRole: async ({
+					member: target,
+					newRole,
+					organization,
+				}) => {
+					if (target.role !== "owner" || newRole === "owner") return;
+					const { rows } = await pool.query<{ count: string }>(
+						'SELECT COUNT(*)::text AS count FROM "member" WHERE "organizationId" = $1 AND role = $2',
+						[organization.id, "owner"],
+					);
+					const ownerCount = Number(rows[0]?.count ?? "0");
+					if (ownerCount <= 1) {
+						throw new Error("不能移除最后一个所有者");
+					}
+				},
+				beforeRemoveMember: async ({ member: target, organization }) => {
+					if (target.role !== "owner") return;
+					const { rows } = await pool.query<{ count: string }>(
+						'SELECT COUNT(*)::text AS count FROM "member" WHERE "organizationId" = $1 AND role = $2',
+						[organization.id, "owner"],
+					);
+					const ownerCount = Number(rows[0]?.count ?? "0");
+					if (ownerCount <= 1) {
+						throw new Error("不能移除最后一个所有者");
+					}
+				},
+			},
 		}),
 		multiSession(),
 		tanstackStartCookies(),

@@ -10,6 +10,7 @@ import {
 	AlertDialogTitle,
 } from "#/components/ui/alert-dialog";
 import { Input } from "#/components/ui/input";
+import * as m from "#/paraglide/messages";
 
 interface ConfirmDialogProps {
 	open: boolean;
@@ -27,15 +28,18 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
 	open,
 	onOpenChange,
-	title = "确认删除",
+	title,
 	description,
-	confirmText = "确认删除",
-	cancelText = "取消",
+	confirmText,
+	cancelText,
 	variant = "destructive",
 	onConfirm,
 	confirming = false,
 	requireTypedConfirm,
 }: ConfirmDialogProps) {
+	const resolvedTitle = title ?? m.confirm_dialog_default_title();
+	const resolvedConfirm = confirmText ?? m.confirm_dialog_default_confirm();
+	const resolvedCancel = cancelText ?? m.common_cancel();
 	const [inputValue, setInputValue] = useState("");
 
 	const needsTypedConfirm = requireTypedConfirm !== undefined;
@@ -58,7 +62,7 @@ export function ConfirmDialog({
 		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>{title}</AlertDialogTitle>
+					<AlertDialogTitle>{resolvedTitle}</AlertDialogTitle>
 					{description && (
 						<AlertDialogDescription>{description}</AlertDialogDescription>
 					)}
@@ -67,11 +71,11 @@ export function ConfirmDialog({
 				{needsTypedConfirm && (
 					<div className="py-2">
 						<p className="mb-2 text-sm text-muted-foreground">
-							请输入{" "}
+							{m.confirm_dialog_typed_hint_before()}{" "}
 							<span className="font-medium text-foreground">
 								{requireTypedConfirm}
 							</span>{" "}
-							以确认
+							{m.confirm_dialog_typed_hint_after()}
 						</p>
 						<Input
 							value={inputValue}
@@ -84,14 +88,14 @@ export function ConfirmDialog({
 
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={confirming}>
-						{cancelText}
+						{resolvedCancel}
 					</AlertDialogCancel>
 					<AlertDialogAction
 						variant={variant}
 						onClick={handleConfirm}
 						disabled={!canConfirm || confirming}
 					>
-						{confirming ? "处理中..." : confirmText}
+						{confirming ? m.common_processing() : resolvedConfirm}
 					</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>

@@ -12,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import * as m from "#/paraglide/messages";
 
 interface DataTablePaginationProps {
 	page: number;
@@ -34,7 +35,9 @@ export function DataTablePagination({
 
 	return (
 		<div className="flex items-center justify-between border-t px-4 py-3">
-			<p className="text-sm text-muted-foreground">共 {total} 条</p>
+			<p className="text-sm text-muted-foreground">
+				{m.pagination_total({ total })}
+			</p>
 			<div className="flex items-center gap-3">
 				<Select
 					value={String(pageSize)}
@@ -46,14 +49,14 @@ export function DataTablePagination({
 					<SelectContent>
 						{pageSizes.map((s) => (
 							<SelectItem key={s} value={String(s)}>
-								{s} 条/页
+								{m.pagination_page_size({ size: s })}
 							</SelectItem>
 						))}
 					</SelectContent>
 				</Select>
 
 				<span className="text-sm text-muted-foreground whitespace-nowrap">
-					第 {page} / {totalPages} 页
+					{m.pagination_page_indicator({ page, total: totalPages })}
 				</span>
 
 				<div className="flex items-center gap-1">
@@ -62,7 +65,7 @@ export function DataTablePagination({
 						size="icon-sm"
 						disabled={page <= 1}
 						onClick={() => onPageChange(1)}
-						aria-label="第一页"
+						aria-label={m.pagination_first_page()}
 					>
 						<ChevronsLeft className="size-4" />
 					</Button>
@@ -71,7 +74,7 @@ export function DataTablePagination({
 						size="icon-sm"
 						disabled={page <= 1}
 						onClick={() => onPageChange(page - 1)}
-						aria-label="上一页"
+						aria-label={m.pagination_prev_page()}
 					>
 						<ChevronLeft className="size-4" />
 					</Button>
@@ -80,7 +83,7 @@ export function DataTablePagination({
 						size="icon-sm"
 						disabled={page >= totalPages}
 						onClick={() => onPageChange(page + 1)}
-						aria-label="下一页"
+						aria-label={m.pagination_next_page()}
 					>
 						<ChevronRight className="size-4" />
 					</Button>
@@ -89,7 +92,7 @@ export function DataTablePagination({
 						size="icon-sm"
 						disabled={page >= totalPages}
 						onClick={() => onPageChange(totalPages)}
-						aria-label="最后一页"
+						aria-label={m.pagination_last_page()}
 					>
 						<ChevronsRight className="size-4" />
 					</Button>

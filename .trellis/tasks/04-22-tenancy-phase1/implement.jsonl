@@ -1,0 +1,10 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "身份层 vs 业务层契约，BA/ZenStack 分工"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Kysely qbRaw 直查 BA 表的模式"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "oRPC 错误结构，BA 错误汉化"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "console transport 打印 verify URL"}
+{"file": ".trellis/spec/frontend/layout-guidelines.md", "reason": "sidebar/tabbar 动态菜单渲染"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "menuStore 可能调整"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "additionalFields 类型推断"}

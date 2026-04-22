@@ -10,6 +10,7 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu";
 import { cn } from "#/lib/utils";
+import * as m from "#/paraglide/messages";
 import {
 	addTab,
 	removeOtherTabs,
@@ -91,11 +92,17 @@ function TabChip({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start">
 					{tab.closable && (
-						<DropdownMenuItem onClick={onClose}>关闭标签页</DropdownMenuItem>
+						<DropdownMenuItem onClick={onClose}>
+							{m.tabbar_close_tab()}
+						</DropdownMenuItem>
 					)}
-					<DropdownMenuItem onClick={onCloseOthers}>关闭其他</DropdownMenuItem>
+					<DropdownMenuItem onClick={onCloseOthers}>
+						{m.tabbar_close_others()}
+					</DropdownMenuItem>
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={onCloseRight}>关闭右侧</DropdownMenuItem>
+					<DropdownMenuItem onClick={onCloseRight}>
+						{m.tabbar_close_right()}
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

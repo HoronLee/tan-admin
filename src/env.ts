@@ -19,6 +19,31 @@ export const env = createEnv({
 		BETTER_AUTH_URL: z.string().url(),
 		SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
 		SEED_SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
+
+		// --- Tenancy / product-shape switches (R1, R2) ---
+		TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+		// z.coerce.boolean() treats "false" as true; use z.stringbool() instead.
+		TEAM_ENABLED: z.stringbool().default(false),
+
+		// --- Seed extras (R3) ---
+		SEED_DEFAULT_ORG_NAME: z.string().default("默认组织"),
+		SEED_DEFAULT_ORG_SLUG: z.string().default("default"),
+
+		// --- Email transport (R5) ---
+		EMAIL_TRANSPORT: z.enum(["console", "smtp", "resend"]).default("console"),
+		EMAIL_FROM: z.string().email().default("noreply@localhost"),
+		EMAIL_FROM_NAME: z.string().optional(),
+		EMAIL_VERIFICATION_SKIP_LIST: z.string().default(""),
+
+		// SMTP driver
+		SMTP_HOST: z.string().optional(),
+		SMTP_PORT: z.coerce.number().default(465),
+		SMTP_SECURE: z.stringbool().default(true),
+		SMTP_USER: z.string().optional(),
+		SMTP_PASS: z.string().optional(),
+
+		// Resend driver
+		RESEND_API_KEY: z.string().optional(),
 	},
 
 	/**
@@ -31,6 +56,15 @@ export const env = createEnv({
 		VITE_APP_TITLE: z.string().min(1).optional(),
 		VITE_APP_URL: z.string().url().optional(),
 		VITE_SENTRY_DSN: z.string().url().optional(),
+		// Client-visible mirror of TENANCY_MODE. Allows the frontend to gate
+		// UI (e.g. disable "解散组织" in single-tenancy mode) without a loader
+		// roundtrip. Keep in sync with server-side TENANCY_MODE via .env.
+		VITE_TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+		// Client-visible mirror of TEAM_ENABLED. Gates the Teams sidebar menu
+		// and the /teams route — server-side BA plugin is the source of
+		// truth, the client flag only drives UI state. Keep the two in sync
+		// via .env (TEAM_ENABLED=true + VITE_TEAM_ENABLED=true).
+		VITE_TEAM_ENABLED: z.stringbool().default(false),
 	},
 
 	/**
@@ -57,6 +91,23 @@ export const env = createEnv({
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
 		SEED_SUPER_ADMIN_EMAIL: process.env.SEED_SUPER_ADMIN_EMAIL,
 		SEED_SUPER_ADMIN_PASSWORD: process.env.SEED_SUPER_ADMIN_PASSWORD,
+		// Tenancy
+		TENANCY_MODE: process.env.TENANCY_MODE,
+		TEAM_ENABLED: process.env.TEAM_ENABLED,
+		// Seed extras
+		SEED_DEFAULT_ORG_NAME: process.env.SEED_DEFAULT_ORG_NAME,
+		SEED_DEFAULT_ORG_SLUG: process.env.SEED_DEFAULT_ORG_SLUG,
+		// Email transport
+		EMAIL_TRANSPORT: process.env.EMAIL_TRANSPORT,
+		EMAIL_FROM: process.env.EMAIL_FROM,
+		EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME,
+		EMAIL_VERIFICATION_SKIP_LIST: process.env.EMAIL_VERIFICATION_SKIP_LIST,
+		SMTP_HOST: process.env.SMTP_HOST,
+		SMTP_PORT: process.env.SMTP_PORT,
+		SMTP_SECURE: process.env.SMTP_SECURE,
+		SMTP_USER: process.env.SMTP_USER,
+		SMTP_PASS: process.env.SMTP_PASS,
+		RESEND_API_KEY: process.env.RESEND_API_KEY,
 		// Client vars — Vite exposes VITE_* via import.meta.env at build time;
 		// in Node.js contexts (tsx scripts, vitest) fall back to process.env.
 		VITE_APP_TITLE:
@@ -71,6 +122,14 @@ export const env = createEnv({
 			typeof import.meta.env !== "undefined"
 				? import.meta.env.VITE_SENTRY_DSN
 				: process.env.VITE_SENTRY_DSN,
+		VITE_TENANCY_MODE:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_TENANCY_MODE
+				: process.env.VITE_TENANCY_MODE,
+		VITE_TEAM_ENABLED:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_TEAM_ENABLED
+				: process.env.VITE_TEAM_ENABLED,
 	},
 
 	/**

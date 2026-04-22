@@ -1,0 +1,6 @@
+{"file": ".opencode/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".opencode/commands/trellis/check.md", "reason": "Code quality check spec"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "授权边界核查"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误处理一致性"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端质量底线"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端质量底线"}

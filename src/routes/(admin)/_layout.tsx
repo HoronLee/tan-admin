@@ -8,6 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { useStore } from "@tanstack/react-store";
 import { useEffect } from "react";
+import LocaleSwitcher from "#/components/LocaleSwitcher";
 import AppSidebar from "#/components/layout/AppSidebar";
 import AppTabbar from "#/components/layout/AppTabbar";
 import OrganizationSwitcher from "#/components/layout/OrganizationSwitcher";
@@ -82,6 +83,7 @@ function AdminLayout() {
 					</div>
 					<div className="flex items-center gap-2">
 						<OrganizationSwitcher />
+						<LocaleSwitcher />
 						<ThemeToggle />
 						<UserButton size="icon" themeToggle={false} align="end" />
 					</div>

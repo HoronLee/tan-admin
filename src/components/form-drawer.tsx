@@ -9,6 +9,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "#/components/ui/sheet";
+import * as m from "#/paraglide/messages";
 
 type DrawerWidth = "sm" | "md" | "lg";
 
@@ -38,11 +39,12 @@ export function FormDrawer({
 	description,
 	children,
 	onSubmit,
-	submitText = "保存",
+	submitText,
 	submitting = false,
 	side = "right",
 	width = "md",
 }: FormDrawerProps) {
+	const resolvedSubmit = submitText ?? m.common_save();
 	async function handleSubmit() {
 		await onSubmit?.();
 	}
@@ -73,11 +75,11 @@ export function FormDrawer({
 						onClick={() => onOpenChange(false)}
 						disabled={submitting}
 					>
-						取消
+						{m.common_cancel()}
 					</Button>
 					{onSubmit && (
 						<Button type="button" onClick={handleSubmit} disabled={submitting}>
-							{submitting ? "提交中..." : submitText}
+							{submitting ? m.common_submitting() : resolvedSubmit}
 						</Button>
 					)}
 				</SheetFooter>

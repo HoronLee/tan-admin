@@ -215,3 +215,48 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: identity-layer-v2: Better Auth 生态身份层全栈落地
+
+**Date**: 2026-04-22
+**Task**: identity-layer-v2: Better Auth 生态身份层全栈落地
+**Branch**: `main`
+
+### Summary
+
+弃自建 RBAC 六表，改用 better-auth admin + organization(teams) + multiSession 插件。shadcn 变体 ba-ui 覆盖 auth/user-button/个人 settings；自写 OrganizationSwitcher + /organization + /invitations + /users + /menus 五模块。踩坑并修复：TanStack Router _layout/ 子目录嵌套约定；session.activeOrganizationId 默认 null 需配 databaseHooks.session.create.before；ba-ui 多个 registry 的 capability flag 必须与 server plugins 一一对应。调研文档从 task 目录升级到 docs/research/ 做长期保存。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5bb250a` | (see git log) |
+| `cc31177` | (see git log) |
+| `e5a2c24` | (see git log) |
+| `4d6dd31` | (see git log) |
+| `5710aa7` | (see git log) |
+| `eb4a3d5` | (see git log) |
+| `2d26d51` | (see git log) |
+| `9ea6064` | (see git log) |
+| `202e125` | (see git log) |
+| `19ebda0` | (see git log) |
+| `8cf471a` | (see git log) |
+| `640a39a` | (see git log) |
+| `4d6a285` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

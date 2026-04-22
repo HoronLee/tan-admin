@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-04-21
+- **Total Sessions**: 8
+- **Last Active**: 2026-04-22
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~217 | Active |
+| `journal-1.md` | ~262 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-04-22 | identity-layer-v2: Better Auth 生态身份层全栈落地 | `5bb250a`, `cc31177`, `e5a2c24`, `4d6dd31`, `5710aa7`, `eb4a3d5`, `2d26d51`, `9ea6064`, `202e125`, `19ebda0`, `8cf471a`, `640a39a`, `4d6a285` | `main` |
 | 7 | 2026-04-21 | 全量依赖升级（2026-04） | `4b91349` | `main` |
 | 6 | 2026-04-21 | 实现 oRPC + ZenStack 双栈 CRUD + admin Role 页 | `f2afd3c`, `afa4aed` | `main` |
 | 5 | 2026-04-20 | RBAC PolicyPlugin + oRPC Routers | `7daa9bb` | `main` |

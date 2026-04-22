@@ -164,3 +164,80 @@ import { UserButton } from "#/components/user-button/user-button"
 4. `magicLink` / `passkey` / `multiSession` 等能力开关只是 UI 渲染开关；server 端没装对应 plugin 会调用失败。本任务只需 `emailAndPassword`，先全部置 false。
 5. shadcn 变体没有"组件版本号"，以本次 `add` 时间戳为准；记录 `add` 时间到 `journal.md` 以便回溯。
 6. Tailwind 4 兼容性：组件源码用的是 v4 语法（`@theme` 等），与项目当前 Tailwind 4 一致，无需 transform。
+
+## 实施反馈（2026-04-22 identity-layer-v2 task 完成）
+
+本项目 v2 已完整集成 shadcn 变体，实测确认 + 修订：
+
+### 修订点
+
+1. **实际 registry 只有 3 个**（官方 `/docs/shadcn` 确认）：`auth.json` / `settings.json` / `user-button.json`。**组织相关组件完全不提供**（`<OrganizationSwitcher />` / `<OrganizationSettingsCards />` / `<OrganizationMembersCard />` 是 npm 包变体 `@daveyplate/better-auth-ui` 的 API）。选 shadcn 变体等于承担"组织 UI 自写"的工作量。
+
+2. **shadcn add 的落地目录**（实测，以本项目 `components.json` aliases 为准）：
+   - `auth.json` → `src/components/auth/*`
+   - `user-button.json` → `src/components/user/*`（不是预想的 `components/user-button/`）
+   - `settings.json` → `src/components/settings/{account,security}/*`
+
+3. **落地会覆盖 shadcn 基础组件**：装 auth.json 时会更新 `button.tsx` / `card.tsx` / `input.tsx` 等，给 ba-ui 组件专用 API；如果项目已有定制要先 git diff 确认。
+
+4. **依赖补齐**：shadcn add 会自动装 `@better-auth-ui/react` / `@better-auth/passkey` / `@tanstack/react-pacer` / `next-themes`。
+
+### 验证了的集成模式
+
+`providers.tsx`（实际用的、可跑起来的版本）：
+
+```tsx
+import { Link as RouterLink, useNavigate } from "@tanstack/react-router";
+import type { ComponentType, PropsWithChildren, ReactNode } from "react";
+import { AuthProvider } from "#/components/auth/auth-provider";
+import { authClient } from "#/lib/auth-client";
+
+type LinkProps = PropsWithChildren<{ className?: string; href: string; to?: string }>;
+
+const Link: ComponentType<LinkProps> = ({ href, to, className, children }) => (
+  <RouterLink to={(to ?? href) as string} className={className}>{children}</RouterLink>
+);
+
+export function Providers({ children }: { children: ReactNode }) {
+  const routerNavigate = useNavigate();
+  const navigate = (o: { to: string; replace?: boolean }) =>
+    routerNavigate({ to: o.to as string, replace: o.replace });
+  return (
+    <AuthProvider
+      authClient={authClient}
+      navigate={navigate}
+      Link={Link}
+      redirectTo="/dashboard"
+      // capability flags 必须和 server plugins 一一对应
+      multiSession={true}   // server 装了 multiSession()
+      passkey={false}
+      magicLink={false}
+      deleteUser={{ enabled: false }}
+    >
+      {children}
+    </AuthProvider>
+  );
+}
+```
+
+**关键**：Better Auth UI 的 `Link` 组件签名（`{ href, to? }`）与 TanStack Router 的 `Link`（`to`）不一致，必须写适配器。
+
+### Capability flag 与 server plugin 一致性（新发现）
+
+UserButton / Settings 内置组件会**无条件探测**某些能力端点（比如 `<UserButton>` 的 SwitchAccount 子菜单探 `/api/auth/multi-session/list-device-sessions`）。server 没装对应 plugin 时：
+
+- 选项 A：装 plugin（本项目选这条，multiSession 实际还有 impersonate 场景的业务价值）
+- 选项 B：给 AuthProvider 显式传 `xxx={false}`（有些组件条件渲染受 flag 控制，但不是全部）
+- 选项 C：patch shadcn 落地的组件源码删 probe 调用
+
+**注 4 修订**："magicLink / passkey / multiSession 是 UI 渲染开关" 这条**只部分正确**——`user-button.tsx` 里 `{multiSession && ...}` 会受 flag 控制，但 `settings/account/manage-accounts.tsx` 里 `useListDeviceSessions()` hook 无条件调用（不看 flag），即便组件不渲染也可能在其他页面触发 probe。
+
+### TanStack Router `_layout` 嵌套坑（识别于本次任务，非 ba-ui 本身问题）
+
+按文档示例把 `auth/$path.tsx` 写成 `src/routes/auth/$path.tsx` 是对的（裸页，不需要后台 layout）。**但** `settings/$path.tsx` 想受 `(admin)/_layout.tsx` 包裹，必须放在 `src/routes/(admin)/_layout/settings/$path.tsx`，不能和 `_layout.tsx` 同级。详见 `.trellis/spec/frontend/layout-guidelines.md` "TanStack Router Route Groups + `_layout.tsx` 关键约定" 段。
+
+### 未验证的
+
+- Email registry（`<EmailVerificationEmail />` 等邮件模板）— 本项目 v2 没用，后续搞 SMTP / transactional email provider 再说。
+- `passkey` / `magicLink` 流程 — plugin 没装，UI 也没测。
+- Dark mode 主题切换 — next-themes 自动安装了但没接进 AuthProvider（用的是自写 ThemeToggle + `THEME_INIT_SCRIPT`）。

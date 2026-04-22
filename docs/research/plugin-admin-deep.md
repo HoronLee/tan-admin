@@ -202,3 +202,13 @@ await auth.api.userHasPermission({
 5. `removeUser` 是**硬删**，不可恢复；UI 必须有二次确认（用 v1 的 ConfirmDialog）。
 6. Access Control 的 `defaultStatements` 必须 `as const` 才能让 TS 推出字面量类型——CLAUDE.md 的 immutability 原则在这里**只是 readonly 类型层面**，运行时不影响。
 7. `ban` 撤所有 session 是默认行为——封禁后用户立刻被踢，但已经发出去的 API 请求那一瞬间不被回收。
+
+## 实施反馈（2026-04-22 identity-layer-v2 task 完成）
+
+本项目 v2 已落地 admin plugin，实测确认：
+
+- ✅ `authClient.admin.listUsers({ query: { limit, offset } })` / `createUser` / `setRole` / `banUser` / `unbanUser` / `impersonateUser` / `removeUser` 全部可用，`src/routes/(admin)/_layout/users/index.tsx` 完整封装。
+- ✅ 自定义 ac + roles 配合 `admin()` plugin 同时生效（admin plugin 的默认 roles 为 `admin`/`user`，organization plugin 的为 `owner`/`admin`/`member`——双套并存，各管各的 API 面）。
+- ✅ `user.role === "admin"` 是超管信号，seed 脚本通过 `UPDATE "user" SET role = 'admin'` 晋升（首个超管由 `auth.api.signUpEmail` 创建）。
+- ⚠️ **impersonate 配合 multiSession plugin**：本项目 v2 启用 multiSession。开启后 `impersonateUser` 是"额外开一个并行 session"而非"取代主账户"，管理员切回原身份成本低。没装 multiSession 的场景下 impersonate 会吃掉管理员 session，要手动 `stopImpersonating`。详见 `.trellis/spec/backend/authorization-boundary.md` 的 "multiSession + impersonate 协同" 段。
+- ⚠️ ba-ui shadcn 变体**不提供** admin 用户管理 UI，本项目自写（DataTable + FormDrawer + ConfirmDialog）。删除用户走 ConfirmDialog 的 `requireTypedConfirm` 模式（要求输入 email 确认）。

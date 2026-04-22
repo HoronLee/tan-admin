@@ -313,3 +313,31 @@ PRD D5 推迟审计日志——但本任务可以**预埋钩子**：所有 `afte
 9. `creatorRole` 默认 `owner`，不要改成 `admin` ——否则 owner 永不存在，删 org 没人能干。
 10. `organization.list()` 不带 `headers` 在 server-side 用必报错；它强依赖 session。
 11. teams 开启后 zmodel 的 `Menu.organizationId` **不应**改为 teamId——team 是 org 内的细分，业务菜单一般还是按 org 切（PRD D8 决策正确）。
+
+## 实施反馈（2026-04-22 identity-layer-v2 task 完成）
+
+本项目 v2 已落地 organization plugin（teams 启用），实测确认：
+
+- ✅ `authClient.organization.listMembers` / `inviteMember` / `updateMemberRole` / `removeMember` / `listInvitations` / `cancelInvitation` / `listUserInvitations` / `acceptInvitation` / `rejectInvitation` / `setActive` 全部可用，`src/routes/(admin)/_layout/organization/index.tsx` + `invitations/index.tsx` 自写封装。
+- ✅ React hooks `authClient.useListOrganizations()` / `useActiveOrganization()` / `useActiveMember()` 由 `organizationClient` plugin 的 `getAtoms` 自动暴露（nanostores + React subscribe），可直接在组件里用。
+- ✅ teams 开启后 `team` / `teamMember` 表建好；当前项目 UI 还没做 Teams 管理入口，推迟到后续 task。
+- ⚠️ **session.activeOrganizationId 默认 null 坑实锤**——本任务调试时侧栏看起来是空的就是这个原因。必须配 `databaseHooks.session.create.before` 自动选 org（本项目实现：读 `member` 表用户最早绑定的 org）。详见 `.trellis/spec/backend/authorization-boundary.md` 的 "Session Active Org 自动填充" 段。
+- ⚠️ ba-ui shadcn 变体**不提供** organization UI（官方 `/docs/shadcn` components list 只有 Provider / User / Auth / Settings / Email）。所有组织 UI（Switcher / 资料 / 成员 / 邀请 / Team）必须自写。
+- ⚠️ `organization.inviteMember` 传 role 必须是合法 role 字符串之一（默认 `owner`/`admin`/`member`），传 string[] 虽文档允许但实测后端校验要求至少一个；本项目前端单选。
+- ✅ **`<OrganizationSwitcher />` 自写**：useListOrganizations + useActiveOrganization + setActive 三件套即可，代码量 ~70 行。位置：`src/components/layout/OrganizationSwitcher.tsx`。
+
+### 菜单鉴权（`getUserMenus`）实测确认
+
+PRD D7 方案已实现（`src/orpc/router/user-menus.ts`）：
+
+```ts
+const { success } = await auth.api.hasPermission({
+  headers,
+  body: {
+    organizationId: activeOrganizationId,
+    permissions: { [resource]: [action] },
+  },
+});
+```
+
+性能优化（N+1）目前**没做**——seed 只 5 条菜单，每条一次 hasPermission 调用可接受。未来菜单多了改为"按 requiredPermission unique 值批量查"。

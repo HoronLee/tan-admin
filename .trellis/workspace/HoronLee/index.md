@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 10
+- **Total Sessions**: 11
 - **Last Active**: 2026-04-22
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~334 | Active |
+| `journal-1.md` | ~367 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 11 | 2026-04-22 | spec-consolidation: 批量浓缩 17 份 spec (-1076 行) | `a54ccf4` | `main` |
 | 10 | 2026-04-22 | tenancy-phase1: 双模开关 + 组织深化 + i18n + 邮件 | `648e8d5` | `main` |
 | 9 | 2026-04-22 | theme-cleanup: shadcn 2026 迁移（Vega + Neutral + 自写 ThemeProvider） | `20f934f`, `7126b04`, `0d55632`, `95eb244`, `bb7c104`, `e54cbfc`, `b86323e` | `main` |
 | 8 | 2026-04-22 | identity-layer-v2: Better Auth 生态身份层全栈落地 | `5bb250a`, `cc31177`, `e5a2c24`, `4d6dd31`, `5710aa7`, `eb4a3d5`, `2d26d51`, `9ea6064`, `202e125`, `19ebda0`, `8cf471a`, `640a39a`, `4d6a285` | `main` |

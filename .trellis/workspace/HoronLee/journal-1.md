@@ -332,3 +332,36 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: spec-consolidation: 批量浓缩 17 份 spec (-1076 行)
+
+**Date**: 2026-04-22
+**Task**: spec-consolidation: 批量浓缩 17 份 spec (-1076 行)
+**Branch**: `main`
+
+### Summary
+
+19 份 spec 审计 + 17 份浓缩: 4488→3412 行 (-24%)。P0 五份肥大文件去叙事/合并重复示例/FAQ 内联, P1/P2 其余文件压缩过渡段落。补齐 tenancy-phase1 两处遗漏: authorization-boundary 新增 BA Hooks 归属 (17 行, 明确 organizationHooks 是组织生命周期约束唯一位置), error-handling 新增 translateAuthError Convention (13 行, BA client 错误分流)。核心契约、签名、规则列表、Wrong/Correct 完整保留。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a54ccf4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

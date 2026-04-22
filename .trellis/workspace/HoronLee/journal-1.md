@@ -299,3 +299,36 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: tenancy-phase1: 双模开关 + 组织深化 + i18n + 邮件
+
+**Date**: 2026-04-22
+**Task**: tenancy-phase1: 双模开关 + 组织深化 + i18n + 邮件
+**Branch**: `main`
+
+### Summary
+
+落地 TENANCY_MODE/TEAM_ENABLED 双开关 + VITE_ mirror; 组织 UI 深化 (settings/dissolve/transfer/teams) + super-admin 路由; 三 driver 邮件基础设施 + react-email 模板; zh-CN 全量 i18n + LocaleSwitcher + Paraglide cookie 策略; seed 幂等化 + --reset-menus 标志; 新增 tenancy-modes / email-infrastructure / i18n 三份 spec。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `648e8d5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

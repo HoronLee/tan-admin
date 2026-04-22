@@ -1,15 +1,17 @@
 /**
  * getUserMenus — returns the menu tree the current user is allowed to see.
  *
- * Logic:
- *   1. Fetch all ACTIVE root menu nodes (with nested children).
- *   2. For each node: if requiredPermission is null → always visible.
- *      Otherwise call auth.api.hasPermission (server-side) to check
- *      the current user's org membership permissions.
- *   3. If the user has no active organization, only menus without
- *      requiredPermission are returned (safe public fallback).
+ * `requiredPermission` semantics:
+ *   - `null`                 → always visible to any authenticated user
+ *   - `"site:admin"`         → visible only to site-level admins
+ *                              (admin plugin `user.role === "admin"`)
+ *   - `"<resource>:<action>"` → visible to members whose active-org role has
+ *                              the permission via Better Auth organization AC
+ *                              (`auth.api.hasPermission`)
  *
- * Result: tree with parentId=null roots and filtered children.
+ * The three modes exist because two different authority systems exist:
+ * site-level admin (admin plugin) vs per-org role (organization plugin).
+ * See `.trellis/spec/backend/authorization-boundary.md` for the split.
  */
 import * as z from "zod";
 import { auth } from "#/lib/auth";
@@ -47,8 +49,9 @@ export const getUserMenus = authed
 			include: buildInclude(5),
 		})) as MenuNode[];
 
-		// Check if user has an active organization — if not, skip permission checks
 		const session = await auth.api.getSession({ headers });
+		const isSiteAdmin =
+			(session?.user as { role?: string | null } | undefined)?.role === "admin";
 		const activeOrganizationId = (
 			session?.session as { activeOrganizationId?: string } | undefined
 		)?.activeOrganizationId;
@@ -56,6 +59,13 @@ export const getUserMenus = authed
 		async function checkPermission(
 			requiredPermission: string,
 		): Promise<boolean> {
+			// Site-admin-only menu: gated by the admin plugin's user.role, not
+			// by any org-level AC. Keeps the sidebar honest — non-admins never
+			// see these entries even though the route gate would also catch them.
+			if (requiredPermission === "site:admin") {
+				return isSiteAdmin;
+			}
+
 			// No active org → cannot satisfy any org-gated permission
 			if (!activeOrganizationId) return false;
 

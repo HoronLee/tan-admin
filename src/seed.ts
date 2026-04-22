@@ -43,7 +43,9 @@ const MENUS: SeedMenu[] = [
 		meta: { title: "menu.users", icon: "Users", order: 10 },
 		status: "ACTIVE",
 		order: 10,
-		requiredPermission: "user:read",
+		// Site-level admin page (better-auth admin plugin). See
+		// `getUserMenus` for the `"site:admin"` reserved semantics.
+		requiredPermission: "site:admin",
 	},
 	{
 		name: "organization",
@@ -56,13 +58,7 @@ const MENUS: SeedMenu[] = [
 		requiredPermission: "organization:read",
 	},
 	{
-		// R10: super-admin cross-tenant organization list. Gated via the
-		// admin plugin's site-level `user.role === "admin"`; the sidebar
-		// permission filter (`getUserMenus`) does not currently know about
-		// site-level admin, so we leave `requiredPermission` null and rely
-		// on the route-level gate + server-side `requireSuperAdmin`
-		// middleware. A non-admin user who sees this menu will hit the 403
-		// card on navigation. The menu stays visible for discoverability.
+		// R10: super-admin cross-tenant organization list.
 		name: "organizations",
 		type: "MENU",
 		path: "/organizations",
@@ -70,7 +66,7 @@ const MENUS: SeedMenu[] = [
 		meta: { title: "menu.organizations", icon: "Building", order: 25 },
 		status: "ACTIVE",
 		order: 25,
-		requiredPermission: null,
+		requiredPermission: "site:admin",
 	},
 	{
 		name: "menus",
@@ -80,7 +76,9 @@ const MENUS: SeedMenu[] = [
 		meta: { title: "menu.menus", icon: "Menu", order: 30 },
 		status: "ACTIVE",
 		order: 30,
-		requiredPermission: "menu:write",
+		// Site-level config tool — operators edit the sidebar skeleton
+		// that every tenant sees. Org-scoped `menu:write` is irrelevant.
+		requiredPermission: "site:admin",
 	},
 	{
 		name: "teams",

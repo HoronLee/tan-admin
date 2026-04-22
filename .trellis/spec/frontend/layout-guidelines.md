@@ -60,6 +60,8 @@ createFileRoute("/(admin)/_layout/settings/$path")({ ... })
 
 ## Admin Shell 组成
 
+**前置**：`<ThemeProvider>` 挂在 `__root.tsx` 的 `<body>` 内、`<Providers>` 外层（因为 `<Providers>` 里 `useTheme()` 要接通 `AuthProvider appearance`）。详见 `./theming.md`。
+
 `(admin)/_layout.tsx` 组合以下组件：
 
 ```tsx

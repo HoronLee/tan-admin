@@ -96,7 +96,7 @@ const MENUS: SeedMenu[] = [
 		// Super-admin cross-tenant organization list.
 		name: "organizations",
 		type: "MENU",
-		path: "/organizations",
+		path: "/site/organizations",
 		component: "organizations",
 		meta: { title: "menu.organizations", icon: "Building", order: 3 },
 		status: "ACTIVE",
@@ -109,7 +109,7 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "users",
 		type: "MENU",
-		path: "/users",
+		path: "/site/users",
 		component: "users",
 		meta: { title: "menu.users", icon: "Users", order: 20 },
 		status: "ACTIVE",
@@ -245,11 +245,14 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "menus",
 		type: "MENU",
-		path: "/menus",
+		path: "/settings/organization/menus",
 		component: "menus",
 		meta: { title: "menu.menus", icon: "Menu", order: 1 },
 		status: "ACTIVE",
 		order: 1,
+		// Commit 4 起改为 owner-only 的路由级 beforeLoad；菜单这里保持
+		// site:admin 让"系统 > 菜单管理"这一栏对超管可见（他们也能管）。
+		// 普通 owner 从 `/settings/organization/menus` 直接访问，不依赖菜单。
 		requiredPermission: "site:admin",
 		parentName: "system",
 	},

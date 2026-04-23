@@ -31,7 +31,7 @@ const requireAuth = createServerFn({ method: "GET" }).handler(async () => {
 	return Boolean(session);
 });
 
-export const Route = createFileRoute("/(admin)/_layout")({
+export const Route = createFileRoute("/(workspace)/_layout")({
 	beforeLoad: async () => {
 		const authenticated = await requireAuth();
 		if (!authenticated) {
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/(admin)/_layout")({
 			});
 		}
 	},
-	component: AdminLayout,
+	component: WorkspaceLayout,
 });
 
 function useTabSync() {
@@ -66,7 +66,7 @@ function useTabSync() {
 	}, [pathname, menus]);
 }
 
-function AdminLayout() {
+function WorkspaceLayout() {
 	useTabSync();
 
 	return (
@@ -78,11 +78,9 @@ function AdminLayout() {
 					<Separator orientation="vertical" className="h-6" />
 					<div className="flex flex-1 flex-col">
 						<p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-							Management
+							Workspace
 						</p>
-						<h1 className="text-base font-semibold">
-							Administration Workspace
-						</h1>
+						<h1 className="text-base font-semibold">Team Workspace</h1>
 					</div>
 					<div className="flex items-center gap-2">
 						<OrganizationSwitcher />

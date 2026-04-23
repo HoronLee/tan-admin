@@ -35,7 +35,7 @@ import { authClient } from "#/lib/auth-client";
 import { translateAuthError } from "#/lib/auth-errors";
 import * as m from "#/paraglide/messages";
 
-export const Route = createFileRoute("/(admin)/_layout/organization/")({
+export const Route = createFileRoute("/(workspace)/_layout/organization/")({
 	component: OrganizationPage,
 });
 

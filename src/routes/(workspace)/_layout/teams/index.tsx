@@ -35,7 +35,7 @@ import { translateAuthError } from "#/lib/auth-errors";
 import { planAllowsTeams } from "#/lib/plan";
 import * as m from "#/paraglide/messages";
 
-export const Route = createFileRoute("/(admin)/_layout/teams/")({
+export const Route = createFileRoute("/(workspace)/_layout/teams/")({
 	component: TeamsPage,
 });
 

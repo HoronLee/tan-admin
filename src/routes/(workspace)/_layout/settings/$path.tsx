@@ -2,7 +2,7 @@ import { viewPaths } from "@better-auth-ui/react/core";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Settings } from "#/components/settings/settings";
 
-export const Route = createFileRoute("/(admin)/_layout/settings/$path")({
+export const Route = createFileRoute("/(workspace)/_layout/settings/$path")({
 	beforeLoad: ({ params: { path } }) => {
 		if (!Object.values(viewPaths.settings).includes(path)) {
 			throw notFound();

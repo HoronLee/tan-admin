@@ -35,7 +35,7 @@ import {
 import { requireSiteAdmin } from "#/lib/admin-guards";
 import { authClient } from "#/lib/auth-client";
 
-export const Route = createFileRoute("/(admin)/_layout/users/")({
+export const Route = createFileRoute("/site/_layout/users/")({
 	beforeLoad: async () => {
 		await requireSiteAdmin();
 	},

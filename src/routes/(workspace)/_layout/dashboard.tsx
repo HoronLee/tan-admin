@@ -13,7 +13,7 @@ import * as m from "#/paraglide/messages";
 
 type DeniedReason = "site-admin" | "org-role" | "no-active-org";
 
-export const Route = createFileRoute("/(admin)/_layout/dashboard")({
+export const Route = createFileRoute("/(workspace)/_layout/dashboard")({
 	validateSearch: (search): { denied?: DeniedReason } => {
 		const denied = search.denied;
 		if (

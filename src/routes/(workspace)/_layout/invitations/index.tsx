@@ -14,7 +14,7 @@ import {
 } from "#/components/ui/card";
 import { authClient } from "#/lib/auth-client";
 
-export const Route = createFileRoute("/(admin)/_layout/invitations/")({
+export const Route = createFileRoute("/(workspace)/_layout/invitations/")({
 	component: InvitationsPage,
 });
 

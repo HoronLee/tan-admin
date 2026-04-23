@@ -35,7 +35,9 @@ import { requireSiteAdmin } from "#/lib/admin-guards";
 import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 
-export const Route = createFileRoute("/(admin)/_layout/menus/")({
+export const Route = createFileRoute(
+	"/(workspace)/_layout/settings/organization/menus",
+)({
 	beforeLoad: async () => {
 		await requireSiteAdmin();
 	},

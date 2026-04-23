@@ -28,14 +28,14 @@ import { authClient } from "#/lib/auth-client";
 import { translateAuthError } from "#/lib/auth-errors";
 import * as m from "#/paraglide/messages";
 
-export const Route = createFileRoute("/(admin)/_layout/settings/organization/")(
-	{
-		beforeLoad: async () => {
-			await requireOrgMemberRole({ data: { allowed: ["admin", "owner"] } });
-		},
-		component: OrganizationSettingsPage,
+export const Route = createFileRoute(
+	"/(workspace)/_layout/settings/organization/",
+)({
+	beforeLoad: async () => {
+		await requireOrgMemberRole({ data: { allowed: ["admin", "owner"] } });
 	},
-);
+	component: OrganizationSettingsPage,
+});
 
 type PlanOption = "free" | "pro" | "enterprise";
 const PLAN_OPTIONS: PlanOption[] = ["free", "pro", "enterprise"];

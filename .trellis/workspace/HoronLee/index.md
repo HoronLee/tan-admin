@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 12
+- **Total Sessions**: 13
 - **Last Active**: 2026-04-23
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~401 | Active |
+| `journal-1.md` | ~441 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 13 | 2026-04-23 | Product positioning refactor: tan-admin → tan-servora | `15069eb`, `45c206e`, `d1b34aa`, `3be28c8`, `ba53ace`, `237be51`, `9a67ab9`, `8846f40` | `main` |
 | 12 | 2026-04-23 | PRODUCT_MODE 重命名 + 产品形态 spec 重写 | `921261e`, `5ed20ff` | `main` |
 | 11 | 2026-04-22 | spec-consolidation: 批量浓缩 17 份 spec (-1076 行) | `a54ccf4` | `main` |
 | 10 | 2026-04-22 | tenancy-phase1: 双模开关 + 组织深化 + i18n + 邮件 | `648e8d5` | `main` |

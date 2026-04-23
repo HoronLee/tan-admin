@@ -399,3 +399,43 @@ TENANCY_MODE→PRODUCT_MODE (single→private, multi→saas) + VITE mirror; spec
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: Product positioning refactor: tan-admin → tan-servora
+
+**Date**: 2026-04-23
+**Task**: Product positioning refactor: tan-admin → tan-servora
+**Branch**: `main`
+
+### Summary
+
+项目重定位为 SaaS/ToB 脚手架。改名 tan-admin → tan-servora；路由拆成 (marketing)/ + site/ + (workspace)/ 三组，URL 语义化；删 TEAM_ENABLED env flag，team 能力改由 organization.plan gating（新增 #/lib/plan）；saas 模式注册后自动建 personal org（user.update.after + slug=personal-<uid>）；personal org 禁删/禁邀请钩子；/menus 挪到 /settings/organization/menus 并加 owner-only beforeLoad；新增 AppSiteSidebar 静态菜单；新增 3 份 spec（plan-gating / personal-org / route-organization），重写 product-modes；AGENTS.md 重写定位段落
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `15069eb` | (see git log) |
+| `45c206e` | (see git log) |
+| `d1b34aa` | (see git log) |
+| `3be28c8` | (see git log) |
+| `ba53ace` | (see git log) |
+| `237be51` | (see git log) |
+| `9a67ab9` | (see git log) |
+| `8846f40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

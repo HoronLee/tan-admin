@@ -227,6 +227,6 @@ export async function sendMail(m: MailMessage): Promise<void> {
 ## Related
 
 - `frontend/i18n.md` — email templates consume Paraglide `m.email_*()`; subject lines too
-- `backend/tenancy-modes.md` — `sendInvitationEmail` branches on `invitation.role === "owner"` for transfer flow
+- `backend/product-modes.md` — `sendInvitationEmail` branches on `invitation.role === "owner"` for transfer flow
 - `backend/authorization-boundary.md` — BA organization plugin owns invitation table; email path is a thin adapter
 - `docs/research/plugin-organization-deep.md` — BA 1.6.5 findings (transfer ownership + `beforeAcceptInvitation`)

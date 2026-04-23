@@ -2,7 +2,12 @@
 
 ## 项目定位
 
-全 TypeScript 栈后台管理系统，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全、可私有化部署。目标形态是现代 IAM 驱动的业务后台底座。
+全 TypeScript 栈**快速开发脚手架**，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全。服务两类业务：
+
+1. **甲方交付 / 私有化部署**（`PRODUCT_MODE=private`，默认）—— 一家公司一个后台，seed 默认组织 + 超管，新用户注册自动入伙
+2. **公开 B2B SaaS workspace 模型**（`PRODUCT_MODE=saas`）—— Slack / Notion / Linear 那种，任何人注册即为自己 workspace 的 owner
+
+底层始终是 BA organization 的 **multi-workspace** 模型（共享表 + `organizationId` 过滤），**不是物理多租户**（schema/DB 隔离不在本项目范畴）。业务层数据隔离靠 ZenStack policy 自动注入 WHERE。
 
 ## 技术栈
 
@@ -30,19 +35,23 @@ pnpm dlx shadcn@latest add button card ...
 
 ```bash
 # 服务端（运行时真源）
-TENANCY_MODE=single      # single=交付单租户 / multi=多租户 SaaS
+PRODUCT_MODE=private     # private=甲方交付 / saas=公开 B2B SaaS workspace 模型
 TEAM_ENABLED=false       # 用 z.stringbool()，别写 z.coerce.boolean()
 
 # 客户端 UI 门控（必须跟服务端同值，UI 用它避免 loader 往返）
-VITE_TENANCY_MODE=single
+VITE_PRODUCT_MODE=private
 VITE_TEAM_ENABLED=false
 ```
 
+`VITE_` 是 Vite 约定的"可暴露到浏览器端 bundle"前缀，与"产品"无关——默认所有 env 都只在服务端可见，只有带 `VITE_` 的才会注入到 `import.meta.env`（防 secrets 泄漏）。所以产品形态 flag 必须一式两份：`PRODUCT_MODE`（服务端真源）+ `VITE_PRODUCT_MODE`（客户端 UI 门控）。
+
 不同步就会出现"服务端允许、UI 不开"或反过来——先查 env，再查代码。
+
+> ⚠️ **这个 flag 不改变隔离模型**——底层始终是 BA organization 的 multi-workspace 模式（共享表 + `organizationId` 过滤），业务隔离靠 ZenStack policy。`TEAM_ENABLED` 与产品形态正交（workspace 内是否启用 team 子分组），两种形态下都可独立开关。详见 `.trellis/spec/backend/product-modes.md`。
 
 ### 何时跑 seed
 
-- **首次部署必须跑**：`pnpm db:seed`。建菜单骨架 + super-admin + （single 模式下）default org。
+- **首次部署必须跑**：`pnpm db:seed`。建菜单骨架 + super-admin + （`private` 模式下）default org。
 - **后续部署可选**：seed 默认幂等 safe，菜单走 upsert，不删运营在 UI 新建的条目；user / organization / member 也都 upsert。
 - **`pnpm db:seed -- --reset-menus`**：仅开发或重大菜单迁移时用，会 `TRUNCATE Menu` —— 生产**永远别加**。
 
@@ -67,7 +76,7 @@ seed 走 `internalAdapter.createUser`（绕过 signUpEmail 的 verification hook
 
 dev 测试账号免验证：`APP_ENV=dev` 时以 `@dev.com` 结尾的邮箱注册后自动标 verified、不发验证邮件（`src/lib/auth.ts` 里硬编码约定）。
 
-详见 `.trellis/spec/backend/tenancy-modes.md` 和 `.trellis/spec/backend/email-infrastructure.md`。
+详见 `.trellis/spec/backend/product-modes.md` 和 `.trellis/spec/backend/email-infrastructure.md`。
 
 ## 关键约束（读 spec 前也要知道）
 

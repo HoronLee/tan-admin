@@ -84,12 +84,12 @@ export const auth = betterAuth({
 		},
 		user: {
 			create: {
-				// R4: single-tenancy auto-join. After a user is created (e.g. via
+				// R4: private-mode auto-join. After a user is created (e.g. via
 				// /signup), bind them as `member` of the default org. Raw SQL via
 				// the shared `pool` — do NOT call `auth.api.createOrganization`
 				// from here (better-auth#6791 nested-call deadlock).
 				after: async (user) => {
-					if (env.TENANCY_MODE !== "single") return;
+					if (env.PRODUCT_MODE !== "private") return;
 					// The super-admin bootstrap is handled by seed. Skip to avoid
 					// double binding (seed pins them as `owner`).
 					if (
@@ -127,7 +127,7 @@ export const auth = betterAuth({
 						);
 						log.info(
 							{ userId: user.id, orgId },
-							"New user auto-joined default organization (single-tenancy mode).",
+							"New user auto-joined default organization (private mode).",
 						);
 					} catch (err) {
 						// Swallow — registration already succeeded; auto-join is best-effort.
@@ -147,9 +147,10 @@ export const auth = betterAuth({
 			ac,
 			roles: { owner, admin: adminRole, member },
 			teams: { enabled: env.TEAM_ENABLED },
-			// R1/R4: in single-tenancy mode, users must not self-create orgs —
-			// the default org is seeded and users are auto-joined to it.
-			allowUserToCreateOrganization: env.TENANCY_MODE === "multi",
+			// R1/R4: in private mode, users must not self-create orgs — the
+			// default org is seeded and users are auto-joined to it. `saas`
+			// mode lets any signup be the owner of their own workspace.
+			allowUserToCreateOrganization: env.PRODUCT_MODE === "saas",
 			// R12: avoid duplicate pending invitations for the same email.
 			cancelPendingInvitationsOnReInvite: true,
 			// R8: business-profile columns on `organization`. Mirrored on the

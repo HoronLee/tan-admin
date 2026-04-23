@@ -3,7 +3,7 @@
  *
  * Site-level admin only (admin plugin `user.role === "admin"`). The server
  * is the source of truth; this page only mirrors the gate to avoid a flash
- * of the management UI for non-admin users. `VITE_TENANCY_MODE=single`
+ * of the management UI for non-admin users. `VITE_PRODUCT_MODE=private`
  * hides destructive actions (server also rejects, but the UI should match).
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -68,7 +68,7 @@ function OrganizationsPage() {
 	const { data: session, isPending: sessionPending } = authClient.useSession();
 	const isSuperAdmin =
 		(session?.user as { role?: string | null } | undefined)?.role === "admin";
-	const isSingleMode = env.VITE_TENANCY_MODE === "single";
+	const isPrivateMode = env.VITE_PRODUCT_MODE === "private";
 
 	if (sessionPending) {
 		return (
@@ -89,10 +89,10 @@ function OrganizationsPage() {
 		);
 	}
 
-	return <OrganizationsTable isSingleMode={isSingleMode} />;
+	return <OrganizationsTable isPrivateMode={isPrivateMode} />;
 }
 
-function OrganizationsTable({ isSingleMode }: { isSingleMode: boolean }) {
+function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 	const queryClient = useQueryClient();
 	const listQueryOptions = orpc.organizationsAdmin.list.queryOptions({
 		input: {},
@@ -177,10 +177,10 @@ function OrganizationsTable({ isSingleMode }: { isSingleMode: boolean }) {
 			header: "",
 			cell: ({ row }) => {
 				const org = row.original;
-				// In single-tenancy mode dissolve is forbidden; the default org
+				// In private mode dissolve is forbidden; the default org
 				// is always protected. Keep the menu visible but grey out the
 				// dangerous action so the user sees it exists + why.
-				const canDissolve = !isSingleMode && !org.isDefault;
+				const canDissolve = !isPrivateMode && !org.isDefault;
 				return (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -216,7 +216,7 @@ function OrganizationsTable({ isSingleMode }: { isSingleMode: boolean }) {
 					</div>
 				</div>
 				<CreateButton
-					isSingleMode={isSingleMode}
+					isPrivateMode={isPrivateMode}
 					onClick={() => setCreateOpen(true)}
 				/>
 			</CardHeader>
@@ -265,13 +265,13 @@ function OrganizationsTable({ isSingleMode }: { isSingleMode: boolean }) {
 }
 
 function CreateButton({
-	isSingleMode,
+	isPrivateMode,
 	onClick,
 }: {
-	isSingleMode: boolean;
+	isPrivateMode: boolean;
 	onClick: () => void;
 }) {
-	if (isSingleMode) {
+	if (isPrivateMode) {
 		return (
 			<TooltipProvider>
 				<Tooltip>

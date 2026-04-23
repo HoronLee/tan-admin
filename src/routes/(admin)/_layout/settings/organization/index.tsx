@@ -264,11 +264,11 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 		saveMutation.mutate(form);
 	}
 
-	// 解散按钮门控：单租户模式永远禁用；最后一个成员禁用
-	const isSingleTenancy = env.VITE_TENANCY_MODE === "single";
+	// 解散按钮门控：私有部署模式永远禁用；最后一个成员禁用
+	const isPrivateMode = env.VITE_PRODUCT_MODE === "private";
 	const isSoloMember = memberCount <= 1;
-	const dissolveDisabled = isSingleTenancy || isSoloMember;
-	const dissolveDisabledReason = isSingleTenancy
+	const dissolveDisabled = isPrivateMode || isSoloMember;
+	const dissolveDisabledReason = isPrivateMode
 		? m.org_settings_dissolve_blocked_single()
 		: isSoloMember
 			? m.org_settings_dissolve_blocked_solo()

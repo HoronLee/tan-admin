@@ -5,6 +5,25 @@
 - 抓取：2026-04-21
 - 与 task 已有的 `better-auth-ecosystem.md` 互补——本文聚焦 PRD 决策"开 teams + access control"下的服务端细节、hooks、schema 全字段。
 
+## ⚠️ 概念基线：workspace 模式 vs 真·多租户
+
+BA organization 插件实现的是 **multi-workspace / B2B workspace 模式**（Slack / Notion / Linear / GitHub Org 对标），**不是严格意义的"多租户"架构**。两者常被混用，务必区分：
+
+| 维度 | BA organization 插件（本项目用的）| 真·多租户（SaaS-grade，**不在本项目范畴**）|
+|---|---|---|
+| 数据布局 | 所有 org 共享一套表（`organization` / `member` / `invitation`）| schema-per-tenant / DB-per-tenant / RLS 强隔离 |
+| 行级过滤 | **业务层自己做**——本项目靠 ZenStack policy 自动注入 WHERE | 中间件 / RLS / 连接字符串层面强制 |
+| 故障爆炸半径 | 一个 org 的慢查询能拖垮全库 | 天然物理隔离 |
+| 合规 / 备份 | 无法"单独导出 A 租户" | 可独立备份 / 迁移 / 删除 |
+| 身份作用域 | user 跨 org（一个 user 可属多个 org）| tenant 一般即身份边界 |
+| 典型对标 | Slack workspace / Notion / GitHub Org / Linear | Shopify 店铺 / Salesforce / Auth0 tenant |
+
+**本项目 `PRODUCT_MODE=private|saas` flag 不改变隔离模型**——两种形态底层都是 workspace 共享表。`private` 是"只让 seed 建一个默认 workspace 并自动入伙"，`saas` 是"任何人注册就是自己 workspace 的 owner"。业务层数据隔离任何时候都走 ZenStack policy，不靠 BA。
+
+如果未来有"强合规 / 每租户独立备份 / DB 隔离"硬需求，需要在 BA 之上再叠一层（schema 切换 / pool 按 tenant 路由），BA 不提供。
+
+详见 `.trellis/spec/backend/product-modes.md`。
+
 ## 核心概念
 
 3 个层级：**Organization → Member（per-org role）→ Team（org 内分组，可选）**。

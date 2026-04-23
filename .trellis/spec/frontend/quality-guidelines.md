@@ -90,7 +90,7 @@ onSubmit: ({ value }) => { console.log(value) }
 
 - Development scripts require `.env.local` via `dotenv -e .env.local`.
 - Keep secrets out of source; values exposed to client must use `VITE_` prefix.
-- Server/client switch pairs (`TENANCY_MODE` / `VITE_TENANCY_MODE`, `TEAM_ENABLED` / `VITE_TEAM_ENABLED`) **must** stay in sync — see `backend/tenancy-modes.md`.
+- Server/client switch pairs (`PRODUCT_MODE` / `VITE_PRODUCT_MODE`, `TEAM_ENABLED` / `VITE_TEAM_ENABLED`) **must** stay in sync — see `backend/product-modes.md`.
 
 ```json
 // package.json
@@ -104,7 +104,7 @@ onSubmit: ({ value }) => { console.log(value) }
 clientPrefix: 'VITE_',
 client: {
   VITE_APP_TITLE:    z.string().min(1).optional(),
-  VITE_TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+  VITE_PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
   VITE_TEAM_ENABLED: z.stringbool().default(false),
 },
 ```

@@ -137,7 +137,7 @@
 	"org_settings_danger_desc": "以下操作不可撤销，请确认后再执行。",
 	"org_settings_dissolve_action": "解散组织",
 	"org_settings_dissolve_desc": "将永久删除组织及所有成员、邀请记录。",
-	"org_settings_dissolve_blocked_single": "单租户模式不允许解散默认组织",
+	"org_settings_dissolve_blocked_single": "私有部署模式不允许解散默认组织",
 	"org_settings_dissolve_blocked_solo": "组织至少需要 1 名成员；请先邀请他人或直接删除账号",
 	"org_settings_dissolved_toast": "组织已解散",
 	"org_settings_dissolve_failed": "解散失败",

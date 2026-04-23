@@ -10,7 +10,7 @@
  * migrations) and are `@@ignore`d in ZenStack — so ZenStack CRUD is not
  * available and raw SQL via `pool` is the canonical path.
  *
- * Scope: `list`, `create`, `dissolve`. `TENANCY_MODE === "single"`
+ * Scope: `list`, `create`, `dissolve`. `PRODUCT_MODE === "private"`
  * forbids `create` / `dissolve` (server-side guard matching the UI).
  */
 import { randomUUID } from "node:crypto";
@@ -117,9 +117,9 @@ const CreateInput = z.object({
 export const create = superAdmin
 	.input(CreateInput)
 	.handler(async ({ input, errors }) => {
-		if (env.TENANCY_MODE === "single") {
+		if (env.PRODUCT_MODE === "private") {
 			throw errors.FORBIDDEN({
-				message: "单租户模式下不可新建组织。",
+				message: "私有部署模式下不可新建组织。",
 			});
 		}
 
@@ -163,9 +163,9 @@ const DissolveInput = z.object({
 export const dissolve = superAdmin
 	.input(DissolveInput)
 	.handler(async ({ input, errors }) => {
-		if (env.TENANCY_MODE === "single") {
+		if (env.PRODUCT_MODE === "private") {
 			throw errors.FORBIDDEN({
-				message: "单租户模式下不可解散组织。",
+				message: "私有部署模式下不可解散组织。",
 			});
 		}
 

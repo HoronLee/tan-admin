@@ -95,7 +95,7 @@ Sidebar 内容从 `orpc.getUserMenus` server handler 拉取：
 
 ### Teams 菜单 gating
 
-`AppSidebar.getDisabledReason("/teams")` 基于 `VITE_TEAM_ENABLED` 返回禁用原因。`false` → 灰化 + tooltip "feature disabled"，click no-op；`true` → 正常渲染。见 `backend/tenancy-modes.md` "TEAM_ENABLED contract"。
+`AppSidebar.getDisabledReason("/teams")` 基于 `VITE_TEAM_ENABLED` 返回禁用原因。`false` → 灰化 + tooltip "feature disabled"，click no-op；`true` → 正常渲染。见 `backend/product-modes.md` "TEAM_ENABLED contract"。
 
 ---
 

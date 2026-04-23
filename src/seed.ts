@@ -424,7 +424,7 @@ async function bootstrapSuperAdmin(): Promise<string | null> {
 
 /**
  * Create the default organization and bind the super-admin as owner.
- * Single-tenancy only: multi-tenancy starts with zero orgs; super-admin
+ * Private mode only: saas mode starts with zero orgs; super-admin
  * creates them via the `/organizations` UI.
  */
 async function seedDefaultOrg(adminUserId: string): Promise<void> {
@@ -474,7 +474,7 @@ async function seedDefaultOrg(adminUserId: string): Promise<void> {
 
 function printBanner(): void {
 	const tablesTouched: string[] = ["Menu"];
-	if (env.TENANCY_MODE === "single") {
+	if (env.PRODUCT_MODE === "private") {
 		tablesTouched.push("organization", "member");
 	}
 	if (env.SEED_SUPER_ADMIN_EMAIL && env.SEED_SUPER_ADMIN_PASSWORD) {
@@ -482,7 +482,7 @@ function printBanner(): void {
 	}
 	log.info(
 		{
-			tenancyMode: env.TENANCY_MODE,
+			productMode: env.PRODUCT_MODE,
 			teamEnabled: env.TEAM_ENABLED,
 			resetMenus,
 			tablesTouched,
@@ -500,12 +500,12 @@ async function main() {
 	// --- Super-admin user bootstrap (opt-in via env) ---
 	const adminUserId = await bootstrapSuperAdmin();
 
-	// --- Default organization binding (single-tenancy only) ---
-	if (env.TENANCY_MODE === "single" && adminUserId) {
+	// --- Default organization binding (private mode only) ---
+	if (env.PRODUCT_MODE === "private" && adminUserId) {
 		await seedDefaultOrg(adminUserId);
-	} else if (env.TENANCY_MODE === "multi") {
+	} else if (env.PRODUCT_MODE === "saas") {
 		log.info(
-			"TENANCY_MODE=multi: skipping default organization. Super-admin creates orgs via UI.",
+			"PRODUCT_MODE=saas: skipping default organization. Super-admin creates orgs via UI.",
 		);
 	}
 

@@ -20,8 +20,13 @@ export const env = createEnv({
 		SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
 		SEED_SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
 
-		// --- Tenancy / product-shape switches (R1, R2) ---
-		TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+		// --- Product-shape switches (R1, R2) ---
+		// `private` = 甲方交付 / 私有化部署（seed 默认组织 + 自动加入，禁止自建 org）
+		// `saas`    = 公开 B2B SaaS workspace 模型（像 Slack / Notion，任何人注册即自建 workspace）
+		// 注意：这个 flag 只影响产品交付形态，不影响隔离模型——底层始终是 BA
+		// organization 的 multi-workspace（shared tables + organizationId 过滤）。
+		// 真·多租户（schema/DB 隔离）不在本项目范畴，见 spec/backend/product-modes.md。
+		PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
 		// z.coerce.boolean() treats "false" as true; use z.stringbool() instead.
 		TEAM_ENABLED: z.stringbool().default(false),
 
@@ -55,10 +60,10 @@ export const env = createEnv({
 		VITE_APP_TITLE: z.string().min(1).optional(),
 		VITE_APP_URL: z.string().url().optional(),
 		VITE_SENTRY_DSN: z.string().url().optional(),
-		// Client-visible mirror of TENANCY_MODE. Allows the frontend to gate
-		// UI (e.g. disable "解散组织" in single-tenancy mode) without a loader
-		// roundtrip. Keep in sync with server-side TENANCY_MODE via .env.
-		VITE_TENANCY_MODE: z.enum(["single", "multi"]).default("single"),
+		// Client-visible mirror of PRODUCT_MODE. Allows the frontend to gate
+		// UI (e.g. disable "解散组织" in private mode) without a loader
+		// roundtrip. Keep in sync with server-side PRODUCT_MODE via .env.
+		VITE_PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
 		// Client-visible mirror of TEAM_ENABLED. Gates the Teams sidebar menu
 		// and the /teams route — server-side BA plugin is the source of
 		// truth, the client flag only drives UI state. Keep the two in sync
@@ -90,8 +95,8 @@ export const env = createEnv({
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
 		SEED_SUPER_ADMIN_EMAIL: process.env.SEED_SUPER_ADMIN_EMAIL,
 		SEED_SUPER_ADMIN_PASSWORD: process.env.SEED_SUPER_ADMIN_PASSWORD,
-		// Tenancy
-		TENANCY_MODE: process.env.TENANCY_MODE,
+		// Product shape
+		PRODUCT_MODE: process.env.PRODUCT_MODE,
 		TEAM_ENABLED: process.env.TEAM_ENABLED,
 		// Seed extras
 		SEED_DEFAULT_ORG_NAME: process.env.SEED_DEFAULT_ORG_NAME,
@@ -120,10 +125,10 @@ export const env = createEnv({
 			typeof import.meta.env !== "undefined"
 				? import.meta.env.VITE_SENTRY_DSN
 				: process.env.VITE_SENTRY_DSN,
-		VITE_TENANCY_MODE:
+		VITE_PRODUCT_MODE:
 			typeof import.meta.env !== "undefined"
-				? import.meta.env.VITE_TENANCY_MODE
-				: process.env.VITE_TENANCY_MODE,
+				? import.meta.env.VITE_PRODUCT_MODE
+				: process.env.VITE_PRODUCT_MODE,
 		VITE_TEAM_ENABLED:
 			typeof import.meta.env !== "undefined"
 				? import.meta.env.VITE_TEAM_ENABLED

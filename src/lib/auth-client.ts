@@ -17,13 +17,11 @@ export const authClient = createAuthClient({
 		organizationClient({
 			ac,
 			roles: { owner, admin: adminRole, member },
-			// Teams type-inference gate: BA's client plugin infers the
-			// `createTeam` / `listTeams` / ... method signatures only when
-			// `teams.enabled` is a literal `true`. Since `env.VITE_TEAM_ENABLED`
-			// is a runtime boolean and can't feed a type-level literal, we pin
-			// `enabled: true` here so the methods are always typed; the real
-			// runtime gate lives on the server (auth.ts) and in the
-			// `/teams` page / sidebar (env.VITE_TEAM_ENABLED).
+			// BA client plugin 对 `teams.enabled` 类型门：只有字面量 `true`
+			// 才会 infer 出 `createTeam` / `listTeams` / ... 的方法签名。插件
+			// 级写死 `true`；运行时配额由 server 的 `maximumTeams` 函数读
+			// `organization.plan` 决定（见 plan-gating.md），UI 灰化读同一份
+			// plan（AppSidebar.SidebarGates）。
 			teams: { enabled: true },
 			// Infers `plan` / `industry` / `billingEmail` from the server auth
 			// config so `organization.plan` is typed on the client.

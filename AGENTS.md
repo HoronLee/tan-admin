@@ -2,12 +2,24 @@
 
 ## 项目定位
 
-全 TypeScript 栈**快速开发脚手架**，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全。服务两类业务：
+**tan-servora** —— 全 TypeScript 栈**快速开发脚手架**，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全。服务两类业务：
 
-1. **甲方交付 / 私有化部署**（`PRODUCT_MODE=private`，默认）—— 一家公司一个后台，seed 默认组织 + 超管，新用户注册自动入伙
-2. **公开 B2B SaaS workspace 模型**（`PRODUCT_MODE=saas`）—— Slack / Notion / Linear 那种，任何人注册即为自己 workspace 的 owner
+1. **甲方交付 / 私有化部署**（`PRODUCT_MODE=private`，默认）—— 一家公司一个后台，seed 默认组织 + 超管，新用户注册自动入伙默认 org。默认 org 的 `plan=enterprise`，所有 feature 门控自动放行
+2. **公开 B2B SaaS workspace 模型**（`PRODUCT_MODE=saas`）—— Slack / Notion / Linear 那种。用户注册 → 验证邮箱 → 自动获得一个 personal workspace（`type=personal, plan=free, slug=personal-<userId>`）。想拉人协作时自己建 team workspace 或把 personal 改成 team
 
 底层始终是 BA organization 的 **multi-workspace** 模型（共享表 + `organizationId` 过滤），**不是物理多租户**（schema/DB 隔离不在本项目范畴）。业务层数据隔离靠 ZenStack policy 自动注入 WHERE。
+
+### 路由组织
+
+```
+src/routes/
+├── auth/                # 登录注册（裸页）
+├── (marketing)/         # 公开站（URL 不带前缀，欢迎页 + 未来 pricing/about）
+├── site/                # 超管后台（URL 带 /site/ 前缀，用 BA admin plugin）
+└── (workspace)/         # 业务面板（URL 不带前缀，org member 入口）
+```
+
+详见 `frontend/route-organization.md`。
 
 ## 技术栈
 
@@ -31,23 +43,30 @@ pnpm dlx shadcn@latest add button card ...
 
 ## 首次部署 seed 流程
 
-### 产品形态开关（两对 env，必须成对维护）
+### 产品形态开关（一对 env，必须成对维护）
 
 ```bash
 # 服务端（运行时真源）
 PRODUCT_MODE=private     # private=甲方交付 / saas=公开 B2B SaaS workspace 模型
-TEAM_ENABLED=false       # 用 z.stringbool()，别写 z.coerce.boolean()
 
 # 客户端 UI 门控（必须跟服务端同值，UI 用它避免 loader 往返）
 VITE_PRODUCT_MODE=private
-VITE_TEAM_ENABLED=false
 ```
 
-`VITE_` 是 Vite 约定的"可暴露到浏览器端 bundle"前缀，与"产品"无关——默认所有 env 都只在服务端可见，只有带 `VITE_` 的才会注入到 `import.meta.env`（防 secrets 泄漏）。所以产品形态 flag 必须一式两份：`PRODUCT_MODE`（服务端真源）+ `VITE_PRODUCT_MODE`（客户端 UI 门控）。
+`VITE_` 是 Vite 约定的"可暴露到浏览器端 bundle"前缀，与"产品"无关——默认所有 env 都只在服务端可见，只有带 `VITE_` 的才会注入到 `import.meta.env`（防 secrets 泄漏）。所以产品形态 flag 必须一式两份：`PRODUCT_MODE`（服务端真源）+ `VITE_PRODUCT_MODE`（客户端 UI 门控）。不同步就会出现"服务端允许、UI 不开"或反过来——先查 env，再查代码。
 
-不同步就会出现"服务端允许、UI 不开"或反过来——先查 env，再查代码。
+> ⚠️ **这个 flag 不改变隔离模型**——底层始终是 BA organization 的 multi-workspace（共享表 + `organizationId` 过滤），业务隔离靠 ZenStack policy。详见 `.trellis/spec/backend/product-modes.md`。
 
-> ⚠️ **这个 flag 不改变隔离模型**——底层始终是 BA organization 的 multi-workspace 模式（共享表 + `organizationId` 过滤），业务隔离靠 ZenStack policy。`TEAM_ENABLED` 与产品形态正交（workspace 内是否启用 team 子分组），两种形态下都可独立开关。详见 `.trellis/spec/backend/product-modes.md`。
+### Team / 邀请 / 成员数等 feature 由 plan 决定（不是 env）
+
+每个 workspace 有 `organization.plan` 字段（`free | personal_pro | team_pro | enterprise`），驱动 feature 配额（team 数 / 是否能邀请 / 成员上限等）。`src/lib/plan.ts` 是单一真相源。
+
+- seed 时 private 模式默认 org 写 `plan=enterprise`，所有门控放行
+- saas 模式注册自动建的 personal org 写 `plan=free, type=personal`
+- 升级 plan 通过 super-admin 手改 / Stripe plugin（将来做）
+- **不要**再给"某个 feature 开不开"加新的 env flag——业务能力是每个 org 的订阅属性
+
+详见 `.trellis/spec/backend/plan-gating.md` 和 `.trellis/spec/backend/personal-org.md`。
 
 ### 何时跑 seed
 

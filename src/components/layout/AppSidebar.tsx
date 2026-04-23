@@ -40,6 +40,7 @@ import {
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
 import { env } from "#/env";
+import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 import {
@@ -80,21 +81,6 @@ function getDisabledReason(path: string | null): string | null {
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
 	if (!iconName) return null;
 	return ICON_MAP[iconName] ?? null;
-}
-
-/**
- * Menu.meta.title in the DB is an i18n key (e.g. `menu.dashboard`). Paraglide
- * compiles JSON keys with dots as string-named exports, so dynamic access via
- * `m["menu.dashboard"]()` works at runtime. Fall back to the raw string for
- * operator-added menus that kept a plain Chinese literal.
- */
-function resolveMenuLabel(title: string | undefined): string | undefined {
-	if (!title) return undefined;
-	if (title.startsWith("menu.") && title in m) {
-		const fn = (m as unknown as Record<string, () => string>)[title];
-		if (typeof fn === "function") return fn();
-	}
-	return title;
 }
 
 interface MenuItemProps {

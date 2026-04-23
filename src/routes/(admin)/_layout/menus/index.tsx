@@ -32,6 +32,7 @@ import {
 	SelectValue,
 } from "#/components/ui/select";
 import { requireSiteAdmin } from "#/lib/admin-guards";
+import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 
 export const Route = createFileRoute("/(admin)/_layout/menus/")({
@@ -216,19 +217,26 @@ function MenusPage() {
 		{
 			id: "name",
 			header: "Name",
-			cell: ({ row }) => (
-				<div
-					className="flex flex-col"
-					style={{ paddingLeft: `${row.original.depth * 16}px` }}
-				>
-					<span className="font-medium">
-						{row.original.meta?.title ?? row.original.name ?? "—"}
-					</span>
-					<span className="text-xs text-muted-foreground">
-						{row.original.name}
-					</span>
-				</div>
-			),
+			cell: ({ row }) => {
+				const rawTitle = row.original.meta?.title;
+				const display =
+					resolveMenuLabel(rawTitle ?? undefined) ?? row.original.name ?? "—";
+				// System seed menus store meta.title as an i18n key (menu.xxx); show
+				// the raw key as sub-label so operators know it is translated.
+				const subLabel =
+					rawTitle && rawTitle !== display ? rawTitle : row.original.name;
+				return (
+					<div
+						className="flex flex-col"
+						style={{ paddingLeft: `${row.original.depth * 16}px` }}
+					>
+						<span className="font-medium">{display}</span>
+						{subLabel ? (
+							<span className="text-xs text-muted-foreground">{subLabel}</span>
+						) : null}
+					</div>
+				);
+			},
 		},
 		{
 			accessorKey: "path",

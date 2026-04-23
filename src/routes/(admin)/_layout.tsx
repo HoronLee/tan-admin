@@ -21,6 +21,7 @@ import {
 } from "#/components/ui/sidebar";
 import { UserButton } from "#/components/user/user-button";
 import { getSessionUser } from "#/lib/auth-session";
+import { resolveMenuLabel } from "#/lib/menu-label";
 import { findMenuByPath, menuStore } from "#/stores/menu";
 import { addTab } from "#/stores/tabbar";
 
@@ -48,9 +49,11 @@ function useTabSync() {
 	const { menus } = useStore(menuStore);
 
 	useEffect(() => {
-		// Resolve title from dynamic menu tree; fallback to last pathname segment
+		// Resolve title from dynamic menu tree; fallback to last pathname segment.
+		// Run through menu-label resolver so `menu.*` i18n keys become translated text
+		// instead of leaking the raw key into the tab chip.
 		const menuNode = findMenuByPath(menus, pathname);
-		const menuTitle = menuNode?.meta?.title;
+		const menuTitle = resolveMenuLabel(menuNode?.meta?.title ?? undefined);
 		const fallbackTitle =
 			pathname.split("/").filter(Boolean).at(-1) ?? pathname;
 		const title = menuTitle ?? fallbackTitle;

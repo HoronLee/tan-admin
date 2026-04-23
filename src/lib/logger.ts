@@ -56,7 +56,7 @@ async function buildStream(): Promise<pino.DestinationStream> {
 			return pretty({
 				colorize: true,
 				translateTime: "SYS:HH:MM:ss.l",
-				ignore: "pid,hostname",
+				ignore: "pid,hostname,service,instanceId",
 				sync: true,
 				singleLine: true,
 			});

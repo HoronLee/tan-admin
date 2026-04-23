@@ -439,3 +439,38 @@ TENANCY_MODE→PRODUCT_MODE (single→private, multi→saas) + VITE mirror; spec
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: Task 2a saas-fixups: slug 不可变 + session 同步 + onboarding 分流 + oRPC 日志分级
+
+**Date**: 2026-04-23
+**Task**: Task 2a saas-fixups: slug 不可变 + session 同步 + onboarding 分流 + oRPC 日志分级
+**Branch**: `main`
+
+### Summary
+
+修复 Task 2a 三类遗留：(1) personal org slug 可编辑+大小写混用 → slug .toLowerCase() + UI readOnly + beforeUpdateOrganization hook 双层护栏；(2) saas 模式 super-admin 无 activeOrg 进 workspace 白屏 → (workspace)/_layout beforeLoad 三态分流 + 新增 /onboarding 裸页兜底；(3) 用户点验证邮件后 session 不同步 → hook 里补 UPDATE session SET activeOrganizationId。顺带 refactor：oRPC serverInterceptors 分级，typed 4xx 降 warn。spec 更新：personal-org.md（含 beforeUpdateOrganization payload 非对称坑点 + session 同步规则）、route-organization.md（onboarding 裸页 + 分流表）、logging-guidelines.md（log level rule）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0c64b6e` | (see git log) |
+| `010ef48` | (see git log) |
+| `6cc2f5e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

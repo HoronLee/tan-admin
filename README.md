@@ -1,17 +1,24 @@
-# Tan Admin
+# Tan Servora
 
-> ts实现前后端的后台管理面板
+> 全 TypeScript 栈快速开发脚手架 — 同时服务甲方交付（私有化）与 B2B SaaS（workspace 模型）
 
-Welcome to your new TanStack Start app! 
+基于 TanStack Start + Better Auth + ZenStack + shadcn/ui，一套代码两种形态：
+- `PRODUCT_MODE=private` —— 一家公司一个后台，seed 默认组织 + 超管
+- `PRODUCT_MODE=saas` —— Slack / Notion / Linear 那种 workspace，注册即建 personal org
 
-以下是TanStack默认Readme内容
+详见 [`AGENTS.md`](./AGENTS.md) 与 [`.trellis/spec/`](./.trellis/spec/)。
+
+---
+
+以下是 TanStack Start 默认 README 内容（保留作通用参考）。
+
 # Getting Started
 
 To run this application:
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 # Building For Production

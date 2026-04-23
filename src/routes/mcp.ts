@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { handleMcpRequest } from "#/utils/mcp-handler";
 
 const server = new McpServer({
-	name: "tan-admin",
+	name: "tan-servora",
 	version: "1.0.0",
 });
 

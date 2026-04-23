@@ -161,7 +161,7 @@ SMTP_SECURE=true
 SMTP_USER=noreply@yourdomain.com
 SMTP_PASS=...              # SMTP auth code, not mailbox password
 EMAIL_FROM=noreply@yourdomain.com
-EMAIL_FROM_NAME=Tan Admin
+EMAIL_FROM_NAME=Tan Servora
 ```
 
 Boot logs `"SMTP transporter verified"`; all 4 mails deliver.
@@ -185,7 +185,7 @@ Both **must** crash at boot. If they silently start, validation was bypassed (e.
 | `email-transport.boot.test.ts` | `smtp` without creds throws at import |
 | `email-transport.boot.test.ts` | `resend` without key throws at import |
 | `email-transport.boot.test.ts` | `prod` + `console` throws |
-| `email.test.ts` | `shouldSkip("AdMin@Tan-Admin.LOCAL")` matches `admin@tan-admin.local` (case-insensitive) |
+| `email.test.ts` | `shouldSkip("AdMin@Tan-Servora.LOCAL")` matches `admin@tan-servora.local` (case-insensitive) |
 | `email.test.ts` | Each `type` dispatches correct template (mock `render`) |
 | `email.test.ts` | Subject from `m.email_subject_*()` |
 | `email.test.ts` | `sendMail` failure bubbles out of `sendEmail` after logging |

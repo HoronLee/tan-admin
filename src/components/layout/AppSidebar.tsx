@@ -285,10 +285,10 @@ export default function AppSidebar() {
 			<SidebarHeader>
 				<div className="flex flex-col gap-0.5 px-2 py-1.5">
 					<p className="text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/60 uppercase">
-						Admin
+						Workspace
 					</p>
 					<p className="text-base font-semibold text-sidebar-foreground">
-						Tan Admin
+						Tan Servora
 					</p>
 				</div>
 			</SidebarHeader>

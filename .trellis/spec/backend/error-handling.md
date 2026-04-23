@@ -1,6 +1,6 @@
 # Error Handling
 
-> End-to-end typed error contract for the tan-admin backend.
+> End-to-end typed error contract for the tan-servora backend.
 
 ---
 

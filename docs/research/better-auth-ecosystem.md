@@ -1,6 +1,6 @@
 # Better Auth 开源生态 — 本 task 的技术参考
 
-**定位更新**：tan-admin 不再"对标 go-wind-admin TS 复刻"。身份层完全基于 Better Auth 开源插件 + 社区 UI 库构建。go-wind-admin 仅在"后台交互模式 / 菜单组织"等前端微观处作为参考。
+**定位更新**：tan-servora 不再"对标 go-wind-admin TS 复刻"。身份层完全基于 Better Auth 开源插件 + 社区 UI 库构建。go-wind-admin 仅在"后台交互模式 / 菜单组织"等前端微观处作为参考。
 
 ## 1. Better Auth 核心插件（开源，免费，自建）
 

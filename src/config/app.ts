@@ -8,7 +8,7 @@ const NODE_ENV_MAP: Record<string, "dev" | "prod" | "test"> = {
 };
 
 export const appConfig = {
-	name: env.APP_NAME ?? "tan-admin",
+	name: env.APP_NAME ?? "tan-servora",
 	version: env.APP_VERSION ?? "0.0.1",
 	env: env.APP_ENV ?? NODE_ENV_MAP[process.env.NODE_ENV ?? ""] ?? "dev",
 	instanceId: env.APP_INSTANCE_ID ?? hostname(),

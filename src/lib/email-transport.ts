@@ -90,12 +90,13 @@ function buildSmtpDriver(): Driver {
 		pool: true,
 	});
 
-	// Fire-and-forget verify on boot: log but don't throw — some providers
-	// deny SMTP-AUTH via verify() but still accept sendMail.
-	transporter.verify().then(
-		() => log.info({ host: env.SMTP_HOST }, "SMTP transporter verified"),
-		(err) =>
-			log.warn({ err, host: env.SMTP_HOST }, "SMTP transporter verify failed"),
+	// Fire-and-forget verify on boot: only surface on failure. Some providers
+	// reject SMTP-AUTH via verify() but still accept sendMail, so a warn is
+	// sufficient; silent on success keeps dev logs quiet (module loads lazily
+	// on the first SSR render that touches BA, which otherwise spams every
+	// `pnpm dev` restart).
+	transporter.verify().catch((err: unknown) =>
+		log.warn({ err, host: env.SMTP_HOST }, "SMTP transporter verify failed"),
 	);
 
 	return async ({ to, from, subject, html, text }) => {

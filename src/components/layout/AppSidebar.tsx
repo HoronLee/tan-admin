@@ -3,21 +3,33 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import type { LucideIcon } from "lucide-react";
 import {
+	ActivityIcon,
+	BellIcon,
 	BookOpenIcon,
 	Building2Icon,
 	BuildingIcon,
+	ChevronRightIcon,
+	FileIcon,
 	FileTextIcon,
 	KeyIcon,
 	LayoutDashboardIcon,
 	ListIcon,
 	LockIcon,
+	LogInIcon,
+	MailIcon,
 	MenuIcon,
 	SettingsIcon,
 	ShieldIcon,
+	TagIcon,
 	Users2Icon,
 	UsersIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "#/components/ui/collapsible";
 import {
 	Sidebar,
 	SidebarContent,
@@ -64,6 +76,12 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	Lock: LockIcon,
 	List: ListIcon,
 	BookOpen: BookOpenIcon,
+	Bell: BellIcon,
+	Mail: MailIcon,
+	Tag: TagIcon,
+	LogIn: LogInIcon,
+	Activity: ActivityIcon,
+	File: FileIcon,
 };
 
 /**
@@ -81,6 +99,20 @@ function getDisabledReason(path: string | null): string | null {
 function resolveIcon(iconName: string | undefined): LucideIcon | null {
 	if (!iconName) return null;
 	return ICON_MAP[iconName] ?? null;
+}
+
+/**
+ * True if `pathname` is an exact/descendant match of `node.path`, or matches
+ * any nested child. Used to auto-open the branch containing the current route
+ * so users land on the page without having to expand groups manually.
+ */
+function containsActivePath(node: MenuNode, pathname: string): boolean {
+	if (node.path !== null) {
+		if (pathname === node.path || pathname.startsWith(`${node.path}/`)) {
+			return true;
+		}
+	}
+	return (node.children ?? []).some((c) => containsActivePath(c, pathname));
 }
 
 interface MenuItemProps {
@@ -142,14 +174,28 @@ function MenuItem({ node, pathname }: MenuItemProps) {
 	const disabledReason = getDisabledReason(node.path);
 
 	if (hasVisibleChildren && node.children) {
+		// Auto-open the branch containing the active route so users don't have
+		// to expand groups manually on first load / route change.
+		const defaultOpen = containsActivePath(node, pathname);
 		return (
-			<SidebarMenuItem>
-				<SidebarMenuButton isActive={isActive}>
-					{Icon && <Icon className="size-4" />}
-					<span>{label}</span>
-				</SidebarMenuButton>
-				<SubMenuItems nodes={node.children} pathname={pathname} />
-			</SidebarMenuItem>
+			<Collapsible
+				asChild
+				className="group/collapsible"
+				defaultOpen={defaultOpen}
+			>
+				<SidebarMenuItem>
+					<CollapsibleTrigger asChild>
+						<SidebarMenuButton>
+							{Icon && <Icon className="size-4" />}
+							<span>{label}</span>
+							<ChevronRightIcon className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+						</SidebarMenuButton>
+					</CollapsibleTrigger>
+					<CollapsibleContent>
+						<SubMenuItems nodes={node.children} pathname={pathname} />
+					</CollapsibleContent>
+				</SidebarMenuItem>
+			</Collapsible>
 		);
 	}
 

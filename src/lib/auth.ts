@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { pool } from "#/db";
@@ -84,6 +85,59 @@ export const auth = betterAuth({
 			},
 		},
 		user: {
+			update: {
+				// Saas-mode personal org provision. Trigger: emailVerified flips
+				// to true (后端验证流程 / dev auto-verify 都会走到 user.update)。
+				// 幂等：每次 fire 都查 member + org.type='personal' 是否已存在，
+				// 已有则直接返回；这样 emailVerified 被再次 set true 时不会重复
+				// 建 org。Private 模式跳过（走 user.create.after 的 auto-join
+				// 走默认 org，不需要个人 org）。
+				after: async (user) => {
+					if (env.PRODUCT_MODE !== "saas") return;
+					if (!user.emailVerified) return;
+					// super-admin 不需要 personal org（他们是平台运营角色）
+					if (
+						env.SEED_SUPER_ADMIN_EMAIL &&
+						user.email === env.SEED_SUPER_ADMIN_EMAIL
+					) {
+						return;
+					}
+					try {
+						const existing = await pool.query(
+							`SELECT o.id
+							 FROM "organization" o
+							 INNER JOIN "member" m ON m."organizationId" = o.id
+							 WHERE m."userId" = $1 AND o."type" = 'personal'
+							 LIMIT 1`,
+							[user.id],
+						);
+						if (existing.rowCount && existing.rowCount > 0) return;
+
+						const orgId = randomUUID();
+						const slug = `personal-${user.id}`;
+						const displayName = user.name || user.email.split("@")[0];
+						await pool.query(
+							'INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type") VALUES ($1, $2, $3, now(), $4, $5)',
+							[orgId, `${displayName}'s Personal`, slug, "free", "personal"],
+						);
+						await pool.query(
+							'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
+							[randomUUID(), orgId, user.id, "owner"],
+						);
+						log.info(
+							{ userId: user.id, orgId, slug },
+							"Personal org auto-provisioned after emailVerified (saas mode).",
+						);
+					} catch (err) {
+						// 幂等失败（unique violation 等）也 swallow——下次 emailVerified
+						// update 会再试；registration 本身已成功。
+						log.error(
+							{ err, userId: user.id },
+							"Failed to auto-provision personal org.",
+						);
+					}
+				},
+			},
 			create: {
 				// R4: private-mode auto-join. After a user is created (e.g. via
 				// /signup), bind them as `member` of the default org. Raw SQL via
@@ -201,6 +255,22 @@ export const auth = betterAuth({
 				});
 			},
 			organizationHooks: {
+				// Personal org 保护：不允许删除（用户删号时会级联清理）。
+				beforeDeleteOrganization: async ({ organization: org }) => {
+					if ((org as { type?: string }).type === "personal") {
+						throw new APIError("BAD_REQUEST", {
+							message: "个人工作空间不允许删除",
+						});
+					}
+				},
+				// Personal org 保护：不允许邀请别人，保持"个人空间"语义。
+				beforeCreateInvitation: async ({ organization: org }) => {
+					if ((org as { type?: string }).type === "personal") {
+						throw new APIError("BAD_REQUEST", {
+							message: "个人工作空间不支持邀请成员",
+						});
+					}
+				},
 				// R7: Transfer-ownership via invitation. When an invitation with
 				// role=owner is accepted, atomically downgrade all existing
 				// owners to `admin` before BA proceeds to create the accepting

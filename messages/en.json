@@ -221,9 +221,7 @@
 	"organization_page_invitation_transfer_badge": "",
 
 	"teams_disabled_title": "",
-	"teams_disabled_desc_prefix": "",
-	"teams_disabled_desc_and": "",
-	"teams_disabled_desc_suffix": "",
+	"teams_disabled_plan_hint": "",
 	"teams_no_active_org_title": "",
 	"teams_no_active_org_desc": "",
 	"teams_page_title": "",

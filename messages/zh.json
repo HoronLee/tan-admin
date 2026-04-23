@@ -35,7 +35,7 @@
 
 	"sidebar_nav_label": "导航",
 	"sidebar_empty": "暂无可访问的菜单",
-	"sidebar_team_disabled_tooltip": "功能未启用，请设置 env TEAM_ENABLED=true",
+	"sidebar_team_disabled_tooltip": "当前方案不支持 Team 子分组，请升级到 Team Pro 或 Enterprise",
 
 	"common_loading": "加载中...",
 	"common_processing": "处理中...",
@@ -220,10 +220,8 @@
 	"organization_page_invitation_transfer_tag": "所有权转让邀请",
 	"organization_page_invitation_transfer_badge": "所有权转让",
 
-	"teams_disabled_title": "团队功能未启用",
-	"teams_disabled_desc_prefix": "当前部署未开启团队（Teams）功能。如需启用，请在 env 中同时设置",
-	"teams_disabled_desc_and": "与",
-	"teams_disabled_desc_suffix": "，然后重启服务。",
+	"teams_disabled_title": "团队功能需要升级方案",
+	"teams_disabled_plan_hint": "当前 workspace 的方案不包含 Team 子分组。升级到 Team Pro 或 Enterprise 方案后即可启用。",
 	"teams_no_active_org_title": "未选择组织",
 	"teams_no_active_org_desc": "请先通过顶部的组织切换器选择一个组织。",
 	"teams_page_title": "团队管理",

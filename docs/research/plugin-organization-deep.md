@@ -375,5 +375,5 @@ Phase 1 在 BA 1.6.5 上落地了 transfer-ownership / 多 owner 保护 / additi
   organizationClient({ schema: inferOrgAdditionalFields<typeof auth>() })
   ```
 - ✅ **`cancelPendingInvitationsOnReInvite: true` 与 transfer ownership 并存正常**。对同邮箱连续发两次邀请（比如先 member 后 owner），BA 会先取消旧的再创建新的，不会出现"一封 pending member + 一封 pending owner"的双 pending 状态——这是我们想要的。
-- ⚠️ **客户端 `teams.enabled` 是字面量类型门**：`CO["teams"] extends { enabled: true }` 控制 `createTeam` / `listTeams` / ... 方法是否被 infer 出。传运行时 `boolean` 会塌陷到 `never`。本项目妥协：`src/lib/auth-client.ts` 里硬编码 `teams: { enabled: true }`，运行时 gate 放在服务端（`auth.ts` `env.TEAM_ENABLED`）+ UI（`VITE_TEAM_ENABLED` + sidebar `getDisabledReason`）。
+- ⚠️ **客户端 `teams.enabled` 是字面量类型门**：`CO["teams"] extends { enabled: true }` 控制 `createTeam` / `listTeams` / ... 方法是否被 infer 出。传运行时 `boolean` 会塌陷到 `never`。本项目做法：`src/lib/auth-client.ts` 和 `src/lib/auth.ts` 都硬编码 `teams: { enabled: true }`，插件级永远启用；"某个 org 能不能用 team" 由 `organization.plan` 驱动 `maximumTeams` 动态函数（见 `#/lib/plan`），sidebar 灰化读同一份 plan（见 `AppSidebar.SidebarGates`）。
 - ✅ **signup hook 不能嵌套调 `auth.api.createOrganization`**（#6791 死锁再确认）。单租户自动入组走 `pool` raw SQL + `ON CONFLICT DO NOTHING` 等价方案（本项目用的是"先 SELECT 后 INSERT"的显式幂等）。#7260 修复后 after-hook 在事务提交后运行，幂等 insert 作为并发兜底仍保留。

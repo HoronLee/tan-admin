@@ -442,11 +442,16 @@ async function seedDefaultOrg(adminUserId: string): Promise<void> {
 		log.info({ orgId, slug }, "Default organization already exists.");
 	} else {
 		orgId = randomUUID();
+		// Private 模式的默认 org 写 enterprise —— 甲方交付场景没有 plan 升降级
+		// 的运营概念，所有功能门应自动放行。type=team 避免被当成 personal。
 		await pool.query(
-			'INSERT INTO "organization" (id, name, slug, "createdAt", plan) VALUES ($1, $2, $3, now(), $4)',
-			[orgId, name, slug, "free"],
+			'INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type") VALUES ($1, $2, $3, now(), $4, $5)',
+			[orgId, name, slug, "enterprise", "team"],
 		);
-		log.info({ orgId, slug, name }, "Default organization created.");
+		log.info(
+			{ orgId, slug, name, plan: "enterprise" },
+			"Default organization created.",
+		);
 	}
 
 	const existingMember = await pool.query<{ id: string }>(
@@ -483,7 +488,6 @@ function printBanner(): void {
 	log.info(
 		{
 			productMode: env.PRODUCT_MODE,
-			teamEnabled: env.TEAM_ENABLED,
 			resetMenus,
 			tablesTouched,
 		},

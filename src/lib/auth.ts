@@ -9,6 +9,7 @@ import { env } from "#/env";
 import { sendEmail } from "#/lib/email";
 import { createModuleLogger } from "#/lib/logger";
 import { ac, adminRole, member, owner } from "#/lib/permissions";
+import { getPlanLimits } from "#/lib/plan";
 
 const log = createModuleLogger("better-auth");
 
@@ -146,7 +147,17 @@ export const auth = betterAuth({
 		organization({
 			ac,
 			roles: { owner, admin: adminRole, member },
-			teams: { enabled: env.TEAM_ENABLED },
+			// 插件级写死：产品支持 team 概念。能不能建 team 由 plan 决定（见 maximumTeams）。
+			teams: {
+				enabled: true,
+				maximumTeams: async ({ organizationId }) => {
+					const { rows } = await pool.query<{ plan: string | null }>(
+						'SELECT plan FROM "organization" WHERE id = $1',
+						[organizationId],
+					);
+					return getPlanLimits(rows[0]?.plan).maxTeams;
+				},
+			},
 			// R1/R4: in private mode, users must not self-create orgs — the
 			// default org is seeded and users are auto-joined to it. `saas`
 			// mode lets any signup be the owner of their own workspace.
@@ -158,7 +169,12 @@ export const auth = betterAuth({
 			schema: {
 				organization: {
 					additionalFields: {
+						// Plan gating source of truth. 可选值 "free" | "personal_pro" |
+						// "team_pro" | "enterprise"，见 #/lib/plan。
 						plan: { type: "string", defaultValue: "free" },
+						// org 类型：personal = 注册后自动建的个人空间（saas 模式），
+						// team = 普通团队 workspace。personal org 禁止邀请/删除/转让。
+						type: { type: "string", defaultValue: "team" },
 						industry: { type: "string", required: false },
 						billingEmail: { type: "string", required: false },
 					},

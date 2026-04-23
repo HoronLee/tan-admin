@@ -51,8 +51,9 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
-import { env } from "#/env";
+import { authClient } from "#/lib/auth-client";
 import { resolveMenuLabel } from "#/lib/menu-label";
+import { planAllowsTeams } from "#/lib/plan";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 import {
@@ -85,12 +86,19 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 /**
- * Menu paths that become disabled when their feature flag is off. The map
- * is kept tiny on purpose — feature flags in this shape are the exception,
- * not the rule; adding entries implies a real product-shape switch.
+ * Menu paths that become disabled when their plan/feature gate is off. 现在读
+ * active org 的 plan（不再用 env flag），`SidebarGates` 在顶层算一次后向下传。
+ * 添加项意味着一个真的产品形态/plan 开关。
  */
-function getDisabledReason(path: string | null): string | null {
-	if (path === "/teams" && !env.VITE_TEAM_ENABLED) {
+interface SidebarGates {
+	teamsDisabled: boolean;
+}
+
+function getDisabledReason(
+	path: string | null,
+	gates: SidebarGates,
+): string | null {
+	if (path === "/teams" && gates.teamsDisabled) {
 		return m.sidebar_team_disabled_tooltip();
 	}
 	return null;
@@ -118,6 +126,7 @@ function containsActivePath(node: MenuNode, pathname: string): boolean {
 interface MenuItemProps {
 	node: MenuNode;
 	pathname: string;
+	gates: SidebarGates;
 }
 
 function SubMenuItems({
@@ -155,7 +164,7 @@ function SubMenuItems({
 	);
 }
 
-function MenuItem({ node, pathname }: MenuItemProps) {
+function MenuItem({ node, pathname, gates }: MenuItemProps) {
 	const hasVisibleChildren =
 		!node.meta?.hideChildrenInMenu &&
 		node.children &&
@@ -171,7 +180,7 @@ function MenuItem({ node, pathname }: MenuItemProps) {
 		node.name ??
 		node.path ??
 		String(node.id);
-	const disabledReason = getDisabledReason(node.path);
+	const disabledReason = getDisabledReason(node.path, gates);
 
 	if (hasVisibleChildren && node.children) {
 		// Auto-open the branch containing the active route so users don't have
@@ -271,6 +280,15 @@ export default function AppSidebar() {
 
 	const { menus } = useStore(menuStore);
 
+	// Plan gating 的唯一真相源：当前 active org 的 plan 字段。未 hydrate 时
+	// 默认按 "feature disabled" 走，避免首帧闪现可点击后又灰化。
+	const { data: activeOrg } = authClient.useActiveOrganization();
+	const gates: SidebarGates = {
+		teamsDisabled: !planAllowsTeams(
+			(activeOrg as { plan?: string | null } | null | undefined)?.plan,
+		),
+	};
+
 	useEffect(() => {
 		if (!data) return;
 		// data is an array of Menu nodes from ZenStack; parse meta JSON field
@@ -305,7 +323,12 @@ export default function AppSidebar() {
 								{menus
 									.filter((node) => !node.meta?.hideInMenu)
 									.map((node) => (
-										<MenuItem key={node.id} node={node} pathname={pathname} />
+										<MenuItem
+											key={node.id}
+											node={node}
+											pathname={pathname}
+											gates={gates}
+										/>
 									))}
 							</SidebarMenu>
 						</SidebarGroupContent>

@@ -27,8 +27,6 @@ export const env = createEnv({
 		// organization 的 multi-workspace（shared tables + organizationId 过滤）。
 		// 真·多租户（schema/DB 隔离）不在本项目范畴，见 spec/backend/product-modes.md。
 		PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
-		// z.coerce.boolean() treats "false" as true; use z.stringbool() instead.
-		TEAM_ENABLED: z.stringbool().default(false),
 
 		// --- Seed extras (R3) ---
 		SEED_DEFAULT_ORG_NAME: z.string().default("默认组织"),
@@ -64,11 +62,6 @@ export const env = createEnv({
 		// UI (e.g. disable "解散组织" in private mode) without a loader
 		// roundtrip. Keep in sync with server-side PRODUCT_MODE via .env.
 		VITE_PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
-		// Client-visible mirror of TEAM_ENABLED. Gates the Teams sidebar menu
-		// and the /teams route — server-side BA plugin is the source of
-		// truth, the client flag only drives UI state. Keep the two in sync
-		// via .env (TEAM_ENABLED=true + VITE_TEAM_ENABLED=true).
-		VITE_TEAM_ENABLED: z.stringbool().default(false),
 	},
 
 	/**
@@ -97,7 +90,6 @@ export const env = createEnv({
 		SEED_SUPER_ADMIN_PASSWORD: process.env.SEED_SUPER_ADMIN_PASSWORD,
 		// Product shape
 		PRODUCT_MODE: process.env.PRODUCT_MODE,
-		TEAM_ENABLED: process.env.TEAM_ENABLED,
 		// Seed extras
 		SEED_DEFAULT_ORG_NAME: process.env.SEED_DEFAULT_ORG_NAME,
 		SEED_DEFAULT_ORG_SLUG: process.env.SEED_DEFAULT_ORG_SLUG,
@@ -129,10 +121,6 @@ export const env = createEnv({
 			typeof import.meta.env !== "undefined"
 				? import.meta.env.VITE_PRODUCT_MODE
 				: process.env.VITE_PRODUCT_MODE,
-		VITE_TEAM_ENABLED:
-			typeof import.meta.env !== "undefined"
-				? import.meta.env.VITE_TEAM_ENABLED
-				: process.env.VITE_TEAM_ENABLED,
 	},
 
 	/**

@@ -30,9 +30,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
-import { env } from "#/env";
 import { authClient } from "#/lib/auth-client";
 import { translateAuthError } from "#/lib/auth-errors";
+import { planAllowsTeams } from "#/lib/plan";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(admin)/_layout/teams/")({
@@ -62,7 +62,9 @@ interface OrgMember {
 }
 
 function TeamsPage() {
-	if (!env.VITE_TEAM_ENABLED) {
+	const { data: activeOrg } = authClient.useActiveOrganization();
+	const plan = (activeOrg as { plan?: string | null } | null | undefined)?.plan;
+	if (!planAllowsTeams(plan)) {
 		return <TeamsDisabledCard />;
 	}
 	return <TeamsEnabledView />;
@@ -73,17 +75,7 @@ function TeamsDisabledCard() {
 		<Card>
 			<CardHeader>
 				<CardTitle>{m.teams_disabled_title()}</CardTitle>
-				<CardDescription>
-					{m.teams_disabled_desc_prefix()}{" "}
-					<code className="rounded bg-muted px-1 py-0.5 text-xs">
-						TEAM_ENABLED=true
-					</code>{" "}
-					{m.teams_disabled_desc_and()}{" "}
-					<code className="rounded bg-muted px-1 py-0.5 text-xs">
-						VITE_TEAM_ENABLED=true
-					</code>
-					{m.teams_disabled_desc_suffix()}
-				</CardDescription>
+				<CardDescription>{m.teams_disabled_plan_hint()}</CardDescription>
 			</CardHeader>
 		</Card>
 	);

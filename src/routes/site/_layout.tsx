@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { useEffect } from "react";
 import LocaleSwitcher from "#/components/LocaleSwitcher";
-import AppSidebar from "#/components/layout/AppSidebar";
+import AppSiteSidebar from "#/components/layout/AppSiteSidebar";
 import AppTabbar from "#/components/layout/AppTabbar";
 import OrganizationSwitcher from "#/components/layout/OrganizationSwitcher";
 import ThemeToggle from "#/components/ThemeToggle";
@@ -24,8 +24,7 @@ import { addTab } from "#/stores/tabbar";
 
 // Site-admin 面专属：只允许超管进入（`user:list` 权限是 BA admin plugin 的
 // 标志性 statement，有它基本就是平台运营角色）。普通 member 试图进 `/site/*`
-// 直接被打回 dashboard。Commit 4 会把这里的 AppSidebar 换成 AppSiteSidebar
-// (静态菜单) 并加上 "Platform Admin" 标识。
+// 直接被打回 dashboard。
 const requireSiteAdmin = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = new Headers(getRequestHeaders() as Record<string, string>);
 	try {
@@ -69,7 +68,7 @@ function SiteLayout() {
 
 	return (
 		<SidebarProvider>
-			<AppSidebar />
+			<AppSiteSidebar />
 			<SidebarInset>
 				<header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
 					<SidebarTrigger />

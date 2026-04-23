@@ -31,7 +31,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
-import { requireSiteAdmin } from "#/lib/admin-guards";
+import { requireOrgMemberRole } from "#/lib/admin-guards";
 import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 
@@ -39,7 +39,9 @@ export const Route = createFileRoute(
 	"/(workspace)/_layout/settings/organization/menus",
 )({
 	beforeLoad: async () => {
-		await requireSiteAdmin();
+		// 菜单是 workspace 的产品架构，owner-only（site-admin 因 requireOrgMemberRole
+		// 内置 isAdmin 旁路也可进，方便排障 / 交付场景的超管直接编辑）。
+		await requireOrgMemberRole({ data: { allowed: ["owner"] } });
 	},
 	component: MenusPage,
 });

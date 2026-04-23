@@ -44,11 +44,26 @@ logger: {
 }
 ```
 
-Boundary handlers log caught failures with structured error payloads:
+Boundary handlers log caught failures with structured error payloads.
+
+**Log level rule**：按 error 类型分级，**不要**所有 caught error 都 `log.error`：
+
+- **typed 4xx**（`ORPCError.defined === true && 400 ≤ status < 500`，如 `UNAUTHORIZED` / `FORBIDDEN` / `NOT_FOUND` / 自定 business error）—— `log.warn`。这些是客户端状态问题（过期 cookie、缺权限、查不到资源），可诊断但**不是服务故障**，污染 ERROR 面板会淹没真故障。
+- **未 typed error / 5xx / 运行时崩溃** —— `log.error` + Sentry 上报。真服务故障。
 
 ```ts
-log.error({ err: error }, "oRPC handler error");
-log.error({ err: error }, "MCP handler error");
+// ✅ 分级
+const isExpectedClientError =
+  error instanceof ORPCError &&
+  error.defined === true &&
+  error.status >= 400 &&
+  error.status < 500;
+if (isExpectedClientError) {
+  log.warn({ err: error }, "oRPC handler error");
+} else {
+  log.error({ err: error }, "oRPC handler error");
+  Sentry.captureException(error);
+}
 ```
 
 ### 3. Contracts

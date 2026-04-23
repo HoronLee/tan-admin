@@ -38,7 +38,19 @@ export const serverInterceptors: ServerInterceptors = [
 		}
 	}),
 	onError((error) => {
-		log.error({ err: error }, "oRPC handler error");
+		// Expected 4xx（UNAUTHORIZED / FORBIDDEN / NOT_FOUND 等 typed 错误）
+		// 是客户端状态问题，不是服务故障；WARN 足矣，不污染 ERROR 告警面板。
+		// 5xx / 未 typed 的 error 才是真故障，走 ERROR + Sentry 上报。
+		const isExpectedClientError =
+			error instanceof ORPCError &&
+			error.defined === true &&
+			error.status >= 400 &&
+			error.status < 500;
+		if (isExpectedClientError) {
+			log.warn({ err: error }, "oRPC handler error");
+		} else {
+			log.error({ err: error }, "oRPC handler error");
+		}
 
 		if (error instanceof ORPCError && error.defined === true) {
 			return;

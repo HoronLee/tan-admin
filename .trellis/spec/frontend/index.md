@@ -17,7 +17,8 @@ This directory documents the current frontend conventions based on real source f
 | [Directory Structure](./directory-structure.md) | Module organization and file layout | Filled |
 | [Component Guidelines](./component-guidelines.md) | Component patterns, props, composition | Filled |
 | [Hook Guidelines](./hook-guidelines.md) | Custom hooks, ZenStack CRUD hooks vs oRPC actions, data access patterns | Filled |
-| [Layout Guidelines](./layout-guidelines.md) | Admin route group `(admin)/`, shadcn sidebar shell (L1), Dialog vs AlertDialog | Filled |
+| [Route Organization](./route-organization.md) | 三组路由 `(marketing)/` + `site/` + `(workspace)/` + `auth/`，权限 gating（requireSiteAdmin / requireOrgMemberRole）| Filled |
+| [Layout Guidelines](./layout-guidelines.md) | Route-group + `_layout.tsx` 嵌套规则、shadcn sidebar shell（`AppSidebar` / `AppSiteSidebar`）、Dialog vs AlertDialog | Filled |
 | [Theming](./theming.md) | shadcn style schema (`radix-vega`), baseColor, ThemeProvider contract, AuthProvider appearance bridge, `shadcn apply` workflow | Filled |
 | [i18n](./i18n.md) | Paraglide message catalog, menu-title dynamic resolution, BA error translation | Filled |
 | [State Management](./state-management.md) | Local state, server cache, global store | Filled |

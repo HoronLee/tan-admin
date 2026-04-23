@@ -90,7 +90,7 @@ onSubmit: ({ value }) => { console.log(value) }
 
 - Development scripts require `.env.local` via `dotenv -e .env.local`.
 - Keep secrets out of source; values exposed to client must use `VITE_` prefix.
-- Server/client switch pairs (`PRODUCT_MODE` / `VITE_PRODUCT_MODE`, `TEAM_ENABLED` / `VITE_TEAM_ENABLED`) **must** stay in sync — see `backend/product-modes.md`.
+- Server/client switch pair (`PRODUCT_MODE` / `VITE_PRODUCT_MODE`) **must** stay in sync — see `backend/product-modes.md`. Team 能力门控已改读 `organization.plan`（见 `backend/plan-gating.md`），不再用 env flag。
 
 ```json
 // package.json
@@ -105,7 +105,6 @@ clientPrefix: 'VITE_',
 client: {
   VITE_APP_TITLE:    z.string().min(1).optional(),
   VITE_PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
-  VITE_TEAM_ENABLED: z.stringbool().default(false),
 },
 ```
 

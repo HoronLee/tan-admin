@@ -6,16 +6,19 @@
 
 ## TanStack Router Route Groups + `_layout.tsx` — 关键约定（坑区）
 
-### 约定 1：`(admin)/` 是 **Route Group**
+### 约定 1：`(workspace)/` / `(marketing)/` 是 **Route Group**
 
-括号目录**不进入 URL**，仅用作文件系统分组。同一 app 常见要并存不同布局（登录前裸页 / 登录后后台 / 邮件预览...），路由组让你在**不加 URL 前缀**的情况下共享 `_layout`。
+括号目录**不进入 URL**，仅用作文件系统分组。同一 app 要并存不同布局（公开站 / 超管后台 / 业务 workspace / 邮件预览...），路由组让你在**不加 URL 前缀**的情况下共享 `_layout`。若故意要 URL 前缀（例如 site-admin 想和 workspace 区分），用无括号普通目录。
 
 ```
 src/routes/
-├── (admin)/               ← group（括号不入 URL）
-├── auth/$path.tsx         → /auth/sign-in 等（裸页，不走 admin layout）
-└── index.tsx              → /
+├── (marketing)/            ← group，URL 不带前缀，放公开站
+├── (workspace)/            ← group，URL 不带前缀，放业务面板
+├── site/                   ← 无括号，URL 带 /site/ 前缀，放超管页
+├── auth/$path.tsx          → /auth/sign-in 等（裸页，不走任何 layout）
 ```
+
+分组策略详见 `frontend/route-organization.md`。
 
 ### 约定 2：`_layout.tsx` 必须有子目录同名伙伴 `_layout/`
 
@@ -23,35 +26,39 @@ src/routes/
 
 ```
 // ❌ 错误：dashboard.tsx 和 _layout.tsx 同级 → parent 是 root
-(admin)/
+(workspace)/
 ├── _layout.tsx
 ├── dashboard.tsx          ← 绕过 SidebarProvider，没有侧栏 / header
 └── settings/$path.tsx
 
 // ✅ 正确：放在 _layout/ 子目录
-(admin)/
+(workspace)/
 ├── _layout.tsx            ← 布局文件
 └── _layout/               ← 子路由容器
     ├── dashboard.tsx              → /dashboard
-    ├── users/index.tsx            → /users
     ├── organization/index.tsx     → /organization
     ├── invitations/index.tsx      → /invitations
-    ├── menus/index.tsx            → /menus
-    └── settings/$path.tsx         → /settings/$path
+    ├── teams/index.tsx            → /teams
+    └── settings/
+        ├── $path.tsx              → /settings/<path>
+        └── organization/
+            ├── index.tsx          → /settings/organization
+            └── menus.tsx          → /settings/organization/menus
 ```
 
 `createFileRoute` 路径要带 `_layout` 段：
 
 ```ts
-createFileRoute("/(admin)/_layout/dashboard")({ ... })
-createFileRoute("/(admin)/_layout/settings/$path")({ ... })
+createFileRoute("/(workspace)/_layout/dashboard")({ ... })
+createFileRoute("/(workspace)/_layout/settings/$path")({ ... })
+createFileRoute("/site/_layout/users/")({ ... })  // site/ 无括号，URL 是 /site/users
 ```
 
 等价 flat 命名（本项目没用，仅参考）：`_layout.dashboard.tsx` / `_layout.settings.$path.tsx`。
 
 ### 识别症状
 
-页面**渲染了**但没有 Sidebar / Header / Tabbar —— 第一件事查 `routeTree.gen.ts` 里该 route 的 `getParentRoute` 是不是 `adminLayoutRoute`。不是就说明没挂到 layout 下，检查文件位置 + `createFileRoute` 的路径参数。
+页面**渲染了**但没有 Sidebar / Header / Tabbar —— 第一件事查 `routeTree.gen.ts` 里该 route 的 `getParentRoute` 是不是 `workspaceLayoutRoute` / `siteLayoutRoute`。不是就说明没挂到 layout 下，检查文件位置 + `createFileRoute` 的路径参数。
 
 ---
 
@@ -60,14 +67,15 @@ createFileRoute("/(admin)/_layout/settings/$path")({ ... })
 **前置**：`<ThemeProvider>` 挂在 `__root.tsx` 的 `<body>` 内、`<Providers>` 外层（`<Providers>` 里 `useTheme()` 要接通 `AuthProvider appearance`）。详见 `./theming.md`。
 
 ```tsx
-// (admin)/_layout.tsx
+// (workspace)/_layout.tsx  ← 用动态菜单 AppSidebar
+// site/_layout.tsx         ← 用静态菜单 AppSiteSidebar，顶部显示 "Platform Admin"
 <SidebarProvider>
-  <AppSidebar />
+  <AppSidebar />  {/* 或 <AppSiteSidebar /> */}
   <SidebarInset>
     <header>
       <SidebarTrigger />
       <Separator orientation="vertical" />
-      <div className="flex flex-1 flex-col">{/* Management title */}</div>
+      <div className="flex flex-1 flex-col">{/* Workspace / Platform Admin */}</div>
       <div className="flex items-center gap-2">
         <OrganizationSwitcher />    {/* 自写，切 activeOrganizationId */}
         <ThemeToggle />
@@ -95,7 +103,7 @@ Sidebar 内容从 `orpc.getUserMenus` server handler 拉取：
 
 ### Teams 菜单 gating
 
-`AppSidebar.getDisabledReason("/teams")` 基于 `VITE_TEAM_ENABLED` 返回禁用原因。`false` → 灰化 + tooltip "feature disabled"，click no-op；`true` → 正常渲染。见 `backend/product-modes.md` "TEAM_ENABLED contract"。
+`AppSidebar.getDisabledReason("/teams", gates)` 基于**当前 activeOrg 的 `plan`** 字段返回禁用原因（不再是 env flag）。`plan` 不允许 teams → 灰化 + tooltip "当前方案不支持 Team 子分组"，click no-op；允许 → 正常渲染。`AppSidebar` 顶层通过 `authClient.useActiveOrganization()` 读 plan，算好 `SidebarGates` 后传给每个 `<MenuItem>`。详见 `backend/plan-gating.md` §3 + `#/lib/plan`。
 
 ---
 

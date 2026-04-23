@@ -365,3 +365,37 @@ T2 RBAC done: 6 tables, PolicyPlugin, 18 oRPC procedures, seed, 19 tests pass. F
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: PRODUCT_MODE 重命名 + 产品形态 spec 重写
+
+**Date**: 2026-04-23
+**Task**: PRODUCT_MODE 重命名 + 产品形态 spec 重写
+**Branch**: `main`
+
+### Summary
+
+TENANCY_MODE→PRODUCT_MODE (single→private, multi→saas) + VITE mirror; spec/backend/tenancy-modes.md→product-modes.md 加 workspace vs 真多租户澄清 + 命名历史；i18n 同步；source 7 文件 + docs 9 文件一次性改完，biome/tsc/seed 两模式全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `921261e` | (see git log) |
+| `5ed20ff` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -95,9 +95,11 @@ function buildSmtpDriver(): Driver {
 	// sufficient; silent on success keeps dev logs quiet (module loads lazily
 	// on the first SSR render that touches BA, which otherwise spams every
 	// `pnpm dev` restart).
-	transporter.verify().catch((err: unknown) =>
-		log.warn({ err, host: env.SMTP_HOST }, "SMTP transporter verify failed"),
-	);
+	transporter
+		.verify()
+		.catch((err: unknown) =>
+			log.warn({ err, host: env.SMTP_HOST }, "SMTP transporter verify failed"),
+		);
 
 	return async ({ to, from, subject, html, text }) => {
 		await transporter.sendMail({ to, from, subject, html, text });

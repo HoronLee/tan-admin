@@ -55,7 +55,9 @@ databaseHooks: {
         if (existing.rowCount) return;
 
         const orgId = randomUUID();
-        const slug = `personal-${user.id}`;
+        // BA user.id 是 mixed-case nanoid（字符集 [A-Za-z0-9]），
+        // 而 slug 验证是 /^[a-z0-9-]+$/，必须 toLowerCase() 归一化。
+        const slug = `personal-${user.id.toLowerCase()}`;
         const displayName = user.name || user.email.split("@")[0];
         await pool.query(
           'INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type") VALUES ($1, $2, $3, now(), $4, $5)',
@@ -84,6 +86,19 @@ beforeCreateInvitation: async ({ organization: org }) => {
     throw new APIError("BAD_REQUEST", { message: "个人工作空间不支持邀请成员" });
   }
 },
+// ⚠️ 这里 `organization` 是 patch payload（ctx.body.data），不是现存记录。
+// 要拿现存 slug 做 diff，只能从 `member.organizationId` 反查数据库。
+// 与 beforeDelete/beforeCreate 的同名参数含义不对称，别搞混。
+beforeUpdateOrganization: async ({ organization: patch, member }) => {
+  if (patch.slug === undefined) return; // 未触及 slug，放行
+  const { rows } = await pool.query<{ slug: string }>(
+    'SELECT slug FROM "organization" WHERE id = $1 LIMIT 1',
+    [member.organizationId],
+  );
+  if (rows[0]?.slug && patch.slug !== rows[0].slug) {
+    throw new APIError("BAD_REQUEST", { message: "slug cannot be modified" });
+  }
+},
 ```
 
 ---
@@ -110,16 +125,33 @@ beforeCreateInvitation: async ({ organization: org }) => {
 
 ### Slug 生成规则
 
-**`personal-${user.id}`**，不用 name 或 email 派生。理由：
+**`personal-${user.id.toLowerCase()}`**，不用 name 或 email 派生。理由：
 - 稳定：用户改名不影响 slug
-- 唯一：user.id 是 UUID，天然全局唯一，不会撞 slug
-- 不可猜：别人看到 URL `/site/organizations/personal-xxx-yyy-zzz` 可以知道是某人的 personal，但拿不到 user 其他信息
+- 唯一：user.id 是 nanoid，天然全局唯一，不会撞 slug
+- 不可猜：别人看到 URL `/site/organizations/personal-xxxyyyzzz` 可以知道是某人的 personal，但拿不到 user 其他信息
 - 丑但稳 > 好看但有重名风险
+
+**为什么必须 `.toLowerCase()`**：BA user.id 是 mixed-case nanoid（字符集 `[A-Za-z0-9]`，样例 `dJwRXcFdEdfAfRgVTXUvZAVEvwUoJw5`），直接拼出的 slug 会包含大写字母，违反 `/^[a-z0-9-]+$/` 验证（前端 `org_settings_error_slug_pattern` + 未来的其他 slug 校验）。BA 的 nanoid 不含非 ASCII，`.toLowerCase()` 已足够 normalize；若未来 BA 切换 id 生成器引入非 ASCII，再补 strip。
+
+**slug 不可变**：personal org 建好后 slug 永久固化。UI 层 slug Input 设为 readOnly/disabled，服务端 `organizationHooks.beforeUpdateOrganization` 拦截 slug diff 抛 `APIError("BAD_REQUEST", { message: "slug cannot be modified" })`。两层护栏，API 直调也过不了。
 
 ### Plan & display name
 
 - plan：恒为 `free`（升级 plan 是用户后续操作）
 - 展示名：`${user.name || email_local_part}'s Personal` — 用户改 name 后不自动同步，要手动改
+
+### Session activeOrg 同步（关键）
+
+建完 personal org 后，**必须**同步更新该 user 所有 active session 的 `activeOrganizationId`：
+
+```ts
+await pool.query(
+  'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2',
+  [orgId, user.id],
+);
+```
+
+**为什么必须同步**：BA 只在 sign-in 流程里 bootstrap 一次 `session.activeOrganizationId`（根据 member 表查一个 org 塞进去）。注册用户验证邮箱时，session 在验证之前就已经建好了（activeOrg=null），BA **不会**因为后续 emailVerified 变 true 重新 bootstrap。缺了这一步就是 bug：用户点完验证链接回 `/dashboard` → workspace guard 读 activeOrg=null → 踢去 `/onboarding` → 用户退出重登才能正常（重登触发 sign-in bootstrap）。
 
 ### Convert to team workspace（未实现，未来做）
 

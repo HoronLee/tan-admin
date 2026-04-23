@@ -1,0 +1,4 @@
+{"file": ".opencode/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".opencode/commands/trellis/check.md", "reason": "Code quality check spec"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "验证slug规则与hook契约"}
+{"file": ".trellis/spec/frontend/route-organization.md", "reason": "验证workspace layout gate顺序"}

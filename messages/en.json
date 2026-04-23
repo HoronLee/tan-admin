@@ -296,5 +296,10 @@
 	"email_transfer_cta": "",
 	"email_transfer_ignore_prefix": "",
 	"email_transfer_ignore_suffix": "",
-	"email_link_fallback_hint": ""
+	"email_link_fallback_hint": "",
+
+	"organization_slug_readonly_hint": "Slug is used as the organization's unique identifier and cannot be modified after creation.",
+	"onboarding_no_workspace_title": "No workspace yet",
+	"onboarding_no_workspace_body": "Your account is not associated with any workspace. Please contact an administrator.",
+	"onboarding_sign_out": "Sign out"
 }

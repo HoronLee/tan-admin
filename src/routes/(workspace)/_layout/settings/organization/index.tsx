@@ -40,7 +40,6 @@ export const Route = createFileRoute(
 type PlanOption = "free" | "pro" | "enterprise";
 const PLAN_OPTIONS: PlanOption[] = ["free", "pro", "enterprise"];
 
-const SLUG_REGEX = /^[a-z0-9-]+$/;
 // R7: 压缩目标 ≤ ~200KB。data-url 会比原始二进制大 ~33%（base64），因此
 // compression 目标定得略低（0.15MB），保留余量。
 const MAX_LOGO_BYTES = 200 * 1024;
@@ -61,7 +60,6 @@ interface OrgSettingsForm {
 
 interface FormErrors {
 	name?: string;
-	slug?: string;
 	logo?: string;
 	billingEmail?: string;
 }
@@ -156,11 +154,13 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 
 	const saveMutation = useMutation({
 		mutationFn: async (data: OrgSettingsForm) => {
+			// slug 在 UI 层已 readOnly，这里也不传到 PATCH 请求体，
+			// 避免任何 "相同值也触发 server-side slug diff 检查" 的边界。
+			// 服务端 `beforeUpdateOrganization` 是第二道兜底。
 			const { error } = await authClient.organization.update({
 				organizationId: orgId,
 				data: {
 					name: data.name,
-					slug: data.slug,
 					logo: data.logo,
 					// additionalFields — TS types flow via inferOrgAdditionalFields
 					plan: data.plan,
@@ -204,11 +204,7 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 		if (data.name.trim().length < 2) {
 			next.name = m.org_settings_error_name_min();
 		}
-		if (data.slug.trim().length < 2) {
-			next.slug = m.org_settings_error_slug_min();
-		} else if (!SLUG_REGEX.test(data.slug)) {
-			next.slug = m.org_settings_error_slug_pattern();
-		}
+		// slug is readOnly in the UI and never submitted; skip slug validation.
 		if (data.logo && data.logo.length > MAX_LOGO_BYTES) {
 			next.logo = m.org_settings_logo_error_too_large();
 		}
@@ -315,21 +311,13 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 							<Input
 								id="org-slug"
 								value={form.slug}
-								onChange={(e) =>
-									setForm((prev) => ({ ...prev, slug: e.target.value }))
-								}
-								required
-								minLength={2}
-								pattern="[a-z0-9-]+"
+								readOnly
+								disabled
 								placeholder="my-org"
-								aria-invalid={errors.slug ? true : undefined}
 							/>
 							<p className="text-xs text-muted-foreground">
-								{m.org_settings_slug_hint()}
+								{m.organization_slug_readonly_hint()}
 							</p>
-							{errors.slug && (
-								<p className="text-sm text-destructive">{errors.slug}</p>
-							)}
 						</div>
 
 						<div className="space-y-2">

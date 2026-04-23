@@ -27,6 +27,7 @@ src/routes/
 ├── __root.tsx
 ├── auth/                           # 裸页层（无 shell）
 │   └── $path.tsx                   # /auth/sign-in / /auth/sign-up / 等
+├── onboarding.tsx                  # 裸页（无 shell）：workspace guard 兜底 → /onboarding
 ├── (marketing)/                    # 括号组：URL 不带前缀
 │   └── index.tsx                   # → /
 ├── site/                           # 无括号：URL 带 /site/ 前缀
@@ -65,11 +66,19 @@ export const Route = createFileRoute("/site/_layout")({
   component: SiteLayout,
 });
 
-// (workspace)/_layout.tsx — authenticated + activeOrg
+// (workspace)/_layout.tsx — authenticated + activeOrg 分流
 export const Route = createFileRoute("/(workspace)/_layout")({
   beforeLoad: async () => {
-    const authed = await requireAuth();
-    if (!authed) throw redirect({ to: "/auth/$path", params: { path: "sign-in" } });
+    const guard = await inspectWorkspaceSession();  // { authenticated, hasActiveOrg, isAdmin }
+    if (!guard.authenticated) {
+      throw redirect({ to: "/auth/$path", params: { path: "sign-in" } });
+    }
+    // saas 模式下 super-admin 不自建 personal org；没有 activeOrg 时
+    // 必须分流，否则进 /dashboard 会因 menu/policy 查询失败白屏。
+    if (!guard.hasActiveOrg) {
+      if (guard.isAdmin) throw redirect({ to: "/site/users" });
+      throw redirect({ to: "/onboarding" });
+    }
   },
   component: WorkspaceLayout,
 });
@@ -112,7 +121,8 @@ TanStack Router 括号组 `(name)/` 不进 URL，普通文件夹 `name/` 进 URL
 | `/site/*` | 未登录 | redirect `/auth/sign-in` |
 | `/site/*` | 已登录 + 非超管 | redirect `/dashboard` |
 | `/dashboard`（及 workspace 下所有）| 未登录 | redirect `/auth/sign-in` |
-| `/dashboard` | 已登录 + 无 activeOrg | redirect `/auth/sign-in`（或 onboarding 页，TODO）|
+| `/dashboard`（及 workspace 下所有）| 已登录 + 无 activeOrg + super-admin | redirect `/site/users` |
+| `/dashboard`（及 workspace 下所有）| 已登录 + 无 activeOrg + 普通用户 | redirect `/onboarding` |
 | `/settings/organization/menus` | 已登录 + 非 owner（且非 super-admin）| redirect `/dashboard` |
 
 ### Layout 组件对应
@@ -123,6 +133,15 @@ TanStack Router 括号组 `(name)/` 不进 URL，普通文件夹 `name/` 进 URL
 | `site/` | `site/_layout.tsx` | `AppSiteSidebar` | "Platform Admin" |
 | `(workspace)/` | `(workspace)/_layout.tsx` | `AppSidebar`（动态）| "Workspace" |
 | `auth/` | 无 shell | 无 | 无 |
+| `onboarding.tsx` | 无 shell（bare） | 无 | 无 |
+
+### `/onboarding` 裸页职责
+
+场景：用户已登录但 `session.activeOrganizationId=null`。两类触发：
+- **saas 模式 super-admin**（seed 不建 personal org）—— 被 `(workspace)/_layout.tsx` beforeLoad 分流去 `/site/users`，**不会**落到 `/onboarding`
+- **saas 模式普通用户 + provision hook 失败**（数据库故障 / 邮箱验证后 hook 超时等罕见情况）—— 落到 `/onboarding` 显示 "联系管理员 + Sign out" 占位页，避免白屏
+
+`onboarding.tsx` 直挂根路由（和 `auth/$path.tsx` 同级的裸页），不走 workspace layout，不需要 activeOrg。仅依赖 Paraglide `onboarding_no_workspace_title` / `_body` / `_sign_out` 三个 key + `authClient.signOut()`。
 
 ---
 

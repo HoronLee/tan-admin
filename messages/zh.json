@@ -296,5 +296,10 @@
 	"email_transfer_cta": "接受所有权",
 	"email_transfer_ignore_prefix": "如果这不是你预期的操作，请忽略此邮件，或直接联系 ",
 	"email_transfer_ignore_suffix": " 核实。",
-	"email_link_fallback_hint": "如果按钮无法点击，请复制以下链接到浏览器打开："
+	"email_link_fallback_hint": "如果按钮无法点击，请复制以下链接到浏览器打开：",
+
+	"organization_slug_readonly_hint": "slug 用作组织唯一标识，创建后不可修改。",
+	"onboarding_no_workspace_title": "还没有 workspace",
+	"onboarding_no_workspace_body": "你的账号还没有关联任何 workspace，请联系管理员。",
+	"onboarding_sign_out": "退出登录"
 }

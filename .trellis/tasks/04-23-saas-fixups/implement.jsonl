@@ -1,0 +1,7 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "Slug生成规则需改为lowercase；beforeUpdateOrganization契约"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "Saas模式super-admin无activeOrg的分流矩阵"}
+{"file": ".trellis/spec/frontend/route-organization.md", "reason": "Workspace layout beforeLoad gate + /onboarding裸页定位"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "新增slug_readonly + onboarding i18n keys"}

@@ -114,7 +114,10 @@ export const auth = betterAuth({
 						if (existing.rowCount && existing.rowCount > 0) return;
 
 						const orgId = randomUUID();
-						const slug = `personal-${user.id}`;
+						// BA user.id is a mixed-case nanoid ([A-Za-z0-9]). The client
+						// slug validator enforces `/^[a-z0-9-]+$/`, so we must lowercase
+						// before building the slug. Hyphen in the prefix is fine.
+						const slug = `personal-${user.id.toLowerCase()}`;
 						const displayName = user.name || user.email.split("@")[0];
 						await pool.query(
 							'INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type") VALUES ($1, $2, $3, now(), $4, $5)',
@@ -123,6 +126,14 @@ export const auth = betterAuth({
 						await pool.query(
 							'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
 							[randomUUID(), orgId, user.id, "owner"],
+						);
+						// 把该 user 所有 active session 的 activeOrganizationId 指向
+						// 新建的 personal org。BA 只在 sign-in 时 bootstrap activeOrg，
+						// 不覆盖此处：用户点完验证链接的 session 若不同步，回 workspace
+						// 会被 beforeLoad 当作"无 workspace"踢去 /onboarding。
+						await pool.query(
+							'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2',
+							[orgId, user.id],
 						);
 						log.info(
 							{ userId: user.id, orgId, slug },
@@ -255,6 +266,24 @@ export const auth = betterAuth({
 				});
 			},
 			organizationHooks: {
+				// Slug 不可修改：slug 是 workspace 的 URL-level identity，允许改
+				// 会破坏外链 + 历史引用，且需要级联迁移。UI 层已将 slug Input
+				// 置为 readOnly，这里是服务端护栏，防 API 直调 / 未来 UI 失误。
+				// BA 传入的 `organization` 是 `ctx.body.data`（patch payload），
+				// slug 字段未在请求体中 → undefined，不拦。
+				beforeUpdateOrganization: async ({ organization: patch, member }) => {
+					if (patch.slug === undefined) return;
+					const { rows } = await pool.query<{ slug: string }>(
+						'SELECT slug FROM "organization" WHERE id = $1 LIMIT 1',
+						[member.organizationId],
+					);
+					const currentSlug = rows[0]?.slug;
+					if (currentSlug && patch.slug !== currentSlug) {
+						throw new APIError("BAD_REQUEST", {
+							message: "slug cannot be modified",
+						});
+					}
+				},
 				// Personal org 保护：不允许删除（用户删号时会级联清理）。
 				beforeDeleteOrganization: async ({ organization: org }) => {
 					if ((org as { type?: string }).type === "personal") {

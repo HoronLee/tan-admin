@@ -25,20 +25,46 @@ import { resolveMenuLabel } from "#/lib/menu-label";
 import { findMenuByPath, menuStore } from "#/stores/menu";
 import { addTab } from "#/stores/tabbar";
 
-const requireAuth = createServerFn({ method: "GET" }).handler(async () => {
-	const headers = new Headers(getRequestHeaders() as Record<string, string>);
-	const session = await getSessionUser(headers);
-	return Boolean(session);
-});
+interface WorkspaceGuardResult {
+	authenticated: boolean;
+	hasActiveOrg: boolean;
+	isAdmin: boolean;
+}
+
+const inspectWorkspaceSession = createServerFn({ method: "GET" }).handler(
+	async (): Promise<WorkspaceGuardResult> => {
+		const headers = new Headers(getRequestHeaders() as Record<string, string>);
+		const session = await getSessionUser(headers);
+		if (!session) {
+			return { authenticated: false, hasActiveOrg: false, isAdmin: false };
+		}
+		return {
+			authenticated: true,
+			hasActiveOrg: Boolean(session.activeOrganizationId),
+			isAdmin: session.policyAuth.isAdmin,
+		};
+	},
+);
 
 export const Route = createFileRoute("/(workspace)/_layout")({
 	beforeLoad: async () => {
-		const authenticated = await requireAuth();
-		if (!authenticated) {
+		const guard = await inspectWorkspaceSession();
+		if (!guard.authenticated) {
 			throw redirect({
 				to: "/auth/$path",
 				params: { path: "sign-in" },
 			});
+		}
+		// saas 模式下 super-admin 不自动获得 personal org，落地 workspace 会
+		// 因 activeOrganizationId=null 导致 menu / policy 全失效。分流：
+		//  - super-admin → 平台后台 `/site/users`
+		//  - 普通用户（理论不该出现，saas provision hook 会建 personal org）
+		//    → /onboarding 占位页兜底
+		if (!guard.hasActiveOrg) {
+			if (guard.isAdmin) {
+				throw redirect({ to: "/site/users" });
+			}
+			throw redirect({ to: "/onboarding" });
 		}
 	},
 	component: WorkspaceLayout,

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
-- **Last Active**: 2026-04-23
+- **Total Sessions**: 15
+- **Last Active**: 2026-04-24
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~476 | Active |
+| `journal-1.md` | ~511 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-04-24 | Task 2b ba-ui-email: BA UI 7 模板 + 全站品牌统一 + env 单份 VITE_ 约定 | `f258d82`, `ab68cfc`, `231dbb1` | `main` |
 | 14 | 2026-04-23 | Task 2a saas-fixups: slug 不可变 + session 同步 + onboarding 分流 + oRPC 日志分级 | `0c64b6e`, `010ef48`, `6cc2f5e` | `main` |
 | 13 | 2026-04-23 | Product positioning refactor: tan-admin → tan-servora | `15069eb`, `45c206e`, `d1b34aa`, `3be28c8`, `ba53ace`, `237be51`, `9a67ab9`, `8846f40` | `main` |
 | 12 | 2026-04-23 | PRODUCT_MODE 重命名 + 产品形态 spec 重写 | `921261e`, `5ed20ff` | `main` |

@@ -474,3 +474,38 @@ TENANCY_MODE→PRODUCT_MODE (single→private, multi→saas) + VITE mirror; spec
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: Task 2b ba-ui-email: BA UI 7 模板 + 全站品牌统一 + env 单份 VITE_ 约定
+
+**Date**: 2026-04-24
+**Task**: Task 2b ba-ui-email: BA UI 7 模板 + 全站品牌统一 + env 单份 VITE_ 约定
+**Branch**: `main`
+
+### Summary
+
+Task 2b 落地三组改动：(1) 邮件：shadcn add BA UI 7 模板到 src/components/email/（+ email-styles），localization 工厂映射 Paraglide email_<type>_<field> 80+ 条双语 key，EmailPayload 扩到 9 variants + buildBrandProps 统一注入 appName/logoURL，EMAIL_FROM_NAME 回退 brand.name；org 2 模板 (invite/transfer) 重写 visual 对齐 BA UI；(2) 品牌：src/config/brand.ts 作为 VITE_BRAND_* 单一源，appConfig.brand 直接 re-export，<BrandMark> 组件替换 4 个硬编码露出点（AppSidebar / AppSiteSidebar / marketing / __root title）；(3) env 清理：发现 PRODUCT_MODE + VITE_PRODUCT_MODE drift 踩坑（值不一致导致服务端允许但 UI 隐藏），重构 '前后端共用' 变量只保留 VITE_ 单份（Node 进程照读 process.env.VITE_*），消除 drift surface。spec 同步 email-infrastructure / theming / product-modes / quality-guidelines / personal-org / AGENTS。未启用 BA magic-link / otp / new-device / password-changed 插件（留给未来 Task 2e/2f/2g）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f258d82` | (see git log) |
+| `ab68cfc` | (see git log) |
+| `231dbb1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

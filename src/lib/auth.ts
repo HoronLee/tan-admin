@@ -9,7 +9,6 @@ import { pool } from "#/db";
 import { env } from "#/env";
 import { sendEmail } from "#/lib/email";
 import { createModuleLogger } from "#/lib/logger";
-import { ac, adminRole, member, owner } from "#/lib/permissions";
 import { getPlanLimits } from "#/lib/plan";
 
 const log = createModuleLogger("better-auth");
@@ -295,8 +294,12 @@ export const auth = betterAuth({
 	plugins: [
 		admin(),
 		organization({
-			ac,
-			roles: { owner, admin: adminRole, member },
+			// 走 BA 原生 owner / admin / member 三个角色 + 默认 statements
+			// （organization / member / invitation / team）。
+			// 自定义 ac 时 BA 会**完全覆盖** defaultStatements，导致
+			// hasPermission({ invitation: ["create"] }) 等原生检查全拿不到权限
+			// —— owner 也邀请不了人。除非有必要的自定义资源，否则别传 ac+roles。
+			//
 			// 插件级写死：产品支持 team 概念。能不能建 team 由 plan 决定（见 maximumTeams）。
 			teams: {
 				enabled: true,

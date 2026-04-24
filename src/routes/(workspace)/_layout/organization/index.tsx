@@ -92,8 +92,12 @@ function OrganizationPage() {
 				name={activeOrg.name}
 				slug={activeOrg.slug}
 			/>
-			<MembersSection orgId={activeOrg.id} currentUserId={currentUserId} />
-			<PendingInvitationsSection orgId={activeOrg.id} />
+			<MembersSection
+				orgId={activeOrg.id}
+				currentUserId={currentUserId}
+				canInvite={!isPersonal}
+			/>
+			{!isPersonal && <PendingInvitationsSection orgId={activeOrg.id} />}
 			{!isPersonal && <LeaveOrganizationSection orgId={activeOrg.id} />}
 		</div>
 	);
@@ -234,9 +238,11 @@ function OrgInfoSection({
 function MembersSection({
 	orgId,
 	currentUserId,
+	canInvite,
 }: {
 	orgId: string;
 	currentUserId: string | undefined;
+	canInvite: boolean;
 }) {
 	const queryClient = useQueryClient();
 	const { data, isPending } = useQuery({
@@ -436,10 +442,12 @@ function MembersSection({
 						{m.organization_page_members_desc()}
 					</CardDescription>
 				</div>
-				<Button size="sm" onClick={() => setInviteOpen(true)}>
-					<UserPlusIcon className="size-4" />
-					{m.organization_page_invite_member()}
-				</Button>
+				{canInvite && (
+					<Button size="sm" onClick={() => setInviteOpen(true)}>
+						<UserPlusIcon className="size-4" />
+						{m.organization_page_invite_member()}
+					</Button>
+				)}
 			</CardHeader>
 			<CardContent>
 				<DataTable

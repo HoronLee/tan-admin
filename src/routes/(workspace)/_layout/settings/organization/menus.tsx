@@ -471,7 +471,7 @@ function MenusPage() {
 							onChange={(e) =>
 								setForm({ ...form, requiredPermission: e.target.value })
 							}
-							placeholder="user:read"
+							placeholder="organization:update"
 						/>
 						<p className="text-xs text-muted-foreground">
 							Format <code>resource:action</code> (org-scoped via

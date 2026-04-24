@@ -18,10 +18,12 @@ const resetMenus = process.argv.slice(2).includes("--reset-menus");
  * collapsible group in the sidebar.
  *
  * `requiredPermission` guidance:
- *   - `null`              : any authenticated user
- *   - `"site:admin"`      : BA admin plugin, cross-tenant
- *   - `"organization:*"`  : BA organization plugin, current-org role
- *   - `"menu:write"` etc. : organization plugin AC statements (permissions.ts)
+ *   - `null`                 : any authenticated user
+ *   - `"site:admin"`         : BA admin plugin, cross-tenant
+ *   - `"organization:update"`/`"organization:delete"` : BA org plugin defaults
+ *   - `"member:*"` / `"invitation:*"` / `"team:*"`    : BA org plugin defaults
+ *
+ * 只用 BA 原生 statement；不走自定义 ac（见 auth.ts organization() 注释）。
  */
 interface SeedMenu {
 	name: string;
@@ -78,7 +80,8 @@ const MENUS: SeedMenu[] = [
 		meta: { title: "menu.organization", icon: "Building2", order: 1 },
 		status: "ACTIVE",
 		order: 1,
-		requiredPermission: "organization:read",
+		// 任何 org 成员都能看自己 org 的成员页；workspace layout 已挡未登录/无 activeOrg。
+		requiredPermission: null,
 		parentName: "org-management",
 	},
 	{
@@ -89,7 +92,8 @@ const MENUS: SeedMenu[] = [
 		meta: { title: "menu.settings_organization", icon: "Settings", order: 2 },
 		status: "ACTIVE",
 		order: 2,
-		requiredPermission: "organization:write",
+		// BA 原生动词：改 org 配置需要 organization:update（owner + admin 都有）。
+		requiredPermission: "organization:update",
 		parentName: "org-management",
 	},
 	{

@@ -39,7 +39,7 @@ databaseHooks: {
   user: {
     update: {
       after: async (user) => {
-        if (env.PRODUCT_MODE !== "saas") return;
+        if (env.VITE_PRODUCT_MODE !== "saas") return;
         if (!user.emailVerified) return;
         if (env.SEED_SUPER_ADMIN_EMAIL && user.email === env.SEED_SUPER_ADMIN_EMAIL) return;
 
@@ -118,7 +118,7 @@ beforeUpdateOrganization: async ({ organization: patch, member }) => {
 
 | 情况 | 行为 |
 |---|---|
-| `PRODUCT_MODE=private` | 早退（走 user.create.after 的默认 org auto-join）|
+| `VITE_PRODUCT_MODE=private` | 早退（走 user.create.after 的默认 org auto-join）|
 | `user.emailVerified=false` | 早退（未验证邮箱不能有 workspace）|
 | `user.email === SEED_SUPER_ADMIN_EMAIL` | 早退（超管不需要个人空间）|
 | 已有 personal org | 早退（幂等）|

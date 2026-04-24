@@ -90,7 +90,9 @@ onSubmit: ({ value }) => { console.log(value) }
 
 - Development scripts require `.env.local` via `dotenv -e .env.local`.
 - Keep secrets out of source; values exposed to client must use `VITE_` prefix.
-- Server/client switch pair (`PRODUCT_MODE` / `VITE_PRODUCT_MODE`) **must** stay in sync — see `backend/product-modes.md`. Team 能力门控已改读 `organization.plan`（见 `backend/plan-gating.md`），不再用 env flag。
+- **"前后端都要读"的 env 只保留一份 `VITE_*`**（Node 进程照样能 `process.env.VITE_*`），不搞"服务端真源 + 客户端镜像"双份约定，避免 drift。示例：`VITE_PRODUCT_MODE` / `VITE_BRAND_NAME` / `VITE_BRAND_LOGO_URL` —— 参见 `backend/product-modes.md`。
+- 纯服务端 secrets 必须**不带** `VITE_` 前缀（如 `DATABASE_URL` / `BETTER_AUTH_SECRET` / `SMTP_PASS`），Vite 默认黑名单保护这些不泄漏到浏览器 bundle。
+- Team 能力门控已改读 `organization.plan`（见 `backend/plan-gating.md`），不再用 env flag。
 
 ```json
 // package.json

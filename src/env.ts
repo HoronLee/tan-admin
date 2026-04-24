@@ -20,14 +20,6 @@ export const env = createEnv({
 		SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
 		SEED_SUPER_ADMIN_PASSWORD: z.string().min(8).optional(),
 
-		// --- Product-shape switches (R1, R2) ---
-		// `private` = 甲方交付 / 私有化部署（seed 默认组织 + 自动加入，禁止自建 org）
-		// `saas`    = 公开 B2B SaaS workspace 模型（像 Slack / Notion，任何人注册即自建 workspace）
-		// 注意：这个 flag 只影响产品交付形态，不影响隔离模型——底层始终是 BA
-		// organization 的 multi-workspace（shared tables + organizationId 过滤）。
-		// 真·多租户（schema/DB 隔离）不在本项目范畴，见 spec/backend/product-modes.md。
-		PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
-
 		// --- Seed extras (R3) ---
 		SEED_DEFAULT_ORG_NAME: z.string().default("默认组织"),
 		SEED_DEFAULT_ORG_SLUG: z.string().default("default"),
@@ -58,10 +50,25 @@ export const env = createEnv({
 		VITE_APP_TITLE: z.string().min(1).optional(),
 		VITE_APP_URL: z.string().url().optional(),
 		VITE_SENTRY_DSN: z.string().url().optional(),
-		// Client-visible mirror of PRODUCT_MODE. Allows the frontend to gate
-		// UI (e.g. disable "解散组织" in private mode) without a loader
-		// roundtrip. Keep in sync with server-side PRODUCT_MODE via .env.
+
+		// --- Product-shape switch (server + client single source) ---
+		// `private` = 甲方交付 / 私有化部署（seed 默认组织 + 自动加入，禁止自建 org）
+		// `saas`    = 公开 B2B SaaS workspace 模型（Slack / Notion / Linear 型）
+		// 只影响产品交付形态，不影响隔离模型——底层始终是 BA organization 的
+		// multi-workspace（shared tables + organizationId 过滤）。真·多租户
+		// （schema/DB 隔离）不在本项目范畴。详见 spec/backend/product-modes.md。
+		//
+		// 为啥挂在 `client` / 用 VITE_ 前缀？前后端都要读这个值（服务端鉴权 +
+		// 客户端 UI 门控）。Vite 只内联 `VITE_*` 进浏览器 bundle，Node 进程
+		// 照样能 `process.env.VITE_*`。比双份（PRODUCT_MODE + VITE_PRODUCT_MODE）
+		// 少一处 drift 风险——值本身也不是 secret，暴露无害。
 		VITE_PRODUCT_MODE: z.enum(["private", "saas"]).default("private"),
+
+		// --- Brand (R6) — same single-source pattern as VITE_PRODUCT_MODE ---
+		// 品牌显示名与 logo URL 是 100% 公开信息，一份 VITE_ 前缀走天下。
+		VITE_BRAND_NAME: z.string().min(1).optional(),
+		VITE_BRAND_LOGO_URL: z.string().url().optional(),
+		VITE_BRAND_LOGO_DARK_URL: z.string().url().optional(),
 	},
 
 	/**
@@ -88,8 +95,6 @@ export const env = createEnv({
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
 		SEED_SUPER_ADMIN_EMAIL: process.env.SEED_SUPER_ADMIN_EMAIL,
 		SEED_SUPER_ADMIN_PASSWORD: process.env.SEED_SUPER_ADMIN_PASSWORD,
-		// Product shape
-		PRODUCT_MODE: process.env.PRODUCT_MODE,
 		// Seed extras
 		SEED_DEFAULT_ORG_NAME: process.env.SEED_DEFAULT_ORG_NAME,
 		SEED_DEFAULT_ORG_SLUG: process.env.SEED_DEFAULT_ORG_SLUG,
@@ -121,6 +126,18 @@ export const env = createEnv({
 			typeof import.meta.env !== "undefined"
 				? import.meta.env.VITE_PRODUCT_MODE
 				: process.env.VITE_PRODUCT_MODE,
+		VITE_BRAND_NAME:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_BRAND_NAME
+				: process.env.VITE_BRAND_NAME,
+		VITE_BRAND_LOGO_URL:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_BRAND_LOGO_URL
+				: process.env.VITE_BRAND_LOGO_URL,
+		VITE_BRAND_LOGO_DARK_URL:
+			typeof import.meta.env !== "undefined"
+				? import.meta.env.VITE_BRAND_LOGO_DARK_URL
+				: process.env.VITE_BRAND_LOGO_DARK_URL,
 	},
 
 	/**

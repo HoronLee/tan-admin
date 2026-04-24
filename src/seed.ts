@@ -482,7 +482,7 @@ async function seedDefaultOrg(adminUserId: string): Promise<void> {
 
 function printBanner(): void {
 	const tablesTouched: string[] = ["Menu"];
-	if (env.PRODUCT_MODE === "private") {
+	if (env.VITE_PRODUCT_MODE === "private") {
 		tablesTouched.push("organization", "member");
 	}
 	if (env.SEED_SUPER_ADMIN_EMAIL && env.SEED_SUPER_ADMIN_PASSWORD) {
@@ -490,7 +490,7 @@ function printBanner(): void {
 	}
 	log.info(
 		{
-			productMode: env.PRODUCT_MODE,
+			productMode: env.VITE_PRODUCT_MODE,
 			resetMenus,
 			tablesTouched,
 		},
@@ -508,11 +508,11 @@ async function main() {
 	const adminUserId = await bootstrapSuperAdmin();
 
 	// --- Default organization binding (private mode only) ---
-	if (env.PRODUCT_MODE === "private" && adminUserId) {
+	if (env.VITE_PRODUCT_MODE === "private" && adminUserId) {
 		await seedDefaultOrg(adminUserId);
-	} else if (env.PRODUCT_MODE === "saas") {
+	} else if (env.VITE_PRODUCT_MODE === "saas") {
 		log.info(
-			"PRODUCT_MODE=saas: skipping default organization. Super-admin creates orgs via UI.",
+			"VITE_PRODUCT_MODE=saas: skipping default organization. Super-admin creates orgs via UI.",
 		);
 	}
 

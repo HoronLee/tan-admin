@@ -93,7 +93,7 @@ export const auth = betterAuth({
 				// 建 org。Private 模式跳过（走 user.create.after 的 auto-join
 				// 走默认 org，不需要个人 org）。
 				after: async (user) => {
-					if (env.PRODUCT_MODE !== "saas") return;
+					if (env.VITE_PRODUCT_MODE !== "saas") return;
 					if (!user.emailVerified) return;
 					// super-admin 不需要 personal org（他们是平台运营角色）
 					if (
@@ -155,7 +155,7 @@ export const auth = betterAuth({
 				// the shared `pool` — do NOT call `auth.api.createOrganization`
 				// from here (better-auth#6791 nested-call deadlock).
 				after: async (user) => {
-					if (env.PRODUCT_MODE !== "private") return;
+					if (env.VITE_PRODUCT_MODE !== "private") return;
 					// The super-admin bootstrap is handled by seed. Skip to avoid
 					// double binding (seed pins them as `owner`).
 					if (
@@ -226,7 +226,7 @@ export const auth = betterAuth({
 			// R1/R4: in private mode, users must not self-create orgs — the
 			// default org is seeded and users are auto-joined to it. `saas`
 			// mode lets any signup be the owner of their own workspace.
-			allowUserToCreateOrganization: env.PRODUCT_MODE === "saas",
+			allowUserToCreateOrganization: env.VITE_PRODUCT_MODE === "saas",
 			// R12: avoid duplicate pending invitations for the same email.
 			cancelPendingInvitationsOnReInvite: true,
 			// R8: business-profile columns on `organization`. Mirrored on the

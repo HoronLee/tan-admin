@@ -4,8 +4,8 @@
 
 **tan-servora** —— 全 TypeScript 栈**快速开发脚手架**，以 **Better Auth 开源插件生态**（admin / organization / SSO / ...）为身份层基础设施；前后端一体、类型安全。服务两类业务：
 
-1. **甲方交付 / 私有化部署**（`PRODUCT_MODE=private`，默认）—— 一家公司一个后台，seed 默认组织 + 超管，新用户注册自动入伙默认 org。默认 org 的 `plan=enterprise`，所有 feature 门控自动放行
-2. **公开 B2B SaaS workspace 模型**（`PRODUCT_MODE=saas`）—— Slack / Notion / Linear 那种。用户注册 → 验证邮箱 → 自动获得一个 personal workspace（`type=personal, plan=free, slug=personal-<userId>`）。想拉人协作时自己建 team workspace 或把 personal 改成 team
+1. **甲方交付 / 私有化部署**（`VITE_PRODUCT_MODE=private`，默认）—— 一家公司一个后台，seed 默认组织 + 超管，新用户注册自动入伙默认 org。默认 org 的 `plan=enterprise`，所有 feature 门控自动放行
+2. **公开 B2B SaaS workspace 模型**（`VITE_PRODUCT_MODE=saas`）—— Slack / Notion / Linear 那种。用户注册 → 验证邮箱 → 自动获得一个 personal workspace（`type=personal, plan=free, slug=personal-<userId>`）。想拉人协作时自己建 team workspace 或把 personal 改成 team
 
 底层始终是 BA organization 的 **multi-workspace** 模型（共享表 + `organizationId` 过滤），**不是物理多租户**（schema/DB 隔离不在本项目范畴）。业务层数据隔离靠 ZenStack policy 自动注入 WHERE。
 
@@ -43,19 +43,19 @@ pnpm dlx shadcn@latest add button card ...
 
 ## 首次部署 seed 流程
 
-### 产品形态开关（一对 env，必须成对维护）
+### 产品形态开关
 
 ```bash
-# 服务端（运行时真源）
-PRODUCT_MODE=private     # private=甲方交付 / saas=公开 B2B SaaS workspace 模型
-
-# 客户端 UI 门控（必须跟服务端同值，UI 用它避免 loader 往返）
-VITE_PRODUCT_MODE=private
+VITE_PRODUCT_MODE=private   # private=甲方交付 / saas=公开 B2B SaaS workspace 模型
 ```
 
-`VITE_` 是 Vite 约定的"可暴露到浏览器端 bundle"前缀，与"产品"无关——默认所有 env 都只在服务端可见，只有带 `VITE_` 的才会注入到 `import.meta.env`（防 secrets 泄漏）。所以产品形态 flag 必须一式两份：`PRODUCT_MODE`（服务端真源）+ `VITE_PRODUCT_MODE`（客户端 UI 门控）。不同步就会出现"服务端允许、UI 不开"或反过来——先查 env，再查代码。
+**只需一份 `VITE_PRODUCT_MODE`，前后端共用**。`VITE_` 是 Vite 约定的"可暴露到浏览器端 bundle"前缀（默认黑名单保护 secrets）：Vite build 时把 `VITE_*` 内联进浏览器 bundle，Node 进程照样能 `process.env.VITE_PRODUCT_MODE`——前后端共享同一真相源，不会 drift。
 
 > ⚠️ **这个 flag 不改变隔离模型**——底层始终是 BA organization 的 multi-workspace（共享表 + `organizationId` 过滤），业务隔离靠 ZenStack policy。详见 `.trellis/spec/backend/product-modes.md`。
+
+### Env 命名约定：前后端共用变量只用 `VITE_*` 一份
+
+本项目规定：**"前后端都要读"的 env 只保留 `VITE_*` 前缀一份**（如 `VITE_PRODUCT_MODE` / `VITE_BRAND_NAME` / `VITE_BRAND_LOGO_URL`）；**纯服务端 secrets** 不带前缀（如 `DATABASE_URL` / `BETTER_AUTH_SECRET` / `SMTP_PASS`）。避免"服务端真源 + 客户端镜像"双份约定带来的 drift 风险，同时保持 Vite 的 secrets 黑名单。
 
 ### Team / 邀请 / 成员数等 feature 由 plan 决定（不是 env）
 

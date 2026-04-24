@@ -397,5 +397,23 @@
 	"organization_page_leave_confirm_title": "Confirm leaving",
 	"organization_page_leave_confirm_desc": "You will lose access to this workspace's data. Are you sure you want to leave?",
 	"organization_page_leave_confirm_button": "Leave",
-	"organization_page_leave_success_toast": "You have left the organization"
+	"organization_page_leave_success_toast": "You have left the organization",
+
+	"organization_page_convert_section_title": "Convert to team workspace",
+	"organization_page_convert_section_desc": "Upgrade this personal workspace into a team workspace so you can invite members. This action is irreversible.",
+	"organization_page_convert_button": "Convert to team",
+	"organization_page_convert_confirm_title": "Upgrade to a team workspace?",
+	"organization_page_convert_confirm_desc": "After upgrading you lose the private nature of the personal workspace and can invite members. This action cannot be undone.",
+	"organization_page_convert_confirm_button": "Upgrade",
+	"organization_page_convert_success_toast": "Upgraded to a team workspace",
+
+	"org_switcher_new_org": "New workspace",
+	"org_switcher_new_org_dialog_title": "Create team workspace",
+	"org_switcher_new_org_name_label": "Name",
+	"org_switcher_new_org_slug_label": "Slug",
+	"org_switcher_new_org_slug_help": "Lowercase letters, digits, and hyphens only. Used as URL identifier.",
+	"org_switcher_new_org_create": "Create",
+	"org_switcher_new_org_creating": "Creating...",
+	"org_switcher_new_org_success": "Created and switched to the new workspace",
+	"org_switcher_new_org_slug_invalid": "Invalid slug format"
 }

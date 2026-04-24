@@ -99,7 +99,65 @@ function OrganizationPage() {
 			/>
 			{!isPersonal && <PendingInvitationsSection orgId={activeOrg.id} />}
 			{!isPersonal && <LeaveOrganizationSection orgId={activeOrg.id} />}
+			{isPersonal && <ConvertToTeamSection orgId={activeOrg.id} />}
 		</div>
+	);
+}
+
+function ConvertToTeamSection({ orgId }: { orgId: string }) {
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [converting, setConverting] = useState(false);
+
+	async function handleConvert() {
+		setConverting(true);
+		const { error } = await authClient.organization.update({
+			organizationId: orgId,
+			data: { type: "team" },
+		});
+		setConverting(false);
+		if (error) {
+			toast.error(translateAuthError(error));
+			return;
+		}
+		toast.success(m.organization_page_convert_success_toast());
+		setConfirmOpen(false);
+		// Hard reload so useActiveOrganization / useListOrganizations and the
+		// server-side session re-fetch. Soft invalidation is fragile here because
+		// the hook tree branches on `isPersonal`; a full refresh is the simplest
+		// way to surface the new team capabilities (invite button, leave button).
+		window.location.reload();
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{m.organization_page_convert_section_title()}</CardTitle>
+				<CardDescription>
+					{m.organization_page_convert_section_desc()}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<Button
+					variant="destructive"
+					size="sm"
+					onClick={() => setConfirmOpen(true)}
+				>
+					{m.organization_page_convert_button()}
+				</Button>
+			</CardContent>
+			<ConfirmDialog
+				open={confirmOpen}
+				onOpenChange={(open) => {
+					if (!open) setConfirmOpen(false);
+				}}
+				title={m.organization_page_convert_confirm_title()}
+				description={m.organization_page_convert_confirm_desc()}
+				confirmText={m.organization_page_convert_confirm_button()}
+				variant="destructive"
+				confirming={converting}
+				onConfirm={handleConvert}
+			/>
+		</Card>
 	);
 }
 

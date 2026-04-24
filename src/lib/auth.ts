@@ -34,6 +34,13 @@ function isDevAutoVerifyEmail(email: string): boolean {
 // raw-SQL path / session.create.before defense in depth). Centralized here
 // because raw-SQL writes to "user" bypass BA's adapter and therefore never
 // fire databaseHooks — the hook alone is not a reliable anchor.
+//
+// Idempotency rule: skip if the user already belongs to ANY org (personal
+// OR team). This preserves the "one-shot personal org" semantics after a
+// personal → team convert; otherwise the session.create.before safety net
+// would silently re-provision a second personal org, breaking the upgrade.
+// It also aligns with Notion/Linear: a user invited into a team workspace
+// doesn't need an auto-created personal space on top.
 async function ensurePersonalOrg(params: {
 	userId: string;
 	email: string;
@@ -48,11 +55,7 @@ async function ensurePersonalOrg(params: {
 	}
 	try {
 		const existing = await pool.query(
-			`SELECT o.id
-			 FROM "organization" o
-			 INNER JOIN "member" m ON m."organizationId" = o.id
-			 WHERE m."userId" = $1 AND o."type" = 'personal'
-			 LIMIT 1`,
+			'SELECT 1 FROM "member" WHERE "userId" = $1 LIMIT 1',
 			[params.userId],
 		);
 		if (existing.rowCount && existing.rowCount > 0) return;
@@ -360,16 +363,38 @@ export const auth = betterAuth({
 				// BA 传入的 `organization` 是 `ctx.body.data`（patch payload），
 				// slug 字段未在请求体中 → undefined，不拦。
 				beforeUpdateOrganization: async ({ organization: patch, member }) => {
-					if (patch.slug === undefined) return;
-					const { rows } = await pool.query<{ slug: string }>(
-						'SELECT slug FROM "organization" WHERE id = $1 LIMIT 1',
-						[member.organizationId],
-					);
-					const currentSlug = rows[0]?.slug;
-					if (currentSlug && patch.slug !== currentSlug) {
+					// Read current org once if we need slug or type diffing.
+					const needsTypeCheck =
+						(patch as { type?: string }).type !== undefined;
+					const needsSlugCheck = patch.slug !== undefined;
+					if (!needsTypeCheck && !needsSlugCheck) return;
+
+					const { rows } = await pool.query<{
+						slug: string;
+						type: string | null;
+					}>('SELECT slug, "type" FROM "organization" WHERE id = $1 LIMIT 1', [
+						member.organizationId,
+					]);
+					const current = rows[0];
+					if (!current) return;
+
+					// Slug is identity-level and cannot be modified.
+					if (needsSlugCheck && patch.slug !== current.slug) {
 						throw new APIError("BAD_REQUEST", {
 							message: "slug cannot be modified",
 						});
+					}
+
+					// Type is one-way: personal → team is the supported "upgrade"
+					// path. Blocking team → personal prevents regression of the
+					// upgrade contract (users would lose team capabilities).
+					if (needsTypeCheck) {
+						const newType = (patch as { type?: string }).type;
+						if (newType === "personal" && current.type === "team") {
+							throw new APIError("BAD_REQUEST", {
+								message: "团队工作空间不能降级为个人空间",
+							});
+						}
 					}
 				},
 				// Personal org 保护：不允许删除（用户删号时会级联清理）。

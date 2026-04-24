@@ -397,5 +397,23 @@
 	"organization_page_leave_confirm_title": "确认离开",
 	"organization_page_leave_confirm_desc": "退出后你将失去该工作空间的所有数据访问，确认退出？",
 	"organization_page_leave_confirm_button": "确认离开",
-	"organization_page_leave_success_toast": "已离开该组织"
+	"organization_page_leave_success_toast": "已离开该组织",
+
+	"organization_page_convert_section_title": "转为团队工作空间",
+	"organization_page_convert_section_desc": "将此个人工作空间升级为团队工作空间后可邀请成员协作。此操作不可逆。",
+	"organization_page_convert_button": "转为团队",
+	"organization_page_convert_confirm_title": "确定升级为团队工作空间？",
+	"organization_page_convert_confirm_desc": "升级后你将失去个人工作空间的私密属性，并可以邀请成员。此操作不可撤销。",
+	"organization_page_convert_confirm_button": "升级",
+	"organization_page_convert_success_toast": "已升级为团队工作空间",
+
+	"org_switcher_new_org": "新建工作空间",
+	"org_switcher_new_org_dialog_title": "创建团队工作空间",
+	"org_switcher_new_org_name_label": "名称",
+	"org_switcher_new_org_slug_label": "Slug",
+	"org_switcher_new_org_slug_help": "仅小写字母、数字、连字符，用作 URL 标识",
+	"org_switcher_new_org_create": "创建",
+	"org_switcher_new_org_creating": "创建中...",
+	"org_switcher_new_org_success": "已创建并切换到新工作空间",
+	"org_switcher_new_org_slug_invalid": "Slug 格式无效"
 }

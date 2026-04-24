@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import LocaleSwitcher from "#/components/LocaleSwitcher";
 import AppSiteSidebar from "#/components/layout/AppSiteSidebar";
 import AppTabbar from "#/components/layout/AppTabbar";
+import ImpersonationBanner from "#/components/layout/ImpersonationBanner";
 import OrganizationSwitcher from "#/components/layout/OrganizationSwitcher";
 import ThemeToggle from "#/components/ThemeToggle";
 import { Separator } from "#/components/ui/separator";
@@ -70,6 +71,7 @@ function SiteLayout() {
 		<SidebarProvider>
 			<AppSiteSidebar />
 			<SidebarInset>
+				<ImpersonationBanner />
 				<header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
 					<SidebarTrigger />
 					<Separator orientation="vertical" className="h-6" />

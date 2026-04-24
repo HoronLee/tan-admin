@@ -295,7 +295,18 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
-		admin(),
+		admin({
+			// 安全：sign-in 错误不泄漏"邮箱是否已注册"（防用户枚举）。
+			// 开启后所有"用户不存在 / 密码错误"都会折叠成同一个泛型错误。
+			emailEnumerationProtection: true,
+			// Impersonate session 1 小时过期。审计边界：超管不应无限期保持他人
+			// 身份，到期后重新 impersonate 会在日志里再留一笔，便于回溯。
+			impersonationSessionDuration: 3600,
+			// BA ban API 默认值。banUser 不传 banReason 时会写入这个原因，
+			// 前端 banned 错误也据此给出明确提示。
+			defaultBanReason: "账号被管理员禁用",
+			bannedUserMessage: "您的账号已被禁用，请联系管理员。",
+		}),
 		organization({
 			// 走 BA 原生 owner / admin / member 三个角色 + 默认 statements
 			// （organization / member / invitation / team）。

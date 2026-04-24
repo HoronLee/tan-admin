@@ -509,3 +509,40 @@ Task 2b 落地三组改动：(1) 邮件：shadcn add BA UI 7 模板到 src/compo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: BA 插件 API 扩展落地 + saas 流程断点修复
+
+**Date**: 2026-04-24
+**Task**: BA 插件 API 扩展落地 + saas 流程断点修复
+**Branch**: `main`
+
+### Summary
+
+扩用已装 BA admin+organization 插件 API：修 /accept-invitation 死链、leaveOrg、personal→team convert、打通建 workspace 入口、超管面板补齐（setUserPassword/updateUser/listUserSessions/revokeSession/stopImpersonating+banner）、admin 插件 4 配置项；踩坑教训：custom ac 覆盖 defaults 导致 owner 邀请不了人，删 permissions.ts 走 BA 原生；ensurePersonalOrg 幂等改为零 member；清理 requireSiteAdmin 重复；docs/research 两个 deep 追加实施反馈 + INDEX gap 表；业务域 0 处 raw SQL 已全部 BA API。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a04b967` | (see git log) |
+| `cbd3b81` | (see git log) |
+| `8448e12` | (see git log) |
+| `31a47b8` | (see git log) |
+| `894166f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

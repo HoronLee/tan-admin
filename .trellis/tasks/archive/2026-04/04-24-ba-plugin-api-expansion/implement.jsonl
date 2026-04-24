@@ -1,0 +1,13 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "身份层契约——所有 BA API 调用的前提"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "leaveOrganization 对 personal org 的保护规则"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "private vs saas 模式差异 — leave-org 仅 saas 可用"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "oRPC 错误约定"}
+{"file": ".trellis/spec/frontend/route-organization.md", "reason": "/accept-invitation 属于裸页还是 workspace 页"}
+{"file": ".trellis/spec/frontend/layout-guidelines.md", "reason": "_layout 嵌套约定（踩坑记录）"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "TanStack Query 使用规范"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "新增文案走 paraglide"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "本 task 核心诉求就是复用 BA 现成能力"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨前后端"}

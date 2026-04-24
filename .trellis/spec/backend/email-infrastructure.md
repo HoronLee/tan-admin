@@ -45,19 +45,100 @@ export async function sendMail(message: MailMessage): Promise<void>;
 - Driver picked **once at module-load** based on `env.EMAIL_TRANSPORT`.
 - `sendMail` exported for tests / tooling; production code goes through `sendEmail`.
 
-### Template component contract (`src/emails/*.tsx`)
+### Templates directory layout
 
-```ts
-export interface VerifyEmailProps       { url: string; userName?: string }
-export interface ResetPasswordProps     { url: string; userName?: string }
-export interface InviteMemberProps      { url: string; inviterName: string; organizationName: string }
-export interface TransferOwnershipProps { url: string; inviterName: string; organizationName: string }
-
-export function VerifyEmail(props: VerifyEmailProps): JSX.Element;
-// same shape for ResetPassword / InviteMember / TransferOwnership
+```
+src/
+├── components/email/              # 7 BA UI transactional templates (shadcn-added, own source)
+│   ├── email-verification.tsx     # signup verification
+│   ├── reset-password.tsx         # forgot-password link
+│   ├── email-changed.tsx          # post-change confirmation
+│   ├── password-changed.tsx       # post-change confirmation
+│   ├── magic-link.tsx             # passwordless link
+│   ├── new-device.tsx             # unknown-device alert
+│   ├── otp.tsx                    # verification code
+│   └── email-styles.tsx           # shared CSS injection (light/dark + tw classnames)
+└── emails/                         # 2 org-specific templates (hand-written, mirror BA UI look)
+    ├── invite-member.tsx           # org invite
+    └── transfer-ownership.tsx      # org ownership transfer (invitation.role === "owner")
 ```
 
-All templates wrap `<EmailLayout preview=...>` from `src/emails/components/email-layout.tsx` and pull copy from `m.email_*()` Paraglide messages.
+BA UI templates are installed via `pnpm dlx shadcn@latest add https://better-auth-ui.com/r/<name>-email.json` — we own the source, not the package. Re-sync with `shadcn add` when BA UI publishes updates; only post-install fix is rewriting `../../lib/utils` → `#/lib/utils` (shadcn CLI doesn't rewrite the relative source path baked into BA UI's registry `files[].path`).
+
+All 9 templates use `<EmailStyles>` (CSS injection in `<Head>` instead of a `<Layout>` wrapper), `pixelBasedPreset` Tailwind, and `cn()` for className merging. Shadcn tokens (`bg-background`, `text-card-foreground`, `border-border`) resolve via `EmailStyles` — emails stay on the same design system as the app.
+
+### Localization factory pattern (`src/lib/email-localization.ts`)
+
+BA UI components accept `localization?: Partial<XxxLocalization>` and merge with their hard-coded English default. We want full i18n control, so we build a **complete** localization object from Paraglide messages per render:
+
+```ts
+export function verifyLocalization(): EmailVerificationEmailLocalization {
+  return {
+    VERIFY_YOUR_EMAIL_ADDRESS: m.email_verify_title(),
+    CLICK_BUTTON_TO_VERIFY_EMAIL: m.email_verify_click_to_verify({
+      emailAddress: "{emailAddress}",   // pass through BA UI placeholders
+      appName: "{appName}",             // BA UI does .replace() at render
+    }),
+    // ... every key 1:1 mapped
+  };
+}
+```
+
+Paraglide placeholders stay literal `{emailAddress}` / `{appName}` / `{expirationMinutes}` because BA UI templates do `.replace()` at render time — we hand off a pre-translated string with placeholders intact, BA UI fills the values.
+
+**Why not modify BA UI source**: keeping translations in factories means `shadcn add ...` can re-sync templates without clobbering our work. If BA UI renames a localization field the factory breaks at compile time — single-file fix.
+
+### Brand integration (`buildBrandProps()` in `src/lib/email.tsx`)
+
+All BA UI components accept `appName` + `logoURL` props. `buildBrandProps()` reads `appConfig.brand` (server-side `BRAND_*` env) and returns a ready-to-spread object:
+
+```ts
+function buildBrandProps() {
+  const { name, logoURL, logoDarkURL } = appConfig.brand;
+  return {
+    appName: name,                             // never undefined — falls back to "Tan Servora"
+    logoURL: logoURL
+      ? logoDarkURL
+        ? { light: logoURL, dark: logoDarkURL }
+        : logoURL                              // single URL reused for both modes
+      : undefined,                             // unset → BA UI renders no logo
+  };
+}
+```
+
+Every `render()` spreads `{...buildBrandProps()}` before spreading caller props, so templates stay consistent across emails without per-callsite boilerplate.
+
+### Template component contract
+
+```ts
+// BA UI templates (7) — rich prop set for flexibility
+export interface EmailVerificationEmailProps {
+  url: string;
+  email?: string;
+  appName?: string;
+  expirationMinutes?: number;
+  logoURL?: string | { light: string; dark: string };
+  classNames?: EmailClassNames;
+  colors?: EmailColors;
+  poweredBy?: boolean;
+  darkMode?: boolean;
+  localization?: Partial<EmailVerificationEmailLocalization>;
+}
+// ResetPasswordEmailProps / EmailChangedEmailProps / PasswordChangedEmailProps /
+// MagicLinkEmailProps / NewDeviceEmailProps / OtpEmailProps follow the same shape
+// with template-specific required fields.
+
+// Org templates (2) — minimal, caller supplies inviter + org identity
+export interface InviteMemberProps {
+  url: string;
+  inviterName: string;
+  organizationName: string;
+  // rest optional — `appName` / `logoURL` / `classNames` / `colors` / `darkMode` / `poweredBy`
+}
+export interface TransferOwnershipProps { /* same shape as InviteMember */ }
+```
+
+Caller payload (`sendEmail`) omits `appName` / `logoURL` / `localization` — those are injected centrally in `renderTemplate`. Signature enforced via `Omit<...>` in the `EmailPayload` discriminated union.
 
 ---
 
@@ -97,11 +178,11 @@ Runs **once at import time**. Mis-configured deployment crashes before serving t
 // src/lib/auth.ts
 emailAndPassword: {
   sendResetPassword: ({ user, url }) =>
-    sendEmail({ type: "reset",  to: user.email, props: { url, userName: user.name } }),
+    sendEmail({ type: "reset",  to: user.email, props: { url, email: user.email } }),
 },
 emailVerification: {
   sendVerificationEmail: ({ user, url }) =>
-    sendEmail({ type: "verify", to: user.email, props: { url, userName: user.name } }),
+    sendEmail({ type: "verify", to: user.email, props: { url, email: user.email } }),
 },
 organization({
   sendInvitationEmail: ({ email, inviter, organization: org, invitation }) => {

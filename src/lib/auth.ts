@@ -40,7 +40,7 @@ export const auth = betterAuth({
 			await sendEmail({
 				type: "reset",
 				to: user.email,
-				props: { url, userName: user.name },
+				props: { url, email: user.email },
 			});
 		},
 	},
@@ -60,7 +60,7 @@ export const auth = betterAuth({
 			await sendEmail({
 				type: "verify",
 				to: user.email,
-				props: { url, userName: user.name },
+				props: { url, email: user.email },
 			});
 		},
 		autoSignInAfterVerification: true,

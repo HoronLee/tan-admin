@@ -5,6 +5,7 @@ import {
 	type LucideIcon,
 	Users2Icon,
 } from "lucide-react";
+import { BrandMark } from "#/components/brand-mark";
 import {
 	Sidebar,
 	SidebarContent,
@@ -44,9 +45,7 @@ export default function AppSiteSidebar() {
 					<p className="text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/60 uppercase">
 						Platform Admin
 					</p>
-					<p className="text-base font-semibold text-sidebar-foreground">
-						Tan Servora
-					</p>
+					<BrandMark size="md" className="text-sidebar-foreground" />
 				</div>
 			</SidebarHeader>
 			<SidebarContent>

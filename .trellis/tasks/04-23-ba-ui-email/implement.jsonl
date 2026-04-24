@@ -1,0 +1,7 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "现有 email transport / sendEmail 契约，R1-R5 要动"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "Paraglide key 命名约定 + messages.json 工作流"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "BrandMark 组件 props/composition 规范"}
+{"file": ".trellis/spec/frontend/theming.md", "reason": "暗色模式 token 与 BA UI EmailStyles 暗色策略对齐"}

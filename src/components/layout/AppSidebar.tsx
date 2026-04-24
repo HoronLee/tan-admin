@@ -25,6 +25,7 @@ import {
 	UsersIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import { BrandMark } from "#/components/brand-mark";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -305,9 +306,7 @@ export default function AppSidebar() {
 					<p className="text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/60 uppercase">
 						Workspace
 					</p>
-					<p className="text-base font-semibold text-sidebar-foreground">
-						Tan Servora
-					</p>
+					<BrandMark size="md" className="text-sidebar-foreground" />
 				</div>
 			</SidebarHeader>
 			<SidebarContent>

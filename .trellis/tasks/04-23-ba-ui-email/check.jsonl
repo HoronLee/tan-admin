@@ -1,0 +1,4 @@
+{"file": ".opencode/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".opencode/commands/trellis/check.md", "reason": "Code quality check spec"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "验证 sendEmail 9 种 type 分支与新目录布局"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "验证新 i18n key 完整双语"}

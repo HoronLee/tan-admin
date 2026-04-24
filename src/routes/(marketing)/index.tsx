@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BrandMark } from "#/components/brand-mark";
 import { Button } from "#/components/ui/button";
+import { brandConfig } from "#/config/brand";
 
 // 占位 marketing index。公开可访问，已登录用户不 redirect（允许返回官网看）。
 // 以后要补 pricing / about / blog 时在 `src/routes/(marketing)/` 下平铺。
@@ -10,10 +12,12 @@ export const Route = createFileRoute("/(marketing)/")({
 function MarketingIndex() {
 	return (
 		<div className="min-h-svh flex flex-col items-center justify-center gap-6 p-8 text-center">
-			<div className="flex flex-col gap-2">
-				<p className="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-					Tan Servora
-				</p>
+			<div className="flex flex-col items-center gap-2">
+				<BrandMark
+					size="md"
+					className="text-xs tracking-[0.18em] text-muted-foreground uppercase"
+					name={brandConfig.name.toUpperCase()}
+				/>
 				<h1 className="text-3xl font-semibold">
 					全栈 SaaS / ToB 快速开发脚手架
 				</h1>

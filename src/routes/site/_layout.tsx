@@ -4,8 +4,6 @@ import {
 	redirect,
 	useLocation,
 } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { useEffect } from "react";
 import LocaleSwitcher from "#/components/LocaleSwitcher";
 import AppSiteSidebar from "#/components/layout/AppSiteSidebar";
@@ -20,24 +18,8 @@ import {
 	SidebarTrigger,
 } from "#/components/ui/sidebar";
 import { UserButton } from "#/components/user/user-button";
-import { auth } from "#/lib/auth";
+import { requireSiteAdmin } from "#/lib/admin-guards";
 import { addTab } from "#/stores/tabbar";
-
-// Site-admin 面专属：只允许超管进入（`user:list` 权限是 BA admin plugin 的
-// 标志性 statement，有它基本就是平台运营角色）。普通 member 试图进 `/site/*`
-// 直接被打回 dashboard。
-const requireSiteAdmin = createServerFn({ method: "GET" }).handler(async () => {
-	const headers = new Headers(getRequestHeaders() as Record<string, string>);
-	try {
-		const result = await auth.api.userHasPermission({
-			headers,
-			body: { permissions: { user: ["list"] } },
-		});
-		return Boolean(result?.success);
-	} catch {
-		return false;
-	}
-});
 
 export const Route = createFileRoute("/site/_layout")({
 	beforeLoad: async () => {

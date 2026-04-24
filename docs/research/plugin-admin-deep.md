@@ -212,3 +212,23 @@ await auth.api.userHasPermission({
 - ✅ `user.role === "admin"` 是超管信号，seed 脚本通过 `UPDATE "user" SET role = 'admin'` 晋升（首个超管由 `auth.api.signUpEmail` 创建）。
 - ⚠️ **impersonate 配合 multiSession plugin**：本项目 v2 启用 multiSession。开启后 `impersonateUser` 是"额外开一个并行 session"而非"取代主账户"，管理员切回原身份成本低。没装 multiSession 的场景下 impersonate 会吃掉管理员 session，要手动 `stopImpersonating`。详见 `.trellis/spec/backend/authorization-boundary.md` 的 "multiSession + impersonate 协同" 段。
 - ⚠️ ba-ui shadcn 变体**不提供** admin 用户管理 UI，本项目自写（DataTable + FormDrawer + ConfirmDialog）。删除用户走 ConfirmDialog 的 `requireTypedConfirm` 模式（要求输入 email 确认）。
+
+## 实施反馈（2026-04-24 ba-plugin-api-expansion 完成）
+
+本轮补齐 admin plugin 的超管面板缺失功能 + 开启 4 个配置项。当前 API 利用与配置清单：
+
+**已用 API（17 处调用点 ✅）**：`createUser` / `listUsers` / `setRole` / `banUser` / `unbanUser` / `impersonateUser` / `removeUser` / `updateUser` / `setUserPassword` / `listUserSessions` / `revokeUserSession` / `revokeUserSessions` / `stopImpersonating`（全部在 `src/routes/site/_layout/users/index.tsx` + `src/components/layout/ImpersonationBanner.tsx`）
+
+**未用 API / 原因**：
+- `getUser(userId)` — 📋 未用。我们走 `listUsers` 分页拿，行数据够用；未来做"用户详情页"时接入
+- `revokeAllSessionsForAUser` — 等同 `revokeUserSessions`（别名），已覆盖
+
+**Options 当前配置**：
+- `emailEnumerationProtection: true` ✅ / `impersonationSessionDuration: 3600` ✅ / `defaultBanReason` ✅ / `bannedUserMessage` ✅
+- 📋 未设：`defaultRole`（默认 "user" 够用）/ `adminRoles`（用户表 `role` 字段的字符串匹配，默认 "admin" 够用）/ `adminUserIds`（白名单 bypass，不需要）/ `defaultBanExpiresIn`（我们要永封，默认 undefined 即永久，合意）
+
+**AC 策略**：本 task 把 organization 插件的自定义 ac 删了（走 BA 原生 defaults），admin 插件本身**从未**传过 custom ac——保留 BA 原生 `admin` / `user` 两角色。如果未来要做"子超管分权"（比如"财务管理员只能看 billing 不能 ban user"）需要接入 admin plugin 的 ac。
+
+**Bug 修复留痕**：
+- 修了 `user.update.after` hook 在 raw-SQL 写 `emailVerified` 时不触发的问题（`@dev.com` 快速注册路径）—— 抽 `ensurePersonalOrg` 函数，在 raw-SQL 更新后直接调，+ `session.create.before` 兜底。详见 `.trellis/spec/backend/personal-org.md`。
+- 修了 impersonate 只入不出的 UX 断点 —— `ImpersonationBanner` 读 `session.impersonatedBy` 显示退出入口。

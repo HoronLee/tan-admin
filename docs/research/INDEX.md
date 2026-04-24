@@ -50,11 +50,23 @@
 
 ## 后续 task 候选
 
-以下插件都有深研文档但**未实装**，按业务优先级开独立 task：
+### 未集成的插件（独立 task，按业务优先级）
 
 1. **captcha**（优先级高）— 任何公网端点 sign-up / forgot-password 防扫
 2. **email-otp**（上线前）— 2FA / 免密登录，需先搞 SMTP provider
 3. **generic-oauth**（企业接入时）— SSO 场景
 4. **api-key**（有程序化集成需求时）— 开放平台 / SDK 认证
+
+### 已装插件尚未利用的能力（2026-04-24 盘点）
+
+**admin plugin**：基本 API 已全用。剩 `getUser(userId)` 留给"用户详情页"task；config 里 `defaultRole` / `adminRoles` / `adminUserIds` / `defaultBanExpiresIn` 默认够用。
+
+**organization plugin**：API 覆盖度 24/29+。剩：
+- `checkSlug` — "建 org 体验打磨"时接入（实时 slug 可用性）
+- `addMember`（绕过邀请直接加）— 产品设计要求走邀请，暂不需要
+- `getActiveMemberRole` — 统一走 `getActiveMember` 拿整行够用
+- `listUserTeams` / `setActiveTeam` — 做"当前 active team"概念时接入（现在只按 org 列 team）
+- **Dynamic Access Control** — 客户自建角色场景，saas 落单客户首次明确要"自定义权限"时再开
+- `requireEmailVerificationOnInvitation` / 各种 Limit 配置 — 接订阅限制时一起开
 
 每个 task 做完后，来本目录对应文档追加"实施反馈"段，保持调研库与现实同步。

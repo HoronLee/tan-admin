@@ -377,3 +377,30 @@ Phase 1 在 BA 1.6.5 上落地了 transfer-ownership / 多 owner 保护 / additi
 - ✅ **`cancelPendingInvitationsOnReInvite: true` 与 transfer ownership 并存正常**。对同邮箱连续发两次邀请（比如先 member 后 owner），BA 会先取消旧的再创建新的，不会出现"一封 pending member + 一封 pending owner"的双 pending 状态——这是我们想要的。
 - ⚠️ **客户端 `teams.enabled` 是字面量类型门**：`CO["teams"] extends { enabled: true }` 控制 `createTeam` / `listTeams` / ... 方法是否被 infer 出。传运行时 `boolean` 会塌陷到 `never`。本项目做法：`src/lib/auth-client.ts` 和 `src/lib/auth.ts` 都硬编码 `teams: { enabled: true }`，插件级永远启用；"某个 org 能不能用 team" 由 `organization.plan` 驱动 `maximumTeams` 动态函数（见 `#/lib/plan`），sidebar 灰化读同一份 plan（见 `AppSidebar.SidebarGates`）。
 - ✅ **signup hook 不能嵌套调 `auth.api.createOrganization`**（#6791 死锁再确认）。单租户自动入组走 `pool` raw SQL + `ON CONFLICT DO NOTHING` 等价方案（本项目用的是"先 SELECT 后 INSERT"的显式幂等）。#7260 修复后 after-hook 在事务提交后运行，幂等 insert 作为并发兜底仍保留。
+
+## 实施反馈（2026-04-24 ba-plugin-api-expansion 完成）
+
+本轮修了邀请流程断点（`/accept-invitation` 公开页死链）+ 补了 `leave` / `getInvitation` / personal→team convert + 打通用户自建 workspace 入口。当前 API 利用清单：
+
+**已用 API（24 处调用点 ✅）**：`create` / `update` / `delete` / `getFullOrganization` / `setActive` / `inviteMember` / `getInvitation` / `acceptInvitation` / `cancelInvitation` / `rejectInvitation` / `listInvitations` / `listUserInvitations` / `listMembers` / `removeMember` / `updateMemberRole` / `leave` / `hasPermission` / `createTeam` / `listTeams` / `updateTeam` / `removeTeam` / `listTeamMembers` / `addTeamMember` / `removeTeamMember`。加上 server 端 `auth.api.getActiveMember` / `getSession` / `hasPermission` / `createOrganization`（seed 用）。
+
+**未用 API / 原因**：
+- `checkSlug` — 📋 未用。create-org 表单靠客户端 regex + 服务端 slug unique 兜底，没做实时可用性校验。未来"建 org 体验打磨" task 可加
+- `addMember`（直接加成员，绕过邀请）— 📋 未用。产品设计要求走邀请留痕，目前没 admin"直接拉人"场景
+- `getActiveMemberRole` — 📋 未用。前端统一走 `getActiveMember()` 拿整个 member 行（含 role），没单独拆
+- `listUserTeams` / `setActiveTeam` — 📋 未用。teams UI 当前只按 org 列全部 team，还没做"当前 active team"概念（BA 提供 `session.activeTeamId` 但我们没读）
+- `listOrganizations`（非 React hook 版本）— 📋 未用。前端全走 `authClient.useListOrganizations()` hook；server 端跨 org 查用 `organizations-admin.ts` 绕 BA 走 raw SQL（故意）
+
+**大块未开的特性**：
+- `Dynamic Access Control`（`dynamicAccessControl.enabled = true` + `organizationRole` 表）— 📋 未开。saas 模式下如果客户要求"自建角色"才需要。开了会新增 `organizationRole` 表 + 6 个 client API（`organization.createRole` / `listRoles` / `getRole` / `updateRole` / `deleteRole` / `maximumRolesPerOrganization`）
+- `requireEmailVerificationOnInvitation` — 📋 未设，BA 默认 false。开启后未验证邮箱的用户 accept invitation 会被拒。本项目 saas 模式已在 signup 走 `requireEmailVerification: true`，accept 阶段再卡意义不大
+- `organizationLimit` / `membershipLimit` / `invitationLimit` / `invitationExpiresIn` — 📋 未设，全走 BA 默认。未来接订阅限制时再开
+
+**AC 策略变更（重要）**：本 task **删除**了项目此前自建的 `src/lib/permissions.ts`，不再传 custom `ac` + `roles` 给 `organization()`，完全走 BA 原生 `owner` / `admin` / `member` + 默认 statements（`organization:{update,delete}` / `member:{create,update,delete}` / `invitation:{create,cancel}` / `team:{create,update,delete}`）。
+
+  **踩坑教训**：自建 ac 会**完全覆盖** defaults（不是合并），原生 `hasPermission({ invitation: ["create"] })` 拿不到权限，导致 owner 也邀请不了人。若将来确实需要自定义，按官方"Custom Permissions"章节 `{...defaultStatements, ...ownerAc.statements}` 合并写法。seed.ts 的 `requiredPermission` 也必须对齐 BA 原生动词（`organization:update` 而非 `organization:write`）。
+
+**personal org 产品语义定调**：
+- `type=personal` 是本项目自定义 `additionalFields`，BA 原生不认，纯 UI 层 gate（隐藏邀请 / 隐藏退出 / 显示 convert）+ `beforeCreateInvitation` hook 服务端护栏
+- `ensurePersonalOrg` 幂等改为"零 member"（非"零 personal org"）：convert 完不再补建 personal；被邀请进别人 team 不自动给 personal，与 Notion/Linear 心智一致
+- `beforeUpdateOrganization` 加 type 单向护栏：team → personal 被拒

@@ -30,6 +30,99 @@ function isDevAutoVerifyEmail(email: string): boolean {
 	return IS_DEV_MODE && email.toLowerCase().endsWith(DEV_AUTO_VERIFY_DOMAIN);
 }
 
+// Saas-mode personal org provisioning. Idempotent — safe to call repeatedly
+// and from multiple entry points (user.update.after hook / dev auto-verify
+// raw-SQL path / session.create.before defense in depth). Centralized here
+// because raw-SQL writes to "user" bypass BA's adapter and therefore never
+// fire databaseHooks — the hook alone is not a reliable anchor.
+async function ensurePersonalOrg(params: {
+	userId: string;
+	email: string;
+	name?: string | null;
+}): Promise<void> {
+	if (env.VITE_PRODUCT_MODE !== "saas") return;
+	if (
+		env.SEED_SUPER_ADMIN_EMAIL &&
+		params.email === env.SEED_SUPER_ADMIN_EMAIL
+	) {
+		return;
+	}
+	try {
+		const existing = await pool.query(
+			`SELECT o.id
+			 FROM "organization" o
+			 INNER JOIN "member" m ON m."organizationId" = o.id
+			 WHERE m."userId" = $1 AND o."type" = 'personal'
+			 LIMIT 1`,
+			[params.userId],
+		);
+		if (existing.rowCount && existing.rowCount > 0) return;
+
+		const orgId = randomUUID();
+		// BA user.id is a mixed-case nanoid ([A-Za-z0-9]). The client slug
+		// validator enforces `/^[a-z0-9-]+$/`, so we lowercase before building
+		// the slug. Hyphen in the prefix is fine.
+		const slug = `personal-${params.userId.toLowerCase()}`;
+		const displayName = params.name || params.email.split("@")[0];
+		// ON CONFLICT on the unique slug absorbs races between concurrent
+		// triggers (e.g. dev auto-verify + user.update.after firing on the
+		// same verify event).
+		const orgInsert = await pool.query<{ id: string }>(
+			`INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type")
+			 VALUES ($1, $2, $3, now(), $4, $5)
+			 ON CONFLICT (slug) DO NOTHING
+			 RETURNING id`,
+			[orgId, `${displayName}'s Personal`, slug, "free", "personal"],
+		);
+		// If another trigger just inserted the same slug, re-fetch its id so
+		// the member row still binds to the winning org.
+		const effectiveOrgId =
+			orgInsert.rows[0]?.id ??
+			(
+				await pool.query<{ id: string }>(
+					'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
+					[slug],
+				)
+			).rows[0]?.id;
+		if (!effectiveOrgId) {
+			log.error(
+				{ userId: params.userId, slug },
+				"Personal org provision: failed to resolve org id after insert.",
+			);
+			return;
+		}
+
+		const memberExists = await pool.query(
+			'SELECT 1 FROM "member" WHERE "organizationId" = $1 AND "userId" = $2 LIMIT 1',
+			[effectiveOrgId, params.userId],
+		);
+		if (!memberExists.rowCount) {
+			await pool.query(
+				'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
+				[randomUUID(), effectiveOrgId, params.userId, "owner"],
+			);
+		}
+		// Sync activeOrganizationId on any existing sessions. BA only bootstraps
+		// it on sign-in; without this, a user whose session pre-dates the org
+		// creation would be routed to /onboarding as "no workspace".
+		await pool.query(
+			'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2 AND ("activeOrganizationId" IS NULL OR "activeOrganizationId" = \'\')',
+			[effectiveOrgId, params.userId],
+		);
+		log.info(
+			{ userId: params.userId, orgId: effectiveOrgId, slug },
+			"Personal org auto-provisioned (saas mode).",
+		);
+	} catch (err) {
+		// 让这条 error 醒目些：user 进不了系统就是从这里开始的。Sentry 会
+		// 抓到 logger.error，运维可据此排查而不是依赖用户投诉。
+		log.error(
+			{ err, userId: params.userId, email: params.email },
+			"Failed to auto-provision personal org — user will be stuck without a workspace.",
+		);
+	}
+}
+
 export const auth = betterAuth({
 	database: pool,
 	emailAndPassword: {
@@ -51,6 +144,14 @@ export const auth = betterAuth({
 					'UPDATE "user" SET "emailVerified" = true WHERE id = $1',
 					[user.id],
 				);
+				// Raw SQL bypasses BA's adapter → databaseHooks.user.update.after
+				// will NOT fire. Provision the personal org inline so @dev.com
+				// accounts don't fall through the crack.
+				await ensurePersonalOrg({
+					userId: user.id,
+					email: user.email,
+					name: user.name,
+				});
 				log.info(
 					{ email: user.email },
 					"Dev auto-verify: marked emailVerified=true, skipped send.",
@@ -71,12 +172,45 @@ export const auth = betterAuth({
 				// Auto-pick an active organization on session creation so the user
 				// is not stuck with `activeOrganizationId = null` (which would
 				// block every org-gated hasPermission check — incl. menu filtering).
+				//
+				// Also acts as a self-healing fallback for saas mode: if a verified
+				// user reaches sign-in without a personal org (historic accounts,
+				// hook mis-fires, raw-SQL writes that bypassed BA adapter), we
+				// provision it here before returning. The entire onboarding flow
+				// no longer depends on `user.update.after` as a single anchor.
 				before: async (session) => {
-					const { rows } = await pool.query<{ organizationId: string }>(
-						'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
-						[session.userId],
-					);
-					const organizationId = rows[0]?.organizationId;
+					let organizationId: string | undefined = (
+						await pool.query<{ organizationId: string }>(
+							'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+							[session.userId],
+						)
+					).rows[0]?.organizationId;
+
+					if (!organizationId && env.VITE_PRODUCT_MODE === "saas") {
+						const { rows: userRows } = await pool.query<{
+							email: string;
+							name: string | null;
+							emailVerified: boolean;
+						}>(
+							'SELECT email, name, "emailVerified" FROM "user" WHERE id = $1 LIMIT 1',
+							[session.userId],
+						);
+						const u = userRows[0];
+						if (u?.emailVerified) {
+							await ensurePersonalOrg({
+								userId: session.userId,
+								email: u.email,
+								name: u.name,
+							});
+							organizationId = (
+								await pool.query<{ organizationId: string }>(
+									'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+									[session.userId],
+								)
+							).rows[0]?.organizationId;
+						}
+					}
+
 					if (!organizationId) return { data: session };
 					return {
 						data: { ...session, activeOrganizationId: organizationId },
@@ -86,67 +220,18 @@ export const auth = betterAuth({
 		},
 		user: {
 			update: {
-				// Saas-mode personal org provision. Trigger: emailVerified flips
-				// to true (后端验证流程 / dev auto-verify 都会走到 user.update)。
-				// 幂等：每次 fire 都查 member + org.type='personal' 是否已存在，
-				// 已有则直接返回；这样 emailVerified 被再次 set true 时不会重复
-				// 建 org。Private 模式跳过（走 user.create.after 的 auto-join
-				// 走默认 org，不需要个人 org）。
+				// Saas-mode personal org provision. Fires when BA's adapter writes
+				// to "user" (normal verify-email flow). Dev auto-verify uses raw
+				// SQL and bypasses this hook — it calls ensurePersonalOrg inline
+				// from sendVerificationEmail. session.create.before is the final
+				// safety net. Private mode is served by user.create.after below.
 				after: async (user) => {
-					if (env.VITE_PRODUCT_MODE !== "saas") return;
 					if (!user.emailVerified) return;
-					// super-admin 不需要 personal org（他们是平台运营角色）
-					if (
-						env.SEED_SUPER_ADMIN_EMAIL &&
-						user.email === env.SEED_SUPER_ADMIN_EMAIL
-					) {
-						return;
-					}
-					try {
-						const existing = await pool.query(
-							`SELECT o.id
-							 FROM "organization" o
-							 INNER JOIN "member" m ON m."organizationId" = o.id
-							 WHERE m."userId" = $1 AND o."type" = 'personal'
-							 LIMIT 1`,
-							[user.id],
-						);
-						if (existing.rowCount && existing.rowCount > 0) return;
-
-						const orgId = randomUUID();
-						// BA user.id is a mixed-case nanoid ([A-Za-z0-9]). The client
-						// slug validator enforces `/^[a-z0-9-]+$/`, so we must lowercase
-						// before building the slug. Hyphen in the prefix is fine.
-						const slug = `personal-${user.id.toLowerCase()}`;
-						const displayName = user.name || user.email.split("@")[0];
-						await pool.query(
-							'INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type") VALUES ($1, $2, $3, now(), $4, $5)',
-							[orgId, `${displayName}'s Personal`, slug, "free", "personal"],
-						);
-						await pool.query(
-							'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
-							[randomUUID(), orgId, user.id, "owner"],
-						);
-						// 把该 user 所有 active session 的 activeOrganizationId 指向
-						// 新建的 personal org。BA 只在 sign-in 时 bootstrap activeOrg，
-						// 不覆盖此处：用户点完验证链接的 session 若不同步，回 workspace
-						// 会被 beforeLoad 当作"无 workspace"踢去 /onboarding。
-						await pool.query(
-							'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2',
-							[orgId, user.id],
-						);
-						log.info(
-							{ userId: user.id, orgId, slug },
-							"Personal org auto-provisioned after emailVerified (saas mode).",
-						);
-					} catch (err) {
-						// 幂等失败（unique violation 等）也 swallow——下次 emailVerified
-						// update 会再试；registration 本身已成功。
-						log.error(
-							{ err, userId: user.id },
-							"Failed to auto-provision personal org.",
-						);
-					}
+					await ensurePersonalOrg({
+						userId: user.id,
+						email: user.email,
+						name: user.name,
+					});
 				},
 			},
 			create: {

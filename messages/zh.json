@@ -370,5 +370,32 @@
 	"organization_slug_readonly_hint": "slug 用作组织唯一标识，创建后不可修改。",
 	"onboarding_no_workspace_title": "还没有 workspace",
 	"onboarding_no_workspace_body": "你的账号还没有关联任何 workspace，请联系管理员。",
-	"onboarding_sign_out": "退出登录"
+	"onboarding_sign_out": "退出登录",
+
+	"accept_invitation_loading_title": "正在加载邀请信息...",
+	"accept_invitation_missing_token_title": "邀请链接无效",
+	"accept_invitation_missing_token_body": "该链接缺少邀请标识，请从邮件中重新打开。",
+	"accept_invitation_not_found_title": "邀请不存在",
+	"accept_invitation_not_found_body": "该邀请可能已被取消、接受或过期，请联系邀请人重新发送。",
+	"accept_invitation_need_signin_title": "请先登录或注册",
+	"accept_invitation_need_signin_body": "接受组织邀请前，你需要先登录或注册账号，然后重新点击邮件中的邀请链接。",
+	"accept_invitation_go_signin": "前往登录",
+	"accept_invitation_go_signup": "注册账号",
+	"accept_invitation_title_prefix": "加入组织",
+	"accept_invitation_confirm_body": "你已收到加入该组织的邀请。点击下方按钮接受后，你将成为 {organizationName} 的成员。",
+	"accept_invitation_role_label": "角色",
+	"accept_invitation_confirm_button": "接受邀请",
+	"accept_invitation_accepted_toast": "已加入组织",
+	"accept_invitation_email_mismatch_title": "邮箱不匹配",
+	"accept_invitation_email_mismatch_body": "此邀请发送给 {inviteEmail}，但你当前登录的账号是 {currentEmail}。请切换到对应账号后再次打开邀请链接。",
+	"accept_invitation_switch_account": "切换账号",
+	"accept_invitation_back_home": "返回首页",
+
+	"organization_page_leave_section_title": "离开组织",
+	"organization_page_leave_section_desc": "离开后将失去该工作空间的所有数据访问。若你是最后一个所有者，需先转让所有权才能离开。",
+	"organization_page_leave_button": "离开当前组织",
+	"organization_page_leave_confirm_title": "确认离开",
+	"organization_page_leave_confirm_desc": "退出后你将失去该工作空间的所有数据访问，确认退出？",
+	"organization_page_leave_confirm_button": "确认离开",
+	"organization_page_leave_success_toast": "已离开该组织"
 }

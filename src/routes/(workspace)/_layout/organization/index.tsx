@@ -82,6 +82,9 @@ function OrganizationPage() {
 		);
 	}
 
+	const orgType = (activeOrg as { type?: string }).type;
+	const isPersonal = orgType === "personal";
+
 	return (
 		<div className="space-y-6">
 			<OrgInfoSection
@@ -91,7 +94,63 @@ function OrganizationPage() {
 			/>
 			<MembersSection orgId={activeOrg.id} currentUserId={currentUserId} />
 			<PendingInvitationsSection orgId={activeOrg.id} />
+			{!isPersonal && <LeaveOrganizationSection orgId={activeOrg.id} />}
 		</div>
+	);
+}
+
+function LeaveOrganizationSection({ orgId }: { orgId: string }) {
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [leaving, setLeaving] = useState(false);
+
+	async function handleLeave() {
+		setLeaving(true);
+		const { error } = await authClient.organization.leave({
+			organizationId: orgId,
+		});
+		setLeaving(false);
+		if (error) {
+			toast.error(translateAuthError(error));
+			return;
+		}
+		toast.success(m.organization_page_leave_success_toast());
+		setConfirmOpen(false);
+		// Hard-navigate so BA session picks a new activeOrganizationId via
+		// session.create.before on the next request. /dashboard route guard
+		// will redirect to /onboarding if no other org remains.
+		window.location.href = "/dashboard";
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{m.organization_page_leave_section_title()}</CardTitle>
+				<CardDescription>
+					{m.organization_page_leave_section_desc()}
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<Button
+					variant="destructive"
+					size="sm"
+					onClick={() => setConfirmOpen(true)}
+				>
+					{m.organization_page_leave_button()}
+				</Button>
+			</CardContent>
+			<ConfirmDialog
+				open={confirmOpen}
+				onOpenChange={(open) => {
+					if (!open) setConfirmOpen(false);
+				}}
+				title={m.organization_page_leave_confirm_title()}
+				description={m.organization_page_leave_confirm_desc()}
+				confirmText={m.organization_page_leave_confirm_button()}
+				variant="destructive"
+				confirming={leaving}
+				onConfirm={handleLeave}
+			/>
+		</Card>
 	);
 }
 

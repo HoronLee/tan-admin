@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端质量门 / 错误码 / 类型契约"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "site admin guard 必须保护 addMember oRPC handler"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "用户友好错误 + 服务端日志一致性"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端 lint/format/类型门"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "新增 keys 中英对齐"}
+{"file": ".trellis/spec/frontend/route-organization.md", "reason": "accept-invitation / sign-up 跳转契约"}
+{"file": "docs/research/plugin-organization-deep.md", "reason": "实施反馈段需要更新（addMember / requireEmailVerificationOnInvitation 改 ✅）"}
+{"file": "docs/research/INDEX.md", "reason": "已装能力盘点小节同步"}

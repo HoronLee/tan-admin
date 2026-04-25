@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/auth-module-layout.md", "reason": "BA plugin 配置约定 + addMember server-only 调用契约"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "site admin guard / 身份层 vs 业务层分层（addMember 走 BA 不走 ZenStack policy）"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "sendVerificationEmail callbackURL 透传 invitationToken 的方式"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "addMember 失败/重复/不存在 的错误返回规范"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "中英文 keys 命名 + paraglide 用法"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "AddToOrganizationDrawer 组件命名/结构/shadcn 用法"}
+{"file": ".trellis/spec/frontend/route-organization.md", "reason": "accept-invitation / auth/$path 路由结构 + sign-up token 透传契约"}
+{"file": "docs/research/plugin-organization-deep.md", "reason": "addMember + requireEmailVerificationOnInvitation 完整 spec"}
+{"file": "docs/research/plugin-admin-deep.md", "reason": "site admin AC + listUsers 接口（R2 备查）"}

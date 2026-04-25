@@ -70,4 +70,16 @@
 
 **已开配置项（增量）**：`requireEmailVerificationOnInvitation: true`（2026-04-25 起，深度防御）。
 
+### BA core 能力未启用（2026-04-25 盘点）
+
+**`user.changeEmail`（未启用）**：项目 `src/components/settings/account/change-email.tsx` 已 mount BA UI 自带的 `ChangeEmail` 表单，但 BA 后端配置层 `user.changeEmail.enabled` + `sendChangeEmailVerification` handler **完全未配**——表现为 UI 输入后点"Update email"直接 toast `Change email is disabled`。修复方式两选一：
+- **链接式（推荐）**：BA 原生 `user.changeEmail.enabled: true` + `sendChangeEmailVerification` handler 走邮件链接确认，与现有 verify-email / forget-password 模式一致，零新插件
+- **OTP 式**：装 email-otp 插件的 `change-email` type，UX 输 6 位数字（移动端友好，桌面体验略差）。BA UI 没有现成 OTP change-email 组件，需要自写
+
+### Task B 三件套候选（待捡，下一个 task 优先做 captcha）
+
+1. **change-email 启用** — 链接式（BA 原生），上面已分析；估 1 PR
+2. **checkSlug 实时校验** — `OrganizationSwitcher` 新建 org 输入 slug 时 debounce 调用 `organization.checkSlug`，边输边显"已被占用 / 可用"；估 1 PR
+3. **getUser + 用户详情页** — site/users/&lt;id&gt; 路由 + 详情视图（聚合 sessions / orgs / teams / impersonation 历史等）；估 2-3 PR
+
 每个 task 做完后，来本目录对应文档追加"实施反馈"段，保持调研库与现实同步。

@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import * as z from "zod";
 import { pool } from "#/db";
 import { env } from "#/env";
+import { auth } from "#/lib/auth/server";
 import { createModuleLogger } from "#/lib/logger";
 import { base } from "#/orpc/errors";
 import { authed } from "#/orpc/middleware/auth";
@@ -220,6 +221,114 @@ export const dissolve = superAdmin
 		log.info(
 			{ orgId: input.organizationId },
 			"Organization dissolved by super-admin.",
+		);
+
+		return { success: true };
+	});
+
+// --- addMemberToOrganization -----------------------------------------------
+
+/**
+ * Site-admin direct add: drop a user into any organization with any role,
+ * bypassing the invitation flow. Used for private-deployment / customer-
+ * support scenarios where the operator already knows both sides.
+ *
+ * Wraps `auth.api.addMember` (BA's server-only endpoint). The caller must
+ * be a site-level admin (`superAdmin` middleware); BA itself does not gate
+ * `addMember` further when called server-to-server.
+ *
+ * Errors from BA come back as `{ status, body: { code, message } }` shaped
+ * APIErrors — we narrow on `code` and re-throw as typed oRPC errors so
+ * callers (and the frontend toast layer) get a stable contract.
+ */
+const ADD_MEMBER_ROLES = ["owner", "admin", "member"] as const;
+type AddMemberRole = (typeof ADD_MEMBER_ROLES)[number];
+
+const AddMemberInput = z.object({
+	userId: z.string().min(1),
+	organizationId: z.string().min(1),
+	role: z.enum(ADD_MEMBER_ROLES),
+});
+
+interface BAErrorLike {
+	body?: { code?: string; message?: string };
+	status?: string | number;
+	message?: string;
+}
+
+function getBAErrorCode(err: unknown): string | undefined {
+	if (!err || typeof err !== "object") return undefined;
+	const e = err as BAErrorLike;
+	return e.body?.code;
+}
+
+function getBAErrorMessage(err: unknown): string | undefined {
+	if (!err || typeof err !== "object") return undefined;
+	const e = err as BAErrorLike;
+	return e.body?.message ?? e.message;
+}
+
+export const addMemberToOrganization = superAdmin
+	.input(AddMemberInput)
+	.handler(async ({ input, context, errors }) => {
+		const ctx = context as { headers?: Headers };
+		const headers = ctx.headers ?? new Headers();
+
+		try {
+			await auth.api.addMember({
+				headers,
+				body: {
+					userId: input.userId,
+					organizationId: input.organizationId,
+					role: input.role as AddMemberRole,
+				},
+			});
+		} catch (err) {
+			const code = getBAErrorCode(err);
+			const message = getBAErrorMessage(err);
+
+			if (code === "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION") {
+				throw errors.CONFLICT({
+					message: "用户已是该组织成员。",
+					cause: err instanceof Error ? err : undefined,
+				});
+			}
+			if (code === "ORGANIZATION_NOT_FOUND") {
+				throw errors.NOT_FOUND({
+					message: "组织不存在。",
+					cause: err instanceof Error ? err : undefined,
+				});
+			}
+			if (code === "USER_NOT_FOUND") {
+				throw errors.NOT_FOUND({
+					message: "用户不存在。",
+					cause: err instanceof Error ? err : undefined,
+				});
+			}
+			if (code === "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED") {
+				throw errors.FORBIDDEN({
+					message: "组织成员数已达上限。",
+					cause: err instanceof Error ? err : undefined,
+				});
+			}
+
+			log.error(
+				{ err, input },
+				"Failed to add member to organization (super-admin).",
+			);
+			throw errors.INTERNAL_ERROR({
+				message: message ?? "添加组织成员失败。",
+				cause: err instanceof Error ? err : undefined,
+			});
+		}
+
+		log.info(
+			{
+				userId: input.userId,
+				orgId: input.organizationId,
+				role: input.role,
+			},
+			"Member added to organization by super-admin.",
 		);
 
 		return { success: true };

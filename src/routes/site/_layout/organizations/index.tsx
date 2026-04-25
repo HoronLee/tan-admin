@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "#/components/confirm-dialog";
 import { DataTable } from "#/components/data-table/data-table";
 import { FormDrawer } from "#/components/form-drawer";
+import { UserPickerCombobox } from "#/components/UserPickerCombobox";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
@@ -33,14 +34,21 @@ import {
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/ui/select";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
 import { env } from "#/env";
-import { requireSiteAdmin } from "#/lib/auth/guards";
 import { authClient } from "#/lib/auth/client";
+import { requireSiteAdmin } from "#/lib/auth/guards";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 
@@ -104,6 +112,8 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 	const [dissolveTarget, setDissolveTarget] = useState<OrganizationRow | null>(
 		null,
 	);
+	const [addMemberTarget, setAddMemberTarget] =
+		useState<OrganizationRow | null>(null);
 
 	const invalidate = () =>
 		queryClient.invalidateQueries({ queryKey: listQueryOptions.queryKey });
@@ -189,6 +199,9 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
+							<DropdownMenuItem onSelect={() => setAddMemberTarget(org)}>
+								{m.organizations_action_add_member()}
+							</DropdownMenuItem>
 							<DropdownMenuItem
 								variant="destructive"
 								disabled={!canDissolve}
@@ -234,6 +247,19 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 				onOpenChange={setCreateOpen}
 				onCreated={invalidate}
 			/>
+
+			{addMemberTarget && (
+				<AddMemberDrawer
+					organization={addMemberTarget}
+					onOpenChange={(open) => {
+						if (!open) setAddMemberTarget(null);
+					}}
+					onSuccess={() => {
+						setAddMemberTarget(null);
+						invalidate();
+					}}
+				/>
+			)}
 
 			<ConfirmDialog
 				open={dissolveTarget !== null}
@@ -416,6 +442,109 @@ function CreateOrgDrawer({
 						value={form.billingEmail}
 						onChange={(e) => setForm({ ...form, billingEmail: e.target.value })}
 					/>
+				</div>
+			</div>
+		</FormDrawer>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Add member to organization — site-admin reverse entry. Mirrors the user-
+// scoped flow on `/site/users` (AddToOrganizationDrawer there) but with the
+// organization fixed and the user picked via UserPickerCombobox.
+//
+// Reuses `orpc.organizationsAdmin.addMember` — no new endpoint. Errors come
+// back already narrowed (CONFLICT / NOT_FOUND / FORBIDDEN), so a plain toast
+// is enough.
+// ---------------------------------------------------------------------------
+
+const ADD_MEMBER_ROLES = ["owner", "admin", "member"] as const;
+type AddMemberRole = (typeof ADD_MEMBER_ROLES)[number];
+
+function AddMemberDrawer({
+	organization,
+	onOpenChange,
+	onSuccess,
+}: {
+	organization: OrganizationRow;
+	onOpenChange: (open: boolean) => void;
+	onSuccess: () => void;
+}) {
+	const [userId, setUserId] = useState<string | null>(null);
+	const [role, setRole] = useState<AddMemberRole>("member");
+
+	const addMutation = useMutation({
+		mutationFn: async () => {
+			if (!userId) throw new Error(m.organizations_add_member_error_no_user());
+			await orpc.organizationsAdmin.addMember.call({
+				userId,
+				organizationId: organization.id,
+				role,
+			});
+		},
+		onSuccess: () => {
+			toast.success(m.organizations_add_member_success());
+			onSuccess();
+		},
+		onError: (err: Error) => {
+			toast.error(err.message);
+		},
+	});
+
+	function handleSubmit() {
+		if (!userId) {
+			toast.error(m.organizations_add_member_error_no_user());
+			return;
+		}
+		addMutation.mutate();
+	}
+
+	const roleLabels: Record<AddMemberRole, string> = {
+		owner: m.site_users_add_to_org_role_owner(),
+		admin: m.site_users_add_to_org_role_admin(),
+		member: m.site_users_add_to_org_role_member(),
+	};
+
+	return (
+		<FormDrawer
+			open={true}
+			onOpenChange={onOpenChange}
+			title={m.organizations_add_member_title({ name: organization.name })}
+			description={m.organizations_add_member_desc()}
+			submitText={m.organizations_add_member_submit()}
+			submitting={addMutation.isPending}
+			onSubmit={handleSubmit}
+		>
+			<div className="space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="add-member-user">
+						{m.organizations_add_member_field_user()}
+					</Label>
+					<UserPickerCombobox
+						id="add-member-user"
+						value={userId}
+						onChange={(id) => setUserId(id)}
+					/>
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="add-member-role">
+						{m.organizations_add_member_field_role()}
+					</Label>
+					<Select
+						value={role}
+						onValueChange={(v) => setRole(v as AddMemberRole)}
+					>
+						<SelectTrigger id="add-member-role">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{ADD_MEMBER_ROLES.map((r) => (
+								<SelectItem key={r} value={r}>
+									{roleLabels[r]}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 			</div>
 		</FormDrawer>

@@ -53,8 +53,8 @@ import {
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
 import { authClient } from "#/lib/auth/client";
-import { resolveMenuLabel } from "#/lib/menu-label";
 import { planAllowsTeams } from "#/lib/auth/plan";
+import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 import {

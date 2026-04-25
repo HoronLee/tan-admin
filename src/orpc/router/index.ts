@@ -6,6 +6,7 @@ import {
 	updateMenu,
 } from "./menus";
 import {
+	addMemberToOrganization,
 	create as createOrganizationAdmin,
 	dissolve as dissolveOrganizationAdmin,
 	list as listOrganizationsAdmin,
@@ -26,5 +27,6 @@ export default {
 		list: listOrganizationsAdmin,
 		create: createOrganizationAdmin,
 		dissolve: dissolveOrganizationAdmin,
+		addMember: addMemberToOrganization,
 	},
 };

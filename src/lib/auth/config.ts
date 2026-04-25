@@ -316,6 +316,11 @@ export const authConfig = {
 			// hasPermission({ invitation: ["create"] }) 等原生检查全拿不到权限
 			// —— owner 也邀请不了人。除非有必要的自定义资源，否则别传 ac+roles。
 			//
+			// 深度防御：未验证邮箱不能 accept 邀请。本项目 saas signup 已强制
+			// requireEmailVerification: true，正常路径下能登录的用户都已验证；
+			// 这条主要防 (a) 非邮箱注册路径将来接入（OAuth 不验证邮箱场景）、
+			// (b) 直接通过 BA API 篡改 emailVerified 的边角攻击。
+			requireEmailVerificationOnInvitation: true,
 			// 插件级写死：产品支持 team 概念。能不能建 team 由 plan 决定（见 maximumTeams）。
 			teams: {
 				enabled: true,

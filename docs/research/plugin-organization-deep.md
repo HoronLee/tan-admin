@@ -384,17 +384,19 @@ Phase 1 在 BA 1.6.5 上落地了 transfer-ownership / 多 owner 保护 / additi
 
 **已用 API（24 处调用点 ✅）**：`create` / `update` / `delete` / `getFullOrganization` / `setActive` / `inviteMember` / `getInvitation` / `acceptInvitation` / `cancelInvitation` / `rejectInvitation` / `listInvitations` / `listUserInvitations` / `listMembers` / `removeMember` / `updateMemberRole` / `leave` / `hasPermission` / `createTeam` / `listTeams` / `updateTeam` / `removeTeam` / `listTeamMembers` / `addTeamMember` / `removeTeamMember`。加上 server 端 `auth.api.getActiveMember` / `getSession` / `hasPermission` / `createOrganization`（seed 用）。
 
+**已用 API（25 处调用点 ✅，含 2026-04-25 新增 addMember）**：在前述 24 项基础上，由 `ba-plugin-residual-capabilities` task 接入 `addMember`（绕过邀请直接加），仅向超管开放 —— 调用点 `src/orpc/router/organizations-admin.ts.addMember`，UI 入口 `site/users` 行操作 + `site/organizations` 行操作（后者配 `UserPickerCombobox` 走 `admin.listUsers searchValue`）。
+
 **未用 API / 原因**：
 - `checkSlug` — 📋 未用。create-org 表单靠客户端 regex + 服务端 slug unique 兜底，没做实时可用性校验。未来"建 org 体验打磨" task 可加
-- `addMember`（直接加成员，绕过邀请）— 📋 未用。产品设计要求走邀请留痕，目前没 admin"直接拉人"场景
 - `getActiveMemberRole` — 📋 未用。前端统一走 `getActiveMember()` 拿整个 member 行（含 role），没单独拆
 - `listUserTeams` / `setActiveTeam` — 📋 未用。teams UI 当前只按 org 列全部 team，还没做"当前 active team"概念（BA 提供 `session.activeTeamId` 但我们没读）
 - `listOrganizations`（非 React hook 版本）— 📋 未用。前端全走 `authClient.useListOrganizations()` hook；server 端跨 org 查用 `organizations-admin.ts` 绕 BA 走 raw SQL（故意）
 
 **大块未开的特性**：
 - `Dynamic Access Control`（`dynamicAccessControl.enabled = true` + `organizationRole` 表）— 📋 未开。saas 模式下如果客户要求"自建角色"才需要。开了会新增 `organizationRole` 表 + 6 个 client API（`organization.createRole` / `listRoles` / `getRole` / `updateRole` / `deleteRole` / `maximumRolesPerOrganization`）
-- `requireEmailVerificationOnInvitation` — 📋 未设，BA 默认 false。开启后未验证邮箱的用户 accept invitation 会被拒。本项目 saas 模式已在 signup 走 `requireEmailVerification: true`，accept 阶段再卡意义不大
 - `organizationLimit` / `membershipLimit` / `invitationLimit` / `invitationExpiresIn` — 📋 未设，全走 BA 默认。未来接订阅限制时再开
+
+**已开配置项**：`requireEmailVerificationOnInvitation: true`（2026-04-25 起，深度防御；本项目 saas signup 已强制 `requireEmailVerification: true`，正常路径下能登录的用户都已验证）。
 
 **AC 策略变更（重要）**：本 task **删除**了项目此前自建的 `src/lib/permissions.ts`，不再传 custom `ac` + `roles` 给 `organization()`，完全走 BA 原生 `owner` / `admin` / `member` + 默认 statements（`organization:{update,delete}` / `member:{create,update,delete}` / `invitation:{create,cancel}` / `team:{create,update,delete}`）。
 

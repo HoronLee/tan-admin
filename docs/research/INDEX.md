@@ -57,16 +57,17 @@
 3. **generic-oauth**（企业接入时）— SSO 场景
 4. **api-key**（有程序化集成需求时）— 开放平台 / SDK 认证
 
-### 已装插件尚未利用的能力（2026-04-24 盘点）
+### 已装插件尚未利用的能力（2026-04-25 盘点）
 
-**admin plugin**：基本 API 已全用。剩 `getUser(userId)` 留给"用户详情页"task；config 里 `defaultRole` / `adminRoles` / `adminUserIds` / `defaultBanExpiresIn` 默认够用。
+**admin plugin**：基本 API 已全用（含 2026-04-25 起 `listUsers` searchValue 搜索模式用于 UserPickerCombobox）。剩 `getUser(userId)` 留给"用户详情页"task；config 里 `defaultRole` / `adminRoles` / `adminUserIds` / `defaultBanExpiresIn` 默认够用。
 
-**organization plugin**：API 覆盖度 24/29+。剩：
+**organization plugin**：API 覆盖度 25/29+（2026-04-25 起新增超管视角 `addMember`，限 site 入口）。剩：
 - `checkSlug` — "建 org 体验打磨"时接入（实时 slug 可用性）
-- `addMember`（绕过邀请直接加）— 产品设计要求走邀请，暂不需要
 - `getActiveMemberRole` — 统一走 `getActiveMember` 拿整行够用
 - `listUserTeams` / `setActiveTeam` — 做"当前 active team"概念时接入（现在只按 org 列 team）
 - **Dynamic Access Control** — 客户自建角色场景，saas 落单客户首次明确要"自定义权限"时再开
-- `requireEmailVerificationOnInvitation` / 各种 Limit 配置 — 接订阅限制时一起开
+- `organizationLimit` / `membershipLimit` / `invitationLimit` / `invitationExpiresIn` — 接订阅限制时一起开
+
+**已开配置项（增量）**：`requireEmailVerificationOnInvitation: true`（2026-04-25 起，深度防御）。
 
 每个 task 做完后，来本目录对应文档追加"实施反馈"段，保持调研库与现实同步。

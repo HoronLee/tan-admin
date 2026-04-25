@@ -217,7 +217,9 @@ await auth.api.userHasPermission({
 
 本轮补齐 admin plugin 的超管面板缺失功能 + 开启 4 个配置项。当前 API 利用与配置清单：
 
-**已用 API（17 处调用点 ✅）**：`createUser` / `listUsers` / `setRole` / `banUser` / `unbanUser` / `impersonateUser` / `removeUser` / `updateUser` / `setUserPassword` / `listUserSessions` / `revokeUserSession` / `revokeUserSessions` / `stopImpersonating`（全部在 `src/routes/site/_layout/users/index.tsx` + `src/components/layout/ImpersonationBanner.tsx`）
+**已用 API（17 处调用点 ✅）**：`createUser` / `listUsers` / `setRole` / `banUser` / `unbanUser` / `impersonateUser` / `removeUser` / `updateUser` / `setUserPassword` / `listUserSessions` / `revokeUserSession` / `revokeUserSessions` / `stopImpersonating`（全部在 `src/routes/site/_layout/users/index.tsx` + `src/components/layout/ImpersonationBanner.tsx`）。
+
+**`listUsers` 搜索模式（2026-04-25 起）**：`UserPickerCombobox`（`src/components/UserPickerCombobox.tsx`）调 `authClient.admin.listUsers({ query: { searchValue, searchField: "email", searchOperator: "contains", limit: 10 }})` 做超管视角的全站用户搜索（debounce 300ms），用于 `site/organizations` 行操作 "Add member" 反向入口。
 
 **未用 API / 原因**：
 - `getUser(userId)` — 📋 未用。我们走 `listUsers` 分页拿，行数据够用；未来做"用户详情页"时接入

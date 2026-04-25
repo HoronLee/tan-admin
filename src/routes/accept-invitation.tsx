@@ -11,8 +11,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import { authClient } from "#/lib/auth-client";
-import { translateAuthError } from "#/lib/auth-errors";
+import { authClient } from "#/lib/auth/client";
+import { translateAuthError } from "#/lib/auth/errors";
 import * as m from "#/paraglide/messages";
 
 // Bare page — no workspace layout. Public URL target of the invitation email

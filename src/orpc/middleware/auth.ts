@@ -1,5 +1,5 @@
 import { authDb } from "#/db";
-import { getSessionUser } from "#/lib/auth-session";
+import { getSessionUser } from "#/lib/auth/session";
 import { base } from "#/orpc/errors";
 import { pub } from "#/orpc/middleware/orm-error";
 

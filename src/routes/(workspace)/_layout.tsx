@@ -21,7 +21,7 @@ import {
 	SidebarTrigger,
 } from "#/components/ui/sidebar";
 import { UserButton } from "#/components/user/user-button";
-import { getSessionUser } from "#/lib/auth-session";
+import { getSessionUser } from "#/lib/auth/session";
 import { resolveMenuLabel } from "#/lib/menu-label";
 import { findMenuByPath, menuStore } from "#/stores/menu";
 import { addTab } from "#/stores/tabbar";

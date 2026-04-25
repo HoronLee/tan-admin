@@ -31,7 +31,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
-import { requireOrgMemberRole } from "#/lib/admin-guards";
+import { requireOrgMemberRole } from "#/lib/auth/guards";
 import { resolveMenuLabel } from "#/lib/menu-label";
 import { orpc } from "#/orpc/client";
 

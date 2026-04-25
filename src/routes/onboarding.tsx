@@ -7,7 +7,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import { authClient } from "#/lib/auth-client";
+import { authClient } from "#/lib/auth/client";
 import * as m from "#/paraglide/messages";
 
 // Bare page — no workspace layout / sidebar / tabbar. Shown as a fallback

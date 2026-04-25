@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 
-import { auth } from "#/lib/auth";
+import { auth } from "#/lib/auth/server";
 
 type SessionResult = Awaited<ReturnType<typeof auth.api.getSession>>;
 type SessionUser = NonNullable<SessionResult>["user"];

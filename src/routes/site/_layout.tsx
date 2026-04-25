@@ -18,7 +18,7 @@ import {
 	SidebarTrigger,
 } from "#/components/ui/sidebar";
 import { UserButton } from "#/components/user/user-button";
-import { requireSiteAdmin } from "#/lib/admin-guards";
+import { requireSiteAdmin } from "#/lib/auth/guards";
 import { addTab } from "#/stores/tabbar";
 
 export const Route = createFileRoute("/site/_layout")({

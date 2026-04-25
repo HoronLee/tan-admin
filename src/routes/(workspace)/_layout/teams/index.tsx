@@ -30,9 +30,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
-import { authClient } from "#/lib/auth-client";
-import { translateAuthError } from "#/lib/auth-errors";
-import { planAllowsTeams } from "#/lib/plan";
+import { authClient } from "#/lib/auth/client";
+import { translateAuthError } from "#/lib/auth/errors";
+import { planAllowsTeams } from "#/lib/auth/plan";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(workspace)/_layout/teams/")({

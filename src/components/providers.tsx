@@ -2,7 +2,7 @@ import { Link as RouterLink, useNavigate } from "@tanstack/react-router";
 import type { ComponentType, PropsWithChildren, ReactNode } from "react";
 import { AuthProvider } from "#/components/auth/auth-provider";
 import { useTheme } from "#/components/theme-provider";
-import { authClient } from "#/lib/auth-client";
+import { authClient } from "#/lib/auth/client";
 
 type LinkProps = PropsWithChildren<{
 	className?: string;

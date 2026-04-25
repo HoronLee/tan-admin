@@ -48,9 +48,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table";
-import { requireSiteAdmin } from "#/lib/admin-guards";
-import { authClient } from "#/lib/auth-client";
-import { translateAuthError } from "#/lib/auth-errors";
+import { requireSiteAdmin } from "#/lib/auth/guards";
+import { authClient } from "#/lib/auth/client";
+import { translateAuthError } from "#/lib/auth/errors";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/site/_layout/users/")({

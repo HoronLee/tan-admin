@@ -7,9 +7,9 @@ import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { pool } from "#/db";
 import { env } from "#/env";
-import { sendEmail } from "#/lib/email";
+import { sendEmail } from "#/lib/email/templates";
 import { createModuleLogger } from "#/lib/logger";
-import { getPlanLimits } from "#/lib/plan";
+import { getPlanLimits } from "#/lib/auth/plan";
 
 const log = createModuleLogger("better-auth");
 
@@ -332,12 +332,12 @@ export const auth = betterAuth({
 			// R12: avoid duplicate pending invitations for the same email.
 			cancelPendingInvitationsOnReInvite: true,
 			// R8: business-profile columns on `organization`. Mirrored on the
-			// client via `inferOrgAdditionalFields` in auth-client.ts.
+			// client via `inferOrgAdditionalFields` in auth/client.ts.
 			schema: {
 				organization: {
 					additionalFields: {
 						// Plan gating source of truth. 可选值 "free" | "personal_pro" |
-						// "team_pro" | "enterprise"，见 #/lib/plan。
+						// "team_pro" | "enterprise"，见 #/lib/auth/plan。
 						plan: { type: "string", defaultValue: "free" },
 						// org 类型：personal = 注册后自动建的个人空间（saas 模式），
 						// team = 普通团队 workspace。personal org 禁止邀请/删除/转让。

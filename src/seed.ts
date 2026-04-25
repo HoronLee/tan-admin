@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db, pool } from "#/db";
 import { env } from "#/env";
-import { auth } from "#/lib/auth";
+import { auth } from "#/lib/auth/server";
 import { createModuleLogger } from "#/lib/logger";
 
 const log = createModuleLogger("seed");

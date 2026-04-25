@@ -14,7 +14,7 @@
  * See `.trellis/spec/backend/authorization-boundary.md` for the split.
  */
 import * as z from "zod";
-import { auth } from "#/lib/auth";
+import { auth } from "#/lib/auth/server";
 import { authed } from "#/orpc/middleware/auth";
 
 // Recursively include up to 6 levels of menu children

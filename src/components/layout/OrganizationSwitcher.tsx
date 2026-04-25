@@ -21,8 +21,8 @@ import {
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Skeleton } from "#/components/ui/skeleton";
-import { authClient } from "#/lib/auth-client";
-import { translateAuthError } from "#/lib/auth-errors";
+import { authClient } from "#/lib/auth/client";
+import { translateAuthError } from "#/lib/auth/errors";
 import * as m from "#/paraglide/messages";
 
 // `private` 模式下 BA 的 `allowUserToCreateOrganization: false` 已在后端

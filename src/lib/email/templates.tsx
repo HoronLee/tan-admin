@@ -39,10 +39,10 @@ import {
 	passwordChangedLocalization,
 	resetPasswordLocalization,
 	verifyLocalization,
-} from "#/lib/email-localization";
+} from "#/lib/email/localization";
 import { createModuleLogger } from "#/lib/logger";
 import * as m from "#/paraglide/messages";
-import { sendMail } from "./email-transport";
+import { sendMail } from "./transport";
 
 const log = createModuleLogger("email");
 

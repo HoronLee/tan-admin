@@ -12,7 +12,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import { authClient } from "#/lib/auth-client";
+import { authClient } from "#/lib/auth/client";
 
 export const Route = createFileRoute("/(workspace)/_layout/invitations/")({
 	component: InvitationsPage,

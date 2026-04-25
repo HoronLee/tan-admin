@@ -1,3 +1,9 @@
+// Better Auth managed tables — auto-generated shadow declarations.
+// Source of truth: src/lib/auth/config.ts. Regenerate via `pnpm ba:shadow`.
+// All BA models in `_better-auth.zmodel` are @@ignore so ZenStack won't
+// manage them — but their relations are visible to the policy engine.
+import "_better-auth"
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -66,72 +72,3 @@ model Menu {
   @@allow('all', auth().isAdmin == true)
 }
 
-// ---------------------------------------------------------------------------
-// Better Auth managed tables — declared here so Prisma doesn't drop them.
-// ZenStack / Prisma will not generate CRUD helpers for @@ignore models.
-// ---------------------------------------------------------------------------
-
-/// Better Auth: users table (managed by BA, not ZenStack)
-model BaUser {
-  id            String   @id
-  name          String
-  email         String   @unique
-  emailVerified Boolean
-  image         String?
-  nickname      String?
-  avatar        String?
-  status        String?
-  createdAt     DateTime
-  updatedAt     DateTime
-
-  @@map("user")
-  @@ignore
-}
-
-/// Better Auth: sessions table
-model BaSession {
-  id        String   @id
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-
-  @@map("session")
-  @@ignore
-}
-
-/// Better Auth: OAuth accounts table
-model BaAccount {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime
-  updatedAt             DateTime
-
-  @@map("account")
-  @@ignore
-}
-
-/// Better Auth: email verification tokens table
-model BaVerification {
-  id         String    @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime?
-  updatedAt  DateTime?
-
-  @@map("verification")
-  @@ignore
-}

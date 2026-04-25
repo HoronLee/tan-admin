@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
-- **Last Active**: 2026-04-24
+- **Total Sessions**: 17
+- **Last Active**: 2026-04-25
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~548 | Active |
+| `journal-1.md` | ~583 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-04-25 | BA 插件剩余能力收口（addMember 双视角 + 邀请闭环 + 深度防御） | `021114d`, `15e1138`, `6632a2c` | `main` |
 | 16 | 2026-04-24 | BA 插件 API 扩展落地 + saas 流程断点修复 | `a04b967`, `cbd3b81`, `8448e12`, `31a47b8`, `894166f` | `main` |
 | 15 | 2026-04-24 | Task 2b ba-ui-email: BA UI 7 模板 + 全站品牌统一 + env 单份 VITE_ 约定 | `f258d82`, `ab68cfc`, `231dbb1` | `main` |
 | 14 | 2026-04-23 | Task 2a saas-fixups: slug 不可变 + session 同步 + onboarding 分流 + oRPC 日志分级 | `0c64b6e`, `010ef48`, `6cc2f5e` | `main` |

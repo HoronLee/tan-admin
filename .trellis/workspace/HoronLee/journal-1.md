@@ -546,3 +546,38 @@ Task 2b 落地三组改动：(1) 邮件：shadcn add BA UI 7 模板到 src/compo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: BA 插件剩余能力收口（addMember 双视角 + 邀请闭环 + 深度防御）
+
+**Date**: 2026-04-25
+**Task**: BA 插件剩余能力收口（addMember 双视角 + 邀请闭环 + 深度防御）
+**Branch**: `main`
+
+### Summary
+
+PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行操作）+ 新建可复用 UserPickerCombobox（Command + Popover + debounced admin.listUsers，仅限 site/* 路由）。PR2: 邀请→注册→自动 accept 闭环——sendInvitationEmail URL 携带 email，accept-invitation 透传 token+email 到 sign-up，sign-up email 字段 prefill+readonly + signUpEmail callbackURL，BA verifyEmail autoSignIn 后自动跳回完成入伙；新员工首次入伙不用回邮件二次点击。PR3: 开 requireEmailVerificationOnInvitation: true 深度防御 + docs 清单同步（addMember/requireEmailVerificationOnInvitation 两条从'未利用能力'清单删除）。3 个能力收掉后 organization plugin API 覆盖度 24/29+ → 25/29+。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `021114d` | (see git log) |
+| `15e1138` | (see git log) |
+| `6632a2c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -4,6 +4,7 @@ import {
 	useSignUpEmail,
 } from "@better-auth-ui/react";
 import { useDebouncer } from "@tanstack/react-pacer";
+import { useSearch } from "@tanstack/react-router";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ import {
 } from "#/components/ui/input-group";
 import { Spinner } from "#/components/ui/spinner";
 import { cn } from "#/lib/utils";
+import * as m from "#/paraglide/messages";
 import { Label } from "../ui/label";
 import { MagicLinkButton } from "./magic-link-button";
 import { ProviderButtons, type SocialLayout } from "./provider-buttons";
@@ -56,6 +58,7 @@ export function SignUp({
 }: SignUpProps) {
 	const {
 		basePaths,
+		baseURL,
 		emailAndPassword,
 		localization,
 		magicLink,
@@ -66,6 +69,20 @@ export function SignUp({
 		navigate,
 		Link,
 	} = useAuth();
+
+	// PR2: invitation round-trip. When user lands on /auth/sign-up with these
+	// search params, pin email to invitee address and round-trip BA's verify
+	// flow back to /accept-invitation. `useSearch({ strict: false })` so this
+	// component still mounts cleanly when used from non-/auth routes.
+	const search = useSearch({ strict: false }) as {
+		invitationToken?: string;
+		prefillEmail?: string;
+	};
+	const invitationToken = search.invitationToken;
+	const prefillEmail = search.prefillEmail;
+	const callbackURL = invitationToken
+		? `${baseURL}/accept-invitation?token=${encodeURIComponent(invitationToken)}`
+		: undefined;
 
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -109,6 +126,12 @@ export function SignUp({
 			if (emailAndPassword?.requireEmailVerification) {
 				toast.success(localization.auth.verifyYourEmail);
 				navigate({ to: `${basePaths.auth}/${viewPaths.auth.signIn}` });
+			} else if (invitationToken) {
+				// Auto-sign-in path: requireEmailVerification disabled. Land
+				// straight on the invitation acceptance page.
+				navigate({
+					to: `/accept-invitation?token=${encodeURIComponent(invitationToken)}`,
+				});
 			} else {
 				navigate({ to: redirectTo });
 			}
@@ -146,6 +169,10 @@ export function SignUp({
 			name,
 			email,
 			password,
+			// When this sign-up is part of the invitation flow, BA writes the
+			// callbackURL into the verify-email link; on email verification
+			// BA's `verify-email` endpoint redirects the user to it.
+			...(callbackURL ? { callbackURL } : {}),
 			...(usernameConfig?.enabled
 				? {
 						username: username.trim(),
@@ -287,6 +314,11 @@ export function SignUp({
 										placeholder={localization.auth.emailPlaceholder}
 										required
 										disabled={isPending}
+										// Invitation flow: lock the email to the invitee
+										// address so the post-accept email-mismatch check
+										// can't fail.
+										defaultValue={prefillEmail ?? undefined}
+										readOnly={prefillEmail !== undefined}
 										onChange={() => {
 											setFieldErrors((prev) => ({
 												...prev,
@@ -305,6 +337,11 @@ export function SignUp({
 									/>
 
 									<FieldError>{fieldErrors.email}</FieldError>
+									{prefillEmail !== undefined && (
+										<p className="text-muted-foreground text-xs">
+											{m.auth_invitation_email_locked_hint()}
+										</p>
+									)}
 								</Field>
 
 								<Field data-invalid={!!fieldErrors.password}>

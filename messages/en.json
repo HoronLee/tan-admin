@@ -404,6 +404,8 @@
 	"accept_invitation_switch_account": "Switch account",
 	"accept_invitation_back_home": "Back to home",
 
+	"auth_invitation_email_locked_hint": "This email comes from your invitation and cannot be changed.",
+
 	"organization_page_leave_section_title": "Leave organization",
 	"organization_page_leave_section_desc": "You will lose access to this workspace's data. If you are the last owner, transfer ownership first.",
 	"organization_page_leave_button": "Leave this organization",

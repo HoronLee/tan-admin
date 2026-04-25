@@ -6,6 +6,7 @@ import {
 	useSignInEmail,
 	useSignInUsername,
 } from "@better-auth-ui/react";
+import { useSearch } from "@tanstack/react-router";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -67,6 +68,19 @@ export function SignIn({
 
 	const [password, setPassword] = useState("");
 
+	// PR2: invitation round-trip. When user reaches /auth/sign-in with
+	// `invitationToken`, route them back to /accept-invitation after success
+	// instead of the default redirectTo.
+	const search = useSearch({ strict: false }) as {
+		invitationToken?: string;
+		prefillEmail?: string;
+	};
+	const invitationToken = search.invitationToken;
+	const prefillEmail = search.prefillEmail;
+	const successTarget = invitationToken
+		? `/accept-invitation?token=${encodeURIComponent(invitationToken)}`
+		: redirectTo;
+
 	const { mutate: sendVerificationEmail } = useSendVerificationEmail({
 		onSuccess: () => toast.success(localization.auth.verificationEmailSent),
 	});
@@ -83,7 +97,9 @@ export function SignIn({
 							onClick: () =>
 								sendVerificationEmail({
 									email,
-									callbackURL: `${baseURL}${redirectTo}`,
+									// Round-trip back to accept-invitation when this
+									// sign-in attempt is part of the invitation flow.
+									callbackURL: `${baseURL}${successTarget}`,
 								}),
 						},
 					});
@@ -91,7 +107,7 @@ export function SignIn({
 					toast.error(error.error?.message || error.message);
 				}
 			},
-			onSuccess: () => navigate({ to: redirectTo }),
+			onSuccess: () => navigate({ to: successTarget }),
 		},
 	);
 
@@ -101,7 +117,7 @@ export function SignIn({
 				setPassword("");
 				toast.error(error.error?.message || error.message);
 			},
-			onSuccess: () => navigate({ to: redirectTo }),
+			onSuccess: () => navigate({ to: successTarget }),
 		});
 
 	const isPending = signInEmailPending || signInUsernamePending;
@@ -186,6 +202,13 @@ export function SignIn({
 										}
 										required
 										disabled={isPending}
+										// Invitation flow: pin the email to the invitee
+										// address. We intentionally do NOT mark it readOnly
+										// here — an existing user may have linked accounts
+										// and want to switch identity at sign-in. The
+										// follow-up email-mismatch screen on accept-
+										// invitation handles that case.
+										defaultValue={prefillEmail ?? undefined}
 										onChange={() => {
 											setFieldErrors((prev) => ({
 												...prev,

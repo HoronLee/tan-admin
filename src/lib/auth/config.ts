@@ -358,7 +358,11 @@ export const authConfig = {
 				invitation,
 			}) => {
 				const isTransfer = invitation.role === "owner";
-				const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?token=${invitation.id}`;
+				// PR2: include invitee email in the URL so anonymous-user sign-up
+				// from accept-invitation can pre-fill (and lock) the email field,
+				// preventing email-mismatch failures at acceptance time. Safe to
+				// include — the email is the recipient's own address.
+				const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation?token=${invitation.id}&email=${encodeURIComponent(email)}`;
 				await sendEmail({
 					type: isTransfer ? "transfer" : "invite",
 					to: email,

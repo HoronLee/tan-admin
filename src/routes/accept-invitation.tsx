@@ -20,15 +20,20 @@ import * as m from "#/paraglide/messages";
 // `src/lib/auth.ts` sendInvitationEmail).
 //
 // `authClient.organization.getInvitation` + `acceptInvitation` both require a
-// session, so this page can't preview invitation details for anonymous users.
-// Anonymous path: show a sign-in/sign-up CTA and ask the user to re-open the
-// email link after authenticating. After authenticating, invitation details
-// are fetched and the user can confirm or reject the email mismatch case.
+// session, so anonymous visitors can't preview invitation details.
+// Anonymous path: forward `invitationToken` to sign-up / sign-in so the
+// authenticated user lands back here automatically (sign-up uses BA's
+// `verify-email?callbackURL=/accept-invitation?token=...` redirect; sign-in
+// hard-navigates to the same URL on success). The mismatch / accept flow then
+// runs unchanged.
 export const Route = createFileRoute("/accept-invitation")({
-	validateSearch: (search): { token?: string } => {
-		const raw = search.token;
-		if (typeof raw === "string" && raw.length > 0) return { token: raw };
-		return {};
+	validateSearch: (search): { token?: string; email?: string } => {
+		const out: { token?: string; email?: string } = {};
+		const t = search.token;
+		if (typeof t === "string" && t.length > 0) out.token = t;
+		const e = search.email;
+		if (typeof e === "string" && e.length > 0) out.email = e;
+		return out;
 	},
 	component: AcceptInvitationPage,
 });
@@ -46,7 +51,7 @@ interface InvitationDetail {
 }
 
 function AcceptInvitationPage() {
-	const { token } = Route.useSearch();
+	const { token, email } = Route.useSearch();
 	const navigate = useNavigate();
 	const { data: session, isPending: sessionPending } = authClient.useSession();
 
@@ -83,7 +88,7 @@ function AcceptInvitationPage() {
 	}
 
 	if (!session?.user) {
-		return <NeedSignInCard />;
+		return <NeedSignInCard token={token} email={email} />;
 	}
 
 	return (
@@ -102,8 +107,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function NeedSignInCard() {
+function NeedSignInCard({ token, email }: { token: string; email?: string }) {
 	const navigate = useNavigate();
+	// Forward both the invitation token and (when present) the invitee email
+	// to sign-up/sign-in. SignUp pins the email to read-only and uses the
+	// token to round-trip back here through BA's verify-email callbackURL;
+	// SignIn navigates straight back here on success. See `frontend/route-organization.md`.
+	const search: { invitationToken: string; prefillEmail?: string } = {
+		invitationToken: token,
+		...(email ? { prefillEmail: email } : {}),
+	};
 	return (
 		<Shell>
 			<CardHeader>
@@ -116,7 +129,11 @@ function NeedSignInCard() {
 				<Button
 					type="button"
 					onClick={() =>
-						navigate({ to: "/auth/$path", params: { path: "sign-up" } })
+						navigate({
+							to: "/auth/$path",
+							params: { path: "sign-up" },
+							search,
+						})
 					}
 				>
 					{m.accept_invitation_go_signup()}
@@ -125,7 +142,11 @@ function NeedSignInCard() {
 					type="button"
 					variant="outline"
 					onClick={() =>
-						navigate({ to: "/auth/$path", params: { path: "sign-in" } })
+						navigate({
+							to: "/auth/$path",
+							params: { path: "sign-in" },
+							search,
+						})
 					}
 				>
 					{m.accept_invitation_go_signin()}

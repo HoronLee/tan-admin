@@ -404,6 +404,8 @@
 	"accept_invitation_switch_account": "切换账号",
 	"accept_invitation_back_home": "返回首页",
 
+	"auth_invitation_email_locked_hint": "此邮箱来自邀请，注册时不可修改。",
+
 	"organization_page_leave_section_title": "离开组织",
 	"organization_page_leave_section_desc": "离开后将失去该工作空间的所有数据访问。若你是最后一个所有者，需先转让所有权才能离开。",
 	"organization_page_leave_button": "离开当前组织",

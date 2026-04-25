@@ -8,7 +8,7 @@
 
 Triggers when work touches:
 
-- `src/lib/auth.ts` `databaseHooks.user.update.after`（建 personal org）/ `organizationHooks.beforeDeleteOrganization|beforeCreateInvitation`（保护钩子）
+- `src/lib/auth/config.ts` `databaseHooks.user.update.after`（建 personal org）/ `organizationHooks.beforeDeleteOrganization|beforeCreateInvitation`（保护钩子）
 - `organization.type` 字段 additionalFields 声明
 - UI `<OrganizationSwitcher>` 区分 Personal 与 Workspaces
 - 任何判断"当前是不是 personal org"的 server / client 代码
@@ -18,7 +18,7 @@ Triggers when work touches:
 
 ## 2. Signatures
 
-### Schema additionalField（`src/lib/auth.ts`）
+### Schema additionalField（`src/lib/auth/config.ts`）
 
 ```ts
 organization({
@@ -32,7 +32,7 @@ organization({
 })
 ```
 
-### Provision hook（`src/lib/auth.ts`）
+### Provision hook（`src/lib/auth/config.ts`）
 
 ```ts
 databaseHooks: {
@@ -73,7 +73,7 @@ databaseHooks: {
 },
 ```
 
-### Protection hooks（`src/lib/auth.ts` `organizationHooks`）
+### Protection hooks（`src/lib/auth/config.ts` `organizationHooks`）
 
 ```ts
 beforeDeleteOrganization: async ({ organization: org }) => {

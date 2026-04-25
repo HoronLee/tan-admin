@@ -25,7 +25,7 @@
 Triggers when work touches:
 
 - `src/env.ts` product-mode env（`VITE_PRODUCT_MODE` 单份前后端共用）
-- `src/lib/auth.ts` `allowUserToCreateOrganization` / `databaseHooks.user.create.after` / `user.update.after`（personal org provision）/ `organizationHooks.beforeDeleteOrganization|beforeCreateInvitation`（personal org 保护）
+- `src/lib/auth/config.ts` `allowUserToCreateOrganization` / `databaseHooks.user.create.after` / `user.update.after`（personal org provision）/ `organizationHooks.beforeDeleteOrganization|beforeCreateInvitation`（personal org 保护）
 - `src/seed.ts` default-org / super-admin bootstrap
 - `/site/organizations` 或 `(workspace)/settings/organization/*` 下任何"create / dissolve org"UI
 - 加一个新的 product-shape switch
@@ -56,7 +56,7 @@ server: {
 
 `TEAM_ENABLED` / `VITE_TEAM_ENABLED` 已在 2026-04 移除：team 能不能用由 `organization.plan` 决定，见 `plan-gating.md`。
 
-### BA plugin wiring (`src/lib/auth.ts`)
+### BA plugin wiring (`src/lib/auth/config.ts`)
 
 ```ts
 organization({
@@ -80,7 +80,7 @@ organization({
 })
 ```
 
-### Saas-mode personal-org provision (`src/lib/auth.ts`)
+### Saas-mode personal-org provision (`src/lib/auth/config.ts`)
 
 ```ts
 databaseHooks: {
@@ -108,7 +108,7 @@ databaseHooks: {
 
 详见 `personal-org.md`。
 
-### Private-mode signup auto-join (`src/lib/auth.ts`)
+### Private-mode signup auto-join (`src/lib/auth/config.ts`)
 
 ```ts
 databaseHooks: {

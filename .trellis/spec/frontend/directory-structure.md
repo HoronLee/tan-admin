@@ -112,13 +112,13 @@ paraglideVitePlugin({
 
 ## Concern-to-Directory Mapping
 
-- **Auth**: server `src/lib/auth.ts`; client hook `src/lib/auth-client.ts`; UI integration `src/integrations/better-auth/*`; error translator `src/lib/auth-errors.ts`.
+- **Auth**: runtime instance `src/lib/auth/server.ts` (consumes `src/lib/auth/config.ts`); client hook `src/lib/auth/client.ts`; UI integration `src/integrations/better-auth/*`; error translator `src/lib/auth/errors.ts`.
 - **Database**: schema `zenstack/schema.zmodel`; runtime singleton `src/db.ts`; generated artifacts `zenstack/*.ts` (git-ignored).
 - **i18n**: components/routes import from `#/paraglide/messages` (compiled fns) and `#/paraglide/runtime` (`getLocale` / `setLocale`).
 - **Class merging**: single helper `src/lib/utils.ts` (`cn`) — never duplicate inline.
 
 ```ts
-// src/lib/auth-client.ts
+// src/lib/auth/client.ts
 export const authClient = createAuthClient()
 const { data: session, isPending } = authClient.useSession()
 

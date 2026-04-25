@@ -249,4 +249,4 @@ site/_layout/users         → /site/ 前缀 + site/_layout 的 requireSiteAdmin
 - `frontend/layout-guidelines.md` — TanStack Router `_layout.tsx` 嵌套规则、组件选择约定、Drawer vs Dialog 等
 - `backend/product-modes.md` — `PRODUCT_MODE` 的运行时 gate（saas 允许自建 org，private 不允许）
 - `backend/authorization-boundary.md` — site-admin vs org-owner 的授权分层
-- `src/lib/admin-guards.ts` — `requireSiteAdmin` / `requireOrgMemberRole` 的实现
+- `src/lib/auth/guards.ts` — `requireSiteAdmin` / `requireOrgMemberRole` 的实现

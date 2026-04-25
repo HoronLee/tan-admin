@@ -15,6 +15,7 @@ This directory documents backend-role conventions extracted from real code paths
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization, file layout, dual-stack (oRPC + ZenStack) topology | Filled |
+| [Auth Module Layout](./auth-module-layout.md) | `src/lib/auth/` 子目录职责、`pnpm ba:shadow` 影子 codegen 流水线、`config.ts` 单一真源契约 | Filled |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations, PolicyPlugin, BA `@@ignore` tables | Filled |
 | [Authorization Boundary](./authorization-boundary.md) | Better Auth × ZenStack 权限分层契约，业务表 policy 范式 | Filled |
 | [Product Modes](./product-modes.md) | `PRODUCT_MODE` 产品形态开关（private / saas），signup auto-join / personal org 自建；workspace vs 真·多租户澄清 | Filled |

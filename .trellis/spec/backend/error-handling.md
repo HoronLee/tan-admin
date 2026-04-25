@@ -263,7 +263,7 @@ Better Auth 客户端（`authClient.*`）抛出的错误结构是 `{ code: strin
 
 混合页面：先 `"code" in error && /^[A-Z_]+$/.test(error.code)` 判定走 BA 分支，否则走 `reportError`。
 
-**锚点**：`src/lib/auth-errors.ts`（集中映射 BA code → 中文；BA 升级时一处改完）。
+**锚点**：`src/lib/auth/errors.ts`（集中映射 BA code → 中文；BA 升级时一处改完）。
 
 ## MCP Error Envelope Contract (unchanged)
 

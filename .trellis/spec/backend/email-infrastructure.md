@@ -6,13 +6,13 @@
 
 ## 1. Scope / Trigger
 
-Triggers when work touches: `src/lib/email.tsx` · `src/lib/email-transport.ts` · `src/emails/*.tsx` · `src/lib/auth.ts` mail hooks (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`) · `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` in `src/env.ts` · adding a new template or driver.
+Triggers when work touches: `src/lib/email/templates.tsx` · `src/lib/email/transport.ts` · `src/emails/*.tsx` · `src/lib/auth/config.ts` mail hooks (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`) · `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` in `src/env.ts` · adding a new template or driver.
 
 ---
 
 ## 2. Signatures
 
-### High-level entry (`src/lib/email.tsx`)
+### High-level entry (`src/lib/email/templates.tsx`)
 
 ```ts
 export type EmailPayload =
@@ -28,7 +28,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void>;
 - Subject resolved via Paraglide `m.email_subject_*()` (i18n).
 - Renders HTML + plaintext fallback via `render` + `toPlainText` from `@react-email/render`.
 
-### Low-level driver (`src/lib/email-transport.ts`)
+### Low-level driver (`src/lib/email/transport.ts`)
 
 ```ts
 export interface MailMessage {
@@ -67,7 +67,7 @@ BA UI templates are installed via `pnpm dlx shadcn@latest add https://better-aut
 
 All 9 templates use `<EmailStyles>` (CSS injection in `<Head>` instead of a `<Layout>` wrapper), `pixelBasedPreset` Tailwind, and `cn()` for className merging. Shadcn tokens (`bg-background`, `text-card-foreground`, `border-border`) resolve via `EmailStyles` — emails stay on the same design system as the app.
 
-### Localization factory pattern (`src/lib/email-localization.ts`)
+### Localization factory pattern (`src/lib/email/localization.ts`)
 
 BA UI components accept `localization?: Partial<XxxLocalization>` and merge with their hard-coded English default. We want full i18n control, so we build a **complete** localization object from Paraglide messages per render:
 
@@ -88,7 +88,7 @@ Paraglide placeholders stay literal `{emailAddress}` / `{appName}` / `{expiratio
 
 **Why not modify BA UI source**: keeping translations in factories means `shadcn add ...` can re-sync templates without clobbering our work. If BA UI renames a localization field the factory breaks at compile time — single-file fix.
 
-### Brand integration (`buildBrandProps()` in `src/lib/email.tsx`)
+### Brand integration (`buildBrandProps()` in `src/lib/email/templates.tsx`)
 
 All BA UI components accept `appName` + `logoURL` props. `buildBrandProps()` reads `appConfig.brand` (server-side `BRAND_*` env) and returns a ready-to-spread object:
 
@@ -164,7 +164,7 @@ Runs **once at import time**. Mis-configured deployment crashes before serving t
 
 ### Dev auto-verify domain
 
-`APP_ENV=dev` + signup email ending in `@dev.com` → `sendVerificationEmail` hook flips `user.emailVerified=true` in-place via shared `pool` and skips dispatch. Hardcoded in `src/lib/auth.ts` (`DEV_AUTO_VERIFY_DOMAIN`). Prod and non-matching addresses go through normal verification. Super-admin seed bypasses this path entirely via `internalAdapter.createUser({ emailVerified: true })`.
+`APP_ENV=dev` + signup email ending in `@dev.com` → `sendVerificationEmail` hook flips `user.emailVerified=true` in-place via shared `pool` and skips dispatch. Hardcoded in `src/lib/auth/config.ts` (`DEV_AUTO_VERIFY_DOMAIN`). Prod and non-matching addresses go through normal verification. Super-admin seed bypasses this path entirely via `internalAdapter.createUser({ emailVerified: true })`.
 
 ### Template / transport interaction
 
@@ -175,7 +175,7 @@ Runs **once at import time**. Mis-configured deployment crashes before serving t
 ### Better Auth wiring
 
 ```ts
-// src/lib/auth.ts
+// src/lib/auth/config.ts
 emailAndPassword: {
   sendResetPassword: ({ user, url }) =>
     sendEmail({ type: "reset",  to: user.email, props: { url, email: user.email } }),

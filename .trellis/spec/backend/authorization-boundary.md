@@ -11,7 +11,7 @@
 | **身份层** | **Better Auth** 插件（admin / organization / sso / ...） | 谁是用户、谁属于哪组织、调 `/admin/*` 和 `/organization/*` API 的权限 | 业务数据访问控制 |
 | **业务层** | **ZenStack** policy engine（`@@allow` / `@@deny`） | 业务表的行级 / 字段级访问控制、租户隔离、状态流转 | 用户注册、成员管理、组织邀请 |
 
-两层通过 **auth context bridge**（`src/lib/auth-session.ts` → `authDb.$setAuth(...)`）单向连接：Better Auth session 关键字段流入 ZenStack `auth()` 作为 policy 评估上下文。
+两层通过 **auth context bridge**（`src/lib/auth/session.ts` → `authDb.$setAuth(...)`）单向连接：Better Auth session 关键字段流入 ZenStack `auth()` 作为 policy 评估上下文。
 
 ---
 
@@ -131,7 +131,7 @@ betterAuth({
 });
 ```
 
-**锚点**：`src/lib/auth.ts`（`databaseHooks.session.create.before`）。
+**锚点**：`src/lib/auth/config.ts`（`databaseHooks.session.create.before`）。
 
 ---
 
@@ -151,7 +151,7 @@ betterAuth({
 - 跨 BA 表联动用 `src/db.ts` 的 `pool.query(...)`，不走 `authDb`（policy 会挡）也不走 BA 客户端 API（会触发事件/邮件）
 - 不在 oRPC handler 里重复校验，BA API 和客户端调用走同一链路，hooks 已覆盖
 
-**锚点**：`src/lib/auth.ts`（`organizationHooks.*` / `databaseHooks.user.create.after`）。
+**锚点**：`src/lib/auth/config.ts`（`organizationHooks.*` / `databaseHooks.user.create.after`）。
 
 ---
 
@@ -184,7 +184,7 @@ Better Auth session → ZenStack `auth()` 的字段流：`auth-session.ts` 从 B
 
 ### 扩展字段的顺序（不可颠倒）
 
-1. `src/lib/auth-session.ts` 的 `AuthSessionContext.user` 加字段
+1. `src/lib/auth/session.ts` 的 `AuthSessionContext.user` 加字段
 2. `getSessionUser(...)` 填充（从 BA session / member / team 读）
 3. `src/orpc/middleware/auth.ts` 的 `authDb.$setAuth(...)` 传入
 4. zmodel 才能以 `auth().<新字段>` 引用
@@ -215,7 +215,7 @@ Better Auth session → ZenStack `auth()` 的字段流：`auth-session.ts` 从 B
 ## 参考实现锚点
 
 - BA access control：`src/lib/permissions.ts`
-- BA 插件装载 + hooks：`src/lib/auth.ts`
-- Session → auth context：`src/lib/auth-session.ts`
+- BA 插件装载 + hooks：`src/lib/auth/config.ts`
+- Session → auth context：`src/lib/auth/session.ts`
 - `authDb.$setAuth` 调用：`src/orpc/middleware/auth.ts`
 - Menu policy 样本：`zenstack/schema.zmodel`

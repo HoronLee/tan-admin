@@ -30,7 +30,6 @@ import {
 	TransferOwnership,
 	type TransferOwnershipProps,
 } from "#/emails/transfer-ownership";
-import { env } from "#/env";
 import {
 	emailChangedLocalization,
 	magicLinkLocalization,
@@ -40,7 +39,8 @@ import {
 	resetPasswordLocalization,
 	verifyLocalization,
 } from "#/lib/email/localization";
-import { createModuleLogger } from "#/lib/logger";
+import { env } from "#/lib/env";
+import { createModuleLogger } from "#/lib/observability/logger";
 import * as m from "#/paraglide/messages";
 import { sendMail } from "./transport";
 

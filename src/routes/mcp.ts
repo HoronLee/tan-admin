@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createFileRoute } from "@tanstack/react-router";
-import { handleMcpRequest } from "#/utils/mcp-handler";
+import { handleMcpRequest } from "#/lib/mcp/handler";
 
 const server = new McpServer({
 	name: "tan-servora",

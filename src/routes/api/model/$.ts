@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RPCApiHandler } from "@zenstackhq/server/api";
 import { TanStackStartHandler } from "@zenstackhq/server/tanstack-start";
 import { schema } from "zenstack/schema";
-import { authDb } from "#/db";
 import { getSessionUser } from "#/lib/auth/session";
+import { authDb } from "#/lib/db";
 
 const handler = TanStackStartHandler({
 	apiHandler: new RPCApiHandler({ schema }),

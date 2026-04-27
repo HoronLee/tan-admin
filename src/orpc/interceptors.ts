@@ -2,7 +2,7 @@ import { ORPCError, onError, ValidationError } from "@orpc/server";
 import type { RPCHandlerOptions } from "@orpc/server/fetch";
 import * as Sentry from "@sentry/tanstackstart-react";
 import * as z from "zod";
-import { createModuleLogger } from "#/lib/logger";
+import { createModuleLogger } from "#/lib/observability/logger";
 
 const log = createModuleLogger("orpc");
 const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred.";

@@ -5,11 +5,11 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
-import { pool } from "#/db";
-import { env } from "#/env";
 import { getPlanLimits } from "#/lib/auth/plan";
+import { pool } from "#/lib/db";
 import { sendEmail } from "#/lib/email/templates";
-import { createModuleLogger } from "#/lib/logger";
+import { env } from "#/lib/env";
+import { createModuleLogger } from "#/lib/observability/logger";
 
 const log = createModuleLogger("better-auth");
 

@@ -22,7 +22,7 @@ import {
 } from "#/components/ui/sidebar";
 import { UserButton } from "#/components/user/user-button";
 import { getSessionUser } from "#/lib/auth/session";
-import { resolveMenuLabel } from "#/lib/menu-label";
+import { resolveMenuLabel } from "#/lib/menu/menu-label";
 import { findMenuByPath, menuStore } from "#/stores/menu";
 import { addTab } from "#/stores/tabbar";
 

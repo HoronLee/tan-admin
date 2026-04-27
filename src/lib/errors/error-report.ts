@@ -5,7 +5,7 @@ import {
 	APP_ERROR_MESSAGES,
 	getZenStackHttpError,
 	mapZenStackReasonToCode,
-} from "#/lib/zenstack-error-map";
+} from "#/lib/errors/zenstack-error-map";
 
 export interface ReportOptions {
 	/** Fallback message when the error is not a typed ORPCError. */

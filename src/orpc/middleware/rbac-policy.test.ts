@@ -1,6 +1,6 @@
 import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
 import { describe, expect, it } from "vitest";
-import { authDb, db } from "#/db";
+import { authDb, db } from "#/lib/db";
 
 /**
  * Policy integration tests.

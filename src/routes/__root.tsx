@@ -20,7 +20,9 @@ import appCss from "../styles.css?url";
 const initSentryClient = createIsomorphicFn()
 	.server(() => {})
 	.client(async () => {
-		const { initSentryClient } = await import("#/lib/sentry.client");
+		const { initSentryClient } = await import(
+			"#/lib/observability/sentry.client"
+		);
 		initSentryClient();
 	});
 

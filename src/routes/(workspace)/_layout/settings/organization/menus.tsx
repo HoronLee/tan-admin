@@ -32,7 +32,7 @@ import {
 	SelectValue,
 } from "#/components/ui/select";
 import { requireOrgMemberRole } from "#/lib/auth/guards";
-import { resolveMenuLabel } from "#/lib/menu-label";
+import { resolveMenuLabel } from "#/lib/menu/menu-label";
 import { orpc } from "#/orpc/client";
 
 export const Route = createFileRoute(

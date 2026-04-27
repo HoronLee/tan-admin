@@ -1,8 +1,8 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
 import { appConfig } from "#/config/app";
-import { env } from "#/env";
-import { createModuleLogger } from "#/lib/logger";
+import { env } from "#/lib/env";
+import { createModuleLogger } from "#/lib/observability/logger";
 
 const log = createModuleLogger("email-transport");
 

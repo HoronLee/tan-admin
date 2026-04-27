@@ -1,4 +1,4 @@
-import { env } from "#/env";
+import { env } from "#/lib/env";
 
 /**
  * Brand 单一真相源（R6）。直接读 `VITE_BRAND_*`，前后端共用同一份：

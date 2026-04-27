@@ -1,6 +1,6 @@
 import type { Level } from "pino";
 import { appConfig } from "#/config/app";
-import { env } from "#/env";
+import { env } from "#/lib/env";
 
 const DEFAULT_REDACT_PATHS = [
 	"req.headers.authorization",

@@ -15,10 +15,10 @@
  */
 import { randomUUID } from "node:crypto";
 import * as z from "zod";
-import { pool } from "#/db";
-import { env } from "#/env";
 import { auth } from "#/lib/auth/server";
-import { createModuleLogger } from "#/lib/logger";
+import { pool } from "#/lib/db";
+import { env } from "#/lib/env";
+import { createModuleLogger } from "#/lib/observability/logger";
 import { base } from "#/orpc/errors";
 import { authed } from "#/orpc/middleware/auth";
 

@@ -2,7 +2,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
-import { createModuleLogger } from "#/lib/logger";
+import { createModuleLogger } from "#/lib/observability/logger";
 
 const log = createModuleLogger("mcp");
 

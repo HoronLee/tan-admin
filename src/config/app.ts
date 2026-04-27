@@ -1,6 +1,6 @@
 import { hostname } from "node:os";
 import { brandConfig } from "#/config/brand";
-import { env } from "#/env";
+import { env } from "#/lib/env";
 
 const NODE_ENV_MAP: Record<string, "dev" | "prod" | "test"> = {
 	development: "dev",

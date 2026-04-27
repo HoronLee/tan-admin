@@ -46,9 +46,9 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
-import { env } from "#/env";
 import { authClient } from "#/lib/auth/client";
 import { requireSiteAdmin } from "#/lib/auth/guards";
+import { env } from "#/lib/env";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 

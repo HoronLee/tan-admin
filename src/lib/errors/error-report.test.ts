@@ -14,7 +14,7 @@ vi.mock("@sentry/tanstackstart-react", () => ({
 	captureException: (...args: unknown[]) => sentryCapture(...args),
 }));
 
-import { reportError } from "#/lib/error-report";
+import { reportError } from "#/lib/errors/error-report";
 
 describe("reportError", () => {
 	beforeEach(() => {

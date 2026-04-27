@@ -1,6 +1,6 @@
 import { useClientQueries } from "@zenstackhq/tanstack-query/react";
-import type { authDb } from "#/db";
 import { schema } from "zenstack/schema";
+import type { authDb } from "#/lib/db";
 
 type AuthDbClient = typeof authDb;
 

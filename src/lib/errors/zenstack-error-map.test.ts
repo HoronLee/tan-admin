@@ -4,7 +4,7 @@ import {
 	mapZenStackReasonToCode,
 	SQLSTATE_FOREIGN_KEY_VIOLATION,
 	SQLSTATE_UNIQUE_VIOLATION,
-} from "#/lib/zenstack-error-map";
+} from "#/lib/errors/zenstack-error-map";
 
 describe("mapZenStackReasonToCode", () => {
 	it("maps non-db reasons to standard app error codes", () => {

@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 
 import { betterAuth } from "better-auth";
-import { pool } from "#/db";
+import { pool } from "#/lib/db";
 import { authConfig } from "./config";
 
 // Runtime BA instance: business code imports `auth` from here (server

@@ -1,9 +1,9 @@
 import { ORMError } from "@zenstackhq/orm";
-import { createModuleLogger } from "#/lib/logger";
 import {
 	mapZenStackReasonToCode,
 	SQLSTATE_FOREIGN_KEY_VIOLATION,
-} from "#/lib/zenstack-error-map";
+} from "#/lib/errors/zenstack-error-map";
+import { createModuleLogger } from "#/lib/observability/logger";
 import { base } from "#/orpc/errors";
 
 const log = createModuleLogger("orpc:orm");

@@ -19,7 +19,7 @@
     "db:push": "dotenv -e .env.local -- zen db push",
     "db:migrate": "dotenv -e .env.local -- zen migrate dev",
     "db:studio": "dotenv -e .env.local -- zen studio",
-    "db:seed": "dotenv -e .env.local -- tsx src/seed.ts",
+    "db:seed": "dotenv -e .env.local -- tsx src/server/seed.ts",
     "auth:migrate": "dotenv -e .env.local -- npx @better-auth/cli@latest migrate",
     "ba:shadow": "dotenv -e .env.local -- npx @better-auth/cli@latest generate --config src/lib/auth/codegen.ts --output zenstack/_ba-raw.prisma -y && node scripts/ba-shadow.mjs",
     "email:dev": "email dev --dir ./src/emails",

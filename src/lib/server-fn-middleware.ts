@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/tanstackstart-react";
 import { createMiddleware } from "@tanstack/react-start";
 import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
-import { createModuleLogger } from "#/lib/logger";
+import { createModuleLogger } from "#/lib/observability/logger";
 
 const log = createModuleLogger("server-fn");
 const DB_UNAVAILABLE_CODES = new Set([

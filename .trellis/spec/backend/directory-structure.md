@@ -15,7 +15,6 @@ Each route below is an HTTP backend surface:
 | `src/routes/api/model/$.ts` | Model-generic CRUD endpoint (auto-derived) | ZenStack RPCApiHandler |
 | `src/routes/api/auth/$.ts` | Auth request passthrough | Better Auth |
 | `src/routes/mcp.ts` | MCP server endpoint | JSON-RPC over HTTP |
-| `src/routes/demo/api.mcp-todos.ts` | Demo SSE + JSON POST endpoint | SSE + JSON |
 
 ### Evidence
 
@@ -82,9 +81,9 @@ ZenStack policy engine reads BA tables via `zenstack/_better-auth.zmodel` (auto-
 
 - ZModel schema: `zenstack/schema.zmodel`.
 - Generated artifacts (`schema.ts` / `models.ts` / `input.ts`) produced in-place at `zenstack/` by `zen generate`; all git-ignored.
-- Runtime singleton (shared `pg.Pool` + `ZenStackClient`): `src/db.ts`.
+- Runtime singleton (shared `pg.Pool` + `ZenStackClient`): `src/lib/db.ts`.
 - Better Auth schema (`user` / `session` / `account` / `verification` / `organization` / `member` / `team` / `teamMember` / `invitation`) physically managed by `@better-auth/cli migrate`. ZenStack sees them via `zenstack/_better-auth.zmodel` (auto-generated `@@ignore` shadows from `pnpm ba:shadow`) — never hand-edit either side.
-- Seed script: `src/seed.ts` (TypeScript, runs via `tsx`).
+- Seed script: `src/server/seed.ts` (TypeScript, runs via `tsx`).
 
 ```zmodel
 // zenstack/schema.zmodel
@@ -101,7 +100,7 @@ model Menu {
 ```
 
 ```ts
-// src/db.ts
+// src/lib/db.ts
 export const pool =
   globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
 
@@ -115,14 +114,13 @@ export const db =
 ## MCP Backend Layout
 
 - HTTP entry: `src/routes/mcp.ts`
-- JSON-RPC transport bridge: `src/utils/mcp-handler.ts`
-- Business/state module: `src/mcp-todos.ts`
+- JSON-RPC transport bridge: `src/lib/mcp/handler.ts`
 
 ```ts
 // src/routes/mcp.ts
 POST: async ({ request }) => handleMcpRequest(request, server)
 
-// src/utils/mcp-handler.ts
+// src/lib/mcp/handler.ts
 export async function handleMcpRequest(request: Request, server: McpServer): Promise<Response>
 ```
 
@@ -183,6 +181,28 @@ import '#/polyfill'
 - New HTTP endpoint for non-CRUD/non-RPC concerns: `src/routes/<feature>.$.ts` or specific route with `server.handlers`.
 
 **Decision rule**: if the operation maps 1:1 to a single model mutation and can be expressed with policy-based access control, prefer ZenStack. Reach for oRPC only when orchestrating multiple models, calling external systems, or needing custom shapes beyond the generic CRUD contract.
+
+## Email Templates Layout
+
+双目录契约（详细规则见 [`email-infrastructure.md`](./email-infrastructure.md) §"Templates directory layout"）：
+
+| 目录 | 区 | 来源 | 维护方式 |
+|------|------|------|---------|
+| `src/components/email/` | R1 | BA UI shadcn registry mirror | `pnpm dlx shadcn@latest add https://better-auth-ui.com/r/<name>-email.json` |
+| `src/emails/` | R2 | 项目自定义模板 | 手写（registry 没提供的，如 `invite-member` / `transfer-ownership`） |
+
+R2 模板从 `#/components/email/email-styles` import `EmailStyles` 与 `EmailColors`，保持视觉与 R1 一致。
+
+## 四目录边界：server / middleware / orpc / queries
+
+业务侧 server-side 代码按工具/职责分到水平四层（见 [`frontend/directory-structure.md`](../frontend/directory-structure.md) §"四目录边界"）：
+
+- `src/server/` — `createServerFn` 包装的业务函数（路由 loader / action 紧耦合）
+- `src/middleware/` — TanStack Start `createMiddleware`（auth / error / logging）
+- `src/orpc/` — oRPC routers + 自身 middleware（跨组件复用的 typed RPC）
+- `src/queries/` — `queryOptions` 工厂（前端缓存键命名空间）
+
+ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，**不在四目录里写代码**——业务侧通过 `useZenStackQueries()` 间接使用。决策树详见 [`guides/server-fn-vs-orpc-vs-queries.md`](../guides/server-fn-vs-orpc-vs-queries.md)。
 
 ## Sentry Bootstrap Location
 

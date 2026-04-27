@@ -17,13 +17,15 @@ Three layers, used intentionally:
 Default to local state unless multiple siblings must coordinate the same value.
 
 ```ts
-// src/routes/demo/orpc-todo.tsx
-const [todo, setTodo] = useState('')
+// src/routes/(workspace)/_layout/settings/organization/menus.tsx
+const [drawerOpen, setDrawerOpen] = useState(false)
+const [form, setForm] = useState<MenuFormState>(EMPTY_FORM)
+const [removeTarget, setRemoveTarget] = useState<MenuNode | null>(null)
 
-// src/routes/demo/better-auth.tsx
-const [isSignUp, setIsSignUp] = useState(false)
-const [email, setEmail] = useState('')
-const [password, setPassword] = useState('')
+// src/routes/site/_layout/users/index.tsx
+const [createOpen, setCreateOpen] = useState(false)
+const [editTarget, setEditTarget] = useState<AdminUser | null>(null)
+const [banTarget, setBanTarget] = useState<AdminUser | null>(null)
 ```
 
 ## Layer 2: Server State (Cached)
@@ -35,18 +37,23 @@ Use TanStack Query for server-backed data. Prefer oRPC query utilities for end-t
 export const client: RouterClient<typeof router> = getORPCClient()
 export const orpc = createTanstackQueryUtils(client)
 
-// src/routes/demo/orpc-todo.tsx
-const { data, refetch } = useQuery(orpc.listTodos.queryOptions({ input: {} }))
-const { mutate: addTodo } = useMutation({
-  mutationFn: orpc.addTodo.call,
-  onSuccess: () => refetch(),
+// src/routes/(workspace)/_layout/settings/organization/menus.tsx
+const { data, isPending } = useQuery(
+  orpc.listMenus.queryOptions({ input: {} }),
+)
+const createMutation = useMutation({
+  ...orpc.createMenu.mutationOptions(),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: MENUS_KEY }),
 })
 
-// Plain Query fallback (src/routes/demo/tanstack-query.tsx)
+// Plain Query wrapping a non-oRPC SDK (src/routes/site/_layout/users/index.tsx)
 useQuery({
-  queryKey: ['todos'],
-  queryFn: () => Promise.resolve([...]),
-  initialData: [],
+  queryKey: ['admin', 'users'] as const,
+  queryFn: async () => {
+    const { data, error } = await authClient.admin.listUsers({ query: { limit: 100 } })
+    if (error) throw new Error(error.message)
+    return data
+  },
 })
 ```
 
@@ -55,7 +62,7 @@ useQuery({
 Use TanStack Store for lightweight shared client state and derived views.
 
 ```ts
-// src/lib/demo-store.ts
+// 概念示例（真实用法见 src/stores/menu.ts 与 src/stores/tabbar.ts）
 export const store = new Store({ firstName: 'Jane', lastName: 'Smith' })
 export const fullName = new Store(`${store.state.firstName} ${store.state.lastName}`)
 
@@ -63,7 +70,7 @@ store.subscribe(() => {
   fullName.setState(() => `${store.state.firstName} ${store.state.lastName}`)
 })
 
-// Immutable update (src/routes/demo/store.tsx)
+// Immutable update（真实用法见 src/stores/tabbar.ts 的 addTab / removeTab）
 store.setState((state) => ({ ...state, firstName: e.target.value }))
 ```
 
@@ -74,9 +81,9 @@ Real usage: `menuStore` (dynamic sidebar items from `getUserMenus`), `tabbarStor
 Route loaders can prefetch query cache on the server; router-level integration hydrates it.
 
 ```ts
-// src/routes/demo/orpc-todo.tsx
+// 概念示例：route loader 预热查询缓存
 await context.queryClient.prefetchQuery(
-  orpc.listTodos.queryOptions({ input: {} }),
+  orpc.listMenus.queryOptions({ input: {} }),
 )
 
 // src/router.tsx

@@ -6,43 +6,16 @@
 
 ## Hook File Placement and Naming
 
-- Custom hook factories and contexts live in `src/hooks/`.
-- Use dotted-flat file names for grouped modules (e.g. `demo.form.ts`, `demo.form-context.ts`).
-
-```ts
-// src/hooks/demo.form-context.ts
-export const { fieldContext, useFieldContext, formContext, useFormContext } =
-  createFormHookContexts()
-```
-
-## TanStack Form Hook Factory Pattern
-
-Build one project hook factory and consume it in routes.
-
-```ts
-// src/hooks/demo.form-context.ts
-import { createFormHookContexts } from '@tanstack/react-form'
-export const { fieldContext, useFieldContext, formContext, useFormContext } =
-  createFormHookContexts()
-
-// src/hooks/demo.form.ts
-export const { useAppForm } = createFormHook({
-  fieldComponents: { TextField, Select, TextArea },
-  formComponents: { SubscribeButton },
-  fieldContext,
-  formContext,
-})
-
-// src/routes/demo/form.address.tsx
-const form = useAppForm({ ... })
-```
+- Custom hook factories 和 cross-component contexts 进 `src/hooks/`。
+- 文件名 kebab-case（如 `use-mobile.ts`）。当前目录仅含 `use-mobile.ts` 一个 helper hook。
+- 仅在 hook 真正被 ≥ 2 处复用时才进 `src/hooks/`；单消费者的 inline hook 留调用点。
 
 ## External Session Hook Usage
 
-`authClient.useSession()` returns `{ data, isPending }`. Always branch on pending before reading `session.user`:
+`authClient.useSession()` returns `{ data, isPending }`. Always branch on pending before reading `session.user`. BA UI hooks 就近放在使用它的 composition 组件文件里 import（**不存在** `src/integrations/better-auth/*` 这一层抽象）：
 
 ```ts
-// src/integrations/better-auth/header-user.tsx
+// src/components/layout/organization-switcher.tsx
 const { data: session, isPending } = authClient.useSession()
 if (isPending) {
   return <div className="... animate-pulse" />
@@ -52,18 +25,14 @@ if (session?.user) { ... }
 
 ## Store Subscription Hooks
 
-For TanStack Store state, use selector-based subscriptions to keep rerenders scoped:
+For TanStack Store state, use selector-based subscriptions to keep rerenders scoped。真实 store 在 `src/stores/`（如 `menu.ts`、`tabbar.ts`）：
 
 ```ts
-// src/routes/demo/store.tsx
-const firstName = useStore(store, (state) => state.firstName)
-const lastName  = useStore(store, (state) => state.lastName)
-const fName     = useStore(fullName, (state) => state)
+// src/components/layout/app-sidebar.tsx
+import { useStore } from "@tanstack/react-store"
+import { menuStore } from "#/stores/menu"
 
-// Derived store via subscribe
-store.subscribe(() => {
-  fullName.setState(() => `${store.state.firstName} ${store.state.lastName}`)
-})
+const items = useStore(menuStore, (state) => state.items)
 ```
 
 ## ZenStack Auto-Generated CRUD Hooks
@@ -71,16 +40,16 @@ store.subscribe(() => {
 Model CRUD goes through ZenStack's TanStack Query client, not hand-written oRPC procedures. Call `useZenStackQueries()` to get a model-keyed client with fully-typed `useFindMany` / `useFindUnique` / `useCount` / `useCreate` / `useUpdate` / `useDelete`. Cache invalidation on successful mutations is automatic (including nested reads).
 
 ```ts
-// src/zenstack/client.ts
+// src/integrations/zenstack-query/client.ts
 import { schema } from "zenstack/schema"
 import { useClientQueries } from "@zenstackhq/tanstack-query/runtime-v5/react"
-import type { authDb } from "#/db"
+import type { authDb } from "#/lib/db"
 
 export function useZenStackQueries() {
   return useClientQueries<typeof authDb>(schema, { endpoint: "/api/model" })
 }
 
-// src/routes/(admin)/roles/index.tsx
+// 业务路由调用方
 const client = useZenStackQueries()
 const rolesQuery  = client.role.useFindMany({ orderBy: [{ order: "asc" }], skip, take: PAGE_SIZE })
 const countQuery  = client.role.useCount()
@@ -106,7 +75,7 @@ const deleteRole  = client.role.useDelete()
 `INPUT_VALIDATION_FAILED` must stay silent from `reportError`'s toast path and surface as field errors. Inspect via `getZenStackHttpError(error)` inside mutation's `catch` before delegating to `reportError`:
 
 ```ts
-// src/routes/(admin)/roles/index.tsx
+// 业务路由调用方
 function setServerValidation(error: unknown): boolean {
   const zenStackError = getZenStackHttpError(error)
   if (!zenStackError) return false
@@ -141,19 +110,18 @@ export const listRoles = authed.handler(async ({ context }) =>
 
 ## Route and Data Hooks
 
-Preferred data hooks in route components: `Route.useLoaderData()` · `useQuery` / `useMutation` · `useRouter()`.
+Preferred data hooks in route components: `Route.useLoaderData()` · `useQuery` / `useMutation` · `useRouter()`. Server-state 优先走 `src/queries/<domain>.ts` 的 queryOptions 工厂（参 `frontend/state-management.md` 与 `src/queries/README.md`）。
 
 ```ts
-// src/routes/demo/prisma.tsx
+// 业务路由调用方
 const router = useRouter()
-const todos  = Route.useLoaderData()
+const data   = Route.useLoaderData()
 router.invalidate()
 
-// src/routes/demo/orpc-todo.tsx
-const { data, refetch } = useQuery(orpc.listTodos.queryOptions({ input: {} }))
-const { mutate: addTodo } = useMutation({
-  mutationFn: orpc.addTodo.call,
-  onSuccess: () => refetch(),
+const { data: list, refetch } = useQuery(usersListQueryOptions({ limit: 20 }))
+const { mutate: createUser } = useMutation({
+  mutationFn: (input: CreateUserInput) => orpc.users.create.call(input),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
 })
 ```
 

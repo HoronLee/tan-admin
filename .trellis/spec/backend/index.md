@@ -32,7 +32,7 @@ This directory documents backend-role conventions extracted from real code paths
 
 - Backend routes are implemented via `server.handlers` in route files.
 - Two HTTP stacks coexist under `/api/**`: ZenStack Server Adapter (`/api/model/**`) for model CRUD, oRPC (`/api/rpc/**`) for business actions. Auth stays on Better Auth (`/api/auth/**`). See [Directory Structure § Dual-Stack Topology](./directory-structure.md#dual-stack-topology-orpc--zenstack).
-- Error mapping between ZenStack `ORMError` and the 7 standard app codes lives at `src/lib/zenstack-error-map.ts`; both backend middleware and frontend reporter import the same function.
+- Error mapping between ZenStack `ORMError` and the 7 standard app codes lives at `src/lib/errors/zenstack-error-map.ts`; both backend middleware and frontend reporter import the same function.
 - Generated outputs remain read-only and must be regenerated via scripts.
 
 ---

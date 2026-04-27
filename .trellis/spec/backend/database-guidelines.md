@@ -32,13 +32,13 @@ model Menu {
 }
 ```
 
-Source: `src/db.ts`.
+Source: `src/lib/db.ts`.
 
 ```ts
 import { ZenStackClient } from "@zenstackhq/orm";
 import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
 import { Pool } from "pg";
-import { schema } from "../zenstack/schema";
+import { schema } from "zenstack/schema";
 ```
 
 ## Shared `pg.Pool` Topology
@@ -56,7 +56,7 @@ new pg.Pool(DATABASE_URL)
 
 ### Evidence
 
-Source: `src/db.ts` (shared pool singleton).
+Source: `src/lib/db.ts` (shared pool singleton).
 
 ```ts
 export const pool =
@@ -81,17 +81,17 @@ export const auth = betterAuth({
 
 ## Singleton Rule
 
-Always import DB access from `#/db`; never instantiate `ZenStackClient` or `Pool` in request handlers.
+Always import DB access from `#/lib/db`; never instantiate `ZenStackClient` or `Pool` in request handlers.
 
 ### Evidence
 
-Module-load fail-fast handshake (`src/db.ts`): `await db.$connect()` at import time — any connection error terminates the process before serving traffic. Route usage: `import { db } from "#/db"` (see `src/orpc/router/*.ts`).
+Module-load fail-fast handshake (`src/lib/db.ts`): `await db.$connect()` at import time — any connection error terminates the process before serving traffic. Route usage: `import { db } from "#/lib/db"` (see `src/orpc/router/*.ts`).
 
 ## Migration and CLI Workflow
 
 - Business schema (ZenStack): `pnpm db:push` | `pnpm db:migrate` | `pnpm db:generate`.
 - Auth schema (Better Auth): `pnpm auth:migrate` — creates/updates `user` / `session` / `account` / `verification` / `organization` / `member` / `invitation` / `team` / `teamMember` (interactive, press `y`).
-- Seed: `pnpm db:seed` → `tsx src/seed.ts`.
+- Seed: `pnpm db:seed` → `tsx src/server/seed.ts`.
 - All scripts run through `.env.local` injection; missing `.env.local` blocks everything.
 
 ### No `db:reset` — manual full reset
@@ -116,7 +116,7 @@ Source: `package.json`.
 "db:push":     "dotenv -e .env.local -- zen db push",
 "db:migrate":  "dotenv -e .env.local -- zen migrate dev",
 "db:studio":   "dotenv -e .env.local -- zen studio",
-"db:seed":     "dotenv -e .env.local -- tsx src/seed.ts",
+"db:seed":     "dotenv -e .env.local -- tsx src/server/seed.ts",
 "auth:migrate":"dotenv -e .env.local -- npx @better-auth/cli@latest migrate"
 ```
 
@@ -158,7 +158,7 @@ export const listTodos = authed.input(z.object({})).handler(async () => {
 
 - Creating `new ZenStackClient()` or `new Pool()` in request paths.
 - Executing ZenStack / Better Auth CLI without `.env.local` loading.
-- Importing `#/db` into client-only route components.
+- Importing `#/lib/db` into client-only route components.
 - Hand-editing `zenstack/{schema,models,input}.ts` (generated).
 
 ---
@@ -180,7 +180,7 @@ pnpm add @zenstackhq/plugin-policy
 ### 3. Signatures
 
 ```ts
-// src/db.ts
+// src/lib/db.ts
 import { PolicyPlugin } from "@zenstackhq/plugin-policy";
 
 export const authDb = db.$use(new PolicyPlugin());

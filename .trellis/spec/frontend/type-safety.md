@@ -17,7 +17,7 @@ Codebase combines compile-time typing and runtime validation:
 Validate every external boundary with Zod (or T3Env built on Zod).
 
 ```ts
-// src/env.ts
+// src/lib/env.ts
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 server:       { SERVER_URL: z.string().url().optional() }
@@ -56,9 +56,9 @@ import type { RouterClient } from '@orpc/server'
 .client((): RouterClient<typeof router> => { ... })
 export const client: RouterClient<typeof router> = getORPCClient()
 
-// src/routes/demo/orpc-todo.tsx — typed query/mutation
-useQuery(orpc.listTodos.queryOptions({ input: {} }))
-mutationFn: orpc.addTodo.call
+// src/routes/(workspace)/_layout/settings/organization/menus.tsx — typed query/mutation
+useQuery(orpc.listMenus.queryOptions({ input: {} }))
+useMutation({ ...orpc.createMenu.mutationOptions() })
 ```
 
 ## Typed Router Context
@@ -99,7 +99,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 Convert non-Error throwables safely in error branches:
 
 ```ts
-// src/utils/mcp-handler.ts
+// src/lib/mcp/handler.ts
 data: error instanceof Error ? error.message : String(error)
 ```
 

@@ -24,9 +24,9 @@
 
 Triggers when work touches:
 
-- `src/env.ts` product-mode env（`VITE_PRODUCT_MODE` 单份前后端共用）
+- `src/lib/env.ts` product-mode env（`VITE_PRODUCT_MODE` 单份前后端共用）
 - `src/lib/auth/config.ts` `allowUserToCreateOrganization` / `databaseHooks.user.create.after` / `user.update.after`（personal org provision）/ `organizationHooks.beforeDeleteOrganization|beforeCreateInvitation`（personal org 保护）
-- `src/seed.ts` default-org / super-admin bootstrap
+- `src/server/seed.ts` default-org / super-admin bootstrap
 - `/site/organizations` 或 `(workspace)/settings/organization/*` 下任何"create / dissolve org"UI
 - 加一个新的 product-shape switch
 
@@ -38,7 +38,7 @@ Rule of thumb: if logic reads "is this deployed as private delivery or public Sa
 
 ## 2. Signatures
 
-### Env (`src/env.ts`) — 单份前后端共用
+### Env (`src/lib/env.ts`) — 单份前后端共用
 
 ```ts
 // 挂在 client 块（VITE_ 前缀），Vite 把它内联到浏览器 bundle；

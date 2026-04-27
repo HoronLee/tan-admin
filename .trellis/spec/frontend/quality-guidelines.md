@@ -102,7 +102,7 @@ onSubmit: ({ value }) => { console.log(value) }
 ```
 
 ```ts
-// src/env.ts
+// src/lib/env.ts
 clientPrefix: 'VITE_',
 client: {
   VITE_APP_TITLE:    z.string().min(1).optional(),
@@ -135,9 +135,8 @@ Sentry.init({
 Any icon-only or context-poor interactive control must include assistive labels.
 
 ```tsx
-// src/components/Header.tsx
-<span className="sr-only">Follow TanStack on X</span>
-<span className="sr-only">Go to TanStack GitHub</span>
+// src/components/layout/app-sidebar.tsx — icon-only IconButton 必须有 sr-only 文本
+<span className="sr-only">{m.nav_collapse_label()}</span>
 
 // src/components/ThemeToggle.tsx / LocaleSwitcher.tsx
 aria-label={label}

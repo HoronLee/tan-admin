@@ -6,7 +6,7 @@
 
 ## 1. Scope / Trigger
 
-Triggers when work touches: `src/lib/email/templates.tsx` · `src/lib/email/transport.ts` · `src/emails/*.tsx` · `src/lib/auth/config.ts` mail hooks (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`) · `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` in `src/env.ts` · adding a new template or driver.
+Triggers when work touches: `src/lib/email/templates.tsx` · `src/lib/email/transport.ts` · `src/emails/*.tsx` · `src/lib/auth/config.ts` mail hooks (`sendVerificationEmail` / `sendResetPassword` / `sendInvitationEmail`) · `EMAIL_*` / `SMTP_*` / `RESEND_API_KEY` in `src/lib/env.ts` · adding a new template or driver.
 
 ---
 
@@ -45,11 +45,11 @@ export async function sendMail(message: MailMessage): Promise<void>;
 - Driver picked **once at module-load** based on `env.EMAIL_TRANSPORT`.
 - `sendMail` exported for tests / tooling; production code goes through `sendEmail`.
 
-### Templates directory layout
+### Templates directory layout — A'-3 双目录契约
 
 ```
 src/
-├── components/email/              # 7 BA UI transactional templates (shadcn-added, own source)
+├── components/email/              # R1 区：BA UI shadcn registry mirror（7 模板 + 共享样式）
 │   ├── email-verification.tsx     # signup verification
 │   ├── reset-password.tsx         # forgot-password link
 │   ├── email-changed.tsx          # post-change confirmation
@@ -58,12 +58,27 @@ src/
 │   ├── new-device.tsx             # unknown-device alert
 │   ├── otp.tsx                    # verification code
 │   └── email-styles.tsx           # shared CSS injection (light/dark + tw classnames)
-└── emails/                         # 2 org-specific templates (hand-written, mirror BA UI look)
+└── emails/                         # R2 区：项目自定义模板（registry 没提供的，手写）
     ├── invite-member.tsx           # org invite
     └── transfer-ownership.tsx      # org ownership transfer (invitation.role === "owner")
 ```
 
-BA UI templates are installed via `pnpm dlx shadcn@latest add https://better-auth-ui.com/r/<name>-email.json` — we own the source, not the package. Re-sync with `shadcn add` when BA UI publishes updates; only post-install fix is rewriting `../../lib/utils` → `#/lib/utils` (shadcn CLI doesn't rewrite the relative source path baked into BA UI's registry `files[].path`).
+**R1（`src/components/email/`）维护规则**：
+
+- 唯一来源是 `pnpm dlx shadcn@latest add https://better-auth-ui.com/r/<name>-email.json`——我们持有源码副本，不是 npm 包。
+- 落地后**唯一手动后处理**：把 `from "../../lib/utils"` 改成 `from "#/lib/utils"`（shadcn CLI 不识别 `package.json#imports` 别名，registry 里 `files[].path` 写死了相对路径）。
+- BA UI 升级 → 重跑 `shadcn add` 同步即可。
+- `email-styles.tsx` 视为**半 vendor**——下次 `shadcn add` 会重置内联的 `defaultColors`。想自定义品牌色不要去改 `defaultColors`，走 props 注入路径（`buildBrandProps()` + 模板 `colors` props，独立任务）。
+
+**R2（`src/emails/`）维护规则**：
+
+- 仅放 BA UI registry 没提供的项目自定义模板（当前 `invite-member.tsx` / `transfer-ownership.tsx`）。
+- 必须 `import { EmailStyles, type EmailColors } from "#/components/email/email-styles"`，让 R2 视觉与 R1 保持一致（同一 CSS shell + 同一颜色 token）。
+- 不能去 `#/components/email/` 里加自定义模板——那一区只接 shadcn registry 同步。
+
+**共享 `email-styles.tsx`**：仅在 R1 区，R2 通过 `#/components/email/email-styles` 引入（已是现状）。
+
+**Preview**：`pnpm email dev --dir ./src/emails` 仅预览 R2 自家模板；R1 BA UI registry 模板的视觉以官方站为准（避免维护两份 preview entry）。
 
 All 9 templates use `<EmailStyles>` (CSS injection in `<Head>` instead of a `<Layout>` wrapper), `pixelBasedPreset` Tailwind, and `cn()` for className merging. Shadcn tokens (`bg-background`, `text-card-foreground`, `border-border`) resolve via `EmailStyles` — emails stay on the same design system as the app.
 

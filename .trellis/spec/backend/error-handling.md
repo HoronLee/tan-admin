@@ -12,7 +12,7 @@
 - DB procedures compose `pub` (with `ormErrorMiddleware`) to map ZenStack `ORMError` into typed oRPC errors.
 - `createServerFn` calls are covered by a global `functionMiddleware` in `src/start.ts`.
 - `instrument.server.mjs` is Sentry-init only (loaded via `--import`); no custom `uncaughtException`/`unhandledRejection` — Node defaults + Sentry handle them.
-- **Startup fail-fast**: `src/db.ts` calls `db.$connect()` at module load; top-level `await` throws → Node exits before serving.
+- **Startup fail-fast**: `src/lib/db.ts` calls `db.$connect()` at module load; top-level `await` throws → Node exits before serving.
 - **Runtime fail-fast**: `server-fn-middleware.ts` detects DB unavailability (recurses into `ORMError.cause`) and `process.exit(1)` after Sentry flush.
 - MCP keeps its JSON-RPC envelope contract unchanged.
 
@@ -89,7 +89,7 @@ export const authed = pub.use(authMiddleware);
 
 ## ORM Error Mapping (Single Source of Truth)
 
-Source of truth: `src/lib/zenstack-error-map.ts`. Both backend middleware and frontend error reporter import the same `mapZenStackReasonToCode(reason, dbErrorCode)` — never two inline switches.
+Source of truth: `src/lib/errors/zenstack-error-map.ts`. Both backend middleware and frontend error reporter import the same `mapZenStackReasonToCode(reason, dbErrorCode)` — never two inline switches.
 
 | `ORMErrorReason` | App code | Rationale |
 |------------------|----------|-----------|
@@ -158,10 +158,10 @@ After deserialization by `@zenstackhq/client-helpers/fetch.js`, the client sees 
 ## Where the Mapping Must Be Reused
 
 - Backend `src/orpc/middleware/orm-error.ts` → `mapZenStackReasonToCode` (not a local switch).
-- Frontend `src/lib/error-report.ts` → `getZenStackHttpError` + `mapZenStackReasonToCode`.
-- Unit tests: `src/lib/zenstack-error-map.test.ts` must cover all 7 reasons plus `db-query-error` × {23505, 23503, other SQLSTATE}.
+- Frontend `src/lib/errors/error-report.ts` → `getZenStackHttpError` + `mapZenStackReasonToCode`.
+- Unit tests: `src/lib/errors/zenstack-error-map.test.ts` must cover all 7 reasons plus `db-query-error` × {23505, 23503, other SQLSTATE}.
 
-**Common mistake**: adding a new `dbErrorCode` mapping in `orm-error.ts` alone and forgetting `zenstack-error-map.ts`. Fix: always edit `zenstack-error-map.ts` first; the middleware delegates. Grep `mapZenStackReasonToCode` before touching either file — at most two call sites.
+**Common mistake**: adding a new `dbErrorCode` mapping in `orm-error.ts` alone and forgetting `errors/zenstack-error-map.ts`. Fix: always edit `errors/zenstack-error-map.ts` first; the middleware delegates. Grep `mapZenStackReasonToCode` before touching either file — at most two call sites.
 
 ## Boundary Interceptor Chain
 
@@ -200,7 +200,7 @@ export const serverInterceptors = [
 
 ## Server Function Global Middleware
 
-Sources: `src/start.ts`, `src/lib/server-fn-middleware.ts`.
+Sources: `src/start.ts`, `src/middleware/error.ts`.
 
 `createServerFn` does not pass through oRPC interceptors, so we register a global TanStack Start middleware:
 
@@ -234,7 +234,7 @@ Final safety net for failures outside request/function middleware (bootstrap, de
 
 ## Client-Side Consumption
 
-Source: `src/lib/error-report.ts`.
+Source: `src/lib/errors/error-report.ts`.
 
 Frontend catches route through `reportError(error, options?)`:
 
@@ -269,7 +269,7 @@ Better Auth 客户端（`authClient.*`）抛出的错误结构是 `{ code: strin
 
 On MCP handler failure, return the JSON-RPC error envelope with code `-32603` and HTTP status `500`. Separate from oRPC typed errors.
 
-Source: `src/utils/mcp-handler.ts`.
+Source: `src/lib/mcp/handler.ts`.
 
 ```ts
 return Response.json(
@@ -313,13 +313,13 @@ Narrow error values before serialization/logging: `error instanceof Error ? erro
 
 ## Common Mistake: `import.meta.env` in Node.js Scripts
 
-`import.meta.env` is a **Vite-only** API. Node.js scripts (`tsx src/seed.ts`, `vitest`, etc.) see `undefined`, so any property access throws:
+`import.meta.env` is a **Vite-only** API. Node.js scripts (`tsx src/server/seed.ts`, `vitest`, etc.) see `undefined`, so any property access throws:
 
 ```
 TypeError: Cannot read properties of undefined (reading 'VITE_APP_TITLE')
 ```
 
-**Fix**: guard every `VITE_*` read in `src/env.ts` `runtimeEnv` with a `typeof` check:
+**Fix**: guard every `VITE_*` read in `src/lib/env.ts` `runtimeEnv` with a `typeof` check:
 
 ```ts
 VITE_APP_TITLE:
@@ -332,4 +332,4 @@ VITE_APP_TITLE:
 
 ### Evidence
 
-Source: `src/orpc/errors.ts`, `src/orpc/middleware/{orm-error,auth}.ts`, `src/orpc/interceptors.ts`, `src/routes/api.{$,rpc.$}.ts`, `src/start.ts`, `src/lib/{server-fn-middleware,error-report,auth-errors}.ts`, `src/routes/__root.tsx`, `src/utils/mcp-handler.ts`, `instrument.server.mjs`.
+Source: `src/orpc/errors.ts`, `src/orpc/middleware/{orm-error,auth}.ts`, `src/orpc/interceptors.ts`, `src/routes/api.{$,rpc.$}.ts`, `src/start.ts`, `src/middleware/{auth,logging,error}.ts`, `src/lib/errors/{error-report,zenstack-error-map}.ts`, `src/lib/auth/errors.ts`, `src/routes/__root.tsx`, `src/lib/mcp/handler.ts`, `instrument.server.mjs`.

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Backend logging standardized on `pino` via `src/lib/logger.ts`.
+Backend logging standardized on `pino` via `src/lib/observability/logger.ts`.
 
 - Use `createModuleLogger("module-name")` in server modules.
 - Prefer structured fields (`{ err, title, requestId }`) over string concatenation.
@@ -70,7 +70,7 @@ if (isExpectedClientError) {
 
 #### Env contract
 
-All logging env keys declared in `src/env.ts` + validated with Zod:
+All logging env keys declared in `src/lib/env.ts` + validated with Zod:
 
 - `APP_NAME?: string`
 - `APP_ENV?: "dev" | "prod" | "test"`
@@ -102,7 +102,7 @@ Sensitive values must be redacted to `[Redacted]`.
 | No active OTel span | trace fields omitted gracefully |
 | Missing `VITE_SENTRY_DSN` | warn once during bootstrap; app continues |
 | Raw token/cookie/password in meta | logger redact layer masks it |
-| Server env read from `import.meta.env` | treat as bug; move to `process.env` mapping in `src/env.ts` |
+| Server env read from `import.meta.env` | treat as bug; move to `process.env` mapping in `src/lib/env.ts` |
 
 ### 5. Good / Bad Cases
 

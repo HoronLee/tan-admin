@@ -9,22 +9,24 @@
 Two explicit tiers:
 
 - **Primitive UI tier**: `src/components/ui/*` (shadcn-style, variant-driven, reusable primitives).
-- **Domain/UI composition tier**: `src/components/*.tsx` and `src/integrations/**/*.tsx`.
+- **Domain/UI composition tier**: `src/components/<domain>/*.tsx`（如 `components/layout/`、`components/auth/`、`components/settings/`、`components/email/`）。
 
 ```ts
 // src/components/ui/button.tsx (primitive)
 const buttonVariants = cva(...)
 
-// src/components/Header.tsx (composition)
-export default function Header() {
-  return <header ...>
+// src/components/layout/app-sidebar.tsx (composition)
+export function AppSidebar() {
+  return <Sidebar>...</Sidebar>
 }
 
-// src/integrations/better-auth/header-user.tsx (integration)
-export default function BetterAuthHeader() {
-  const { data: session, isPending } = authClient.useSession()
+// src/components/layout/organization-switcher.tsx (composition)
+export function OrganizationSwitcher() {
+  const { data: session } = authClient.useSession()
 }
 ```
+
+Better Auth UI hooks（`authClient.useSession()` / `authClient.admin.*` 等）就近 import 到使用它的 composition 组件文件里——**没有** `src/integrations/better-auth/*` 这一层抽象。
 
 ## Props Typing Conventions
 
@@ -42,6 +44,9 @@ export default function BetterAuthHeader() {
 export default function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>('auto')
 }
+
+// src/components/layout/app-sidebar.tsx — named export, no React.FC
+export function AppSidebar() { /* ... */ }
 ```
 
 ## Class Composition
@@ -93,13 +98,7 @@ Repo enables `babel-plugin-react-compiler`; avoid manual memoization by default:
 viteReact({ babel: { plugins: ['babel-plugin-react-compiler'] } })
 ```
 
-One explicit `useCallback` in `src/routes/demo/orpc-todo.tsx` should be treated as an exception, not baseline style:
-
-```ts
-const submitTodo = useCallback(() => {
-  addTodo({ name: todo })
-}, [addTodo, todo])
-```
+业务代码当前**没有**手写 `useCallback` / `useMemo`（仅 `src/components/ui/sidebar.tsx` shadcn vendor 内有 2 处，属上游资产）。除非 React Compiler 明确拒绝优化某段代码（profiler 验证后），否则不要新增手动 memo——这是 baseline。
 
 ## Accessibility Baseline
 
@@ -114,11 +113,21 @@ title={label}
 aria-label={m.language_label()}
 aria-pressed={locale === currentLocale}
 
-// src/components/Header.tsx
-<span className="sr-only">Follow TanStack on X</span>
+// src/components/layout/app-sidebar.tsx — icon-only 控件必须有 sr-only 文本
+<span className="sr-only">{m.nav_collapse_label()}</span>
 ```
 
 **i18n gotcha**: all a11y labels (`aria-label`, `alt`, `sr-only`, `title`) must route through Paraglide `m.xxx()` — never hard-coded CJK/EN. See `frontend/i18n.md`.
+
+## 命名契约
+
+`src/components/<domain>/*.tsx`：
+
+- **文件名**：kebab-case（`app-sidebar.tsx`、`organization-switcher.tsx`、`impersonation-banner.tsx`、`app-tabbar.tsx`、`app-site-sidebar.tsx`）。
+- **export name**：PascalCase（`AppSidebar`、`OrganizationSwitcher`、`ImpersonationBanner`、`AppTabbar`、`AppSiteSidebar`）。
+- **shadcn 原语豁免**：`src/components/ui/*` 跟随 shadcn 上游约定（`button.tsx` / `select.tsx` 单词无连字符）——属 vendor 资产，不强制。
+
+PR2 已把 `components/layout/` 的 5 个 PascalCase 文件全量改 kebab-case，新增组件按本契约书写，避免漂移。
 
 ## Forbidden Patterns
 

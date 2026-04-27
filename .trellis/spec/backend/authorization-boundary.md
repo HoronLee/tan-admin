@@ -148,7 +148,7 @@ betterAuth({
 
 **规则**：
 - `beforeXxx` hooks 返回 `Promise<void>`，throw `APIError` 即否决（不是 `return { data }`）
-- 跨 BA 表联动用 `src/db.ts` 的 `pool.query(...)`，不走 `authDb`（policy 会挡）也不走 BA 客户端 API（会触发事件/邮件）
+- 跨 BA 表联动用 `src/lib/db.ts` 的 `pool.query(...)`，不走 `authDb`（policy 会挡）也不走 BA 客户端 API（会触发事件/邮件）
 - 不在 oRPC handler 里重复校验，BA API 和客户端调用走同一链路，hooks 已覆盖
 
 **锚点**：`src/lib/auth/config.ts`（`organizationHooks.*` / `databaseHooks.user.create.after`）。

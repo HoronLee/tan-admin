@@ -10,7 +10,7 @@ Triggers when work touches:
 
 - `src/lib/auth/plan.ts` — 枚举、limits 表、helpers
 - `src/lib/auth/config.ts` `teams.maximumTeams` / `organizationHooks.beforeCreateInvitation` / 任何读 `organization.plan` 的位置
-- `src/seed.ts` 默认 org 的 `plan` 初始值
+- `src/server/seed.ts` 默认 org 的 `plan` 初始值
 - `src/components/layout/AppSidebar.tsx` `getDisabledReason` / `<TeamsDisabledCard>` / 任何 UI 根据 plan 做灰化/禁用的位置
 - 新增 plan 值 / 改 plan limits / 添加新的 plan-gated feature
 

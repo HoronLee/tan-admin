@@ -40,15 +40,15 @@ Purpose (`src/polyfill.ts`): polyfill missing Node 18 APIs that oRPC depends on.
 ## Env Access and Validation
 
 - Backend runtime reads server vars through `process.env` (or T3Env proxy).
-- Keep env schema declarations in `src/env.ts` for fail-fast validation and client prefix enforcement.
+- Keep env schema declarations in `src/lib/env.ts` for fail-fast validation and client prefix enforcement.
 - Client-visible vars must use `VITE_` prefix (`clientPrefix` in env schema).
 - **Gotcha**: `VITE_*` in `runtimeEnv` must guard `import.meta.env` with `typeof` check — bare access throws in Node scripts (see `backend/error-handling.md` "Common Mistake" section).
 
 ```ts
-// src/db.ts
+// src/lib/db.ts
 connectionString: process.env.DATABASE_URL!
 
-// src/env.ts
+// src/lib/env.ts
 clientPrefix: 'VITE_',
 client: {
   VITE_APP_TITLE: z.string().min(1).optional(),
@@ -80,16 +80,16 @@ Zod failures at oRPC boundary are auto-upgraded to `INPUT_VALIDATION_FAILED` by 
 
 Do not import server-only modules into client-only component runtime.
 
-- **Server-only**: `#/db` / `#/lib/auth` / `#/mcp-todos` / `#/orpc/router/*` / `#/lib/email*`.
+- **Server-only**: `#/lib/db` / `#/lib/auth/{server,session,config,db}` / `#/orpc/router/*` / `#/lib/email/*` / `#/lib/config.server`.
 - Use server functions or oRPC clients for UI access to backend logic.
 
 ```ts
 // Server context — OK
-import { db } from '#/db'                        // src/routes/api/model/$.ts
-import { auth } from '#/lib/auth'                // src/routes/api/auth/$.ts
+import { db } from '#/lib/db'                    // src/routes/api/model/$.ts
+import { auth } from '#/lib/auth/server'         // src/routes/api/auth/$.ts
 
 // Client route — use client, NOT router internals
-import { orpc } from '#/orpc/client'             // src/routes/demo/orpc-todo.tsx
+import { orpc } from '#/orpc/client'             // 业务路由
 ```
 
 ## Testing Expectations
@@ -142,15 +142,15 @@ docsConfig: {
 
 ## Hard NO Anti-Patterns
 
-- Importing `#/db` / `#/lib/auth` / `#/lib/email*` from client-only route components.
+- Importing `#/lib/db` / `#/lib/auth/{server,session,config,db}` / `#/lib/email/*` / `#/lib/config.server` from client-only route components.
 - Skipping `import '#/polyfill'` in new oRPC-hosting route files.
 - Hardcoding secrets (`DATABASE_URL`, auth tokens, SMTP creds).
-- Creating ad-hoc `new ZenStackClient()` / `new Pool()` outside `src/db.ts`.
+- Creating ad-hoc `new ZenStackClient()` / `new Pool()` outside `src/lib/db.ts`.
 - Logging cookies / tokens / password payloads (pino redacts, but new call sites must not leak into `msg`).
 - Hand-editing generated files (`src/routeTree.gen.ts`, `src/paraglide/**`, `zenstack/{schema,models,input}.ts`).
 - Using `npm`/`yarn` instead of `pnpm`.
 
 ```ts
-// src/db.ts (singleton standard)
+// src/lib/db.ts (singleton standard)
 export const db = globalThis.__db ?? new ZenStackClient(schema, { dialect: ... })
 ```

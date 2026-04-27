@@ -124,12 +124,12 @@ const setThemeFromAuth = (next: string) => {
 <AuthProvider appearance={{ theme, setTheme: setThemeFromAuth }} ... />
 ```
 
-### Brand integration (`src/config/brand.ts` + `<BrandMark>`)
+### Brand integration (`src/lib/config.ts` + `<BrandMark>`)
 
 Brand identity (display name + logo) is env-driven, not code-baked:
 
 ```ts
-// src/config/brand.ts — isomorphic, reads VITE_BRAND_*
+// src/lib/config.ts — client-safe, reads VITE_BRAND_*
 export const brandConfig = {
   name: env.VITE_BRAND_NAME ?? "Tan Servora",
   logoURL: env.VITE_BRAND_LOGO_URL,
@@ -142,7 +142,7 @@ export const brandConfig = {
 - `logoURL` set, `logoDarkURL` unset → renders `<img>` (same logo in light + dark)
 - Both set → renders `<picture>` with `<source media="(prefers-color-scheme: dark)">`
 
-`VITE_BRAND_*` is the **sole** source of truth (no server-side `BRAND_*` twin). Server-side email rendering reads from `appConfig.brand` (`src/config/app.ts`, which imports `brandConfig` from `#/config/brand`); UI reads `brandConfig` directly — same values, one env declaration, zero drift surface. Do not import `*.client.*` filenames from route modules — TanStack Start's import-protection plugin blocks them on the server bundle, so keep brand config under plain `brand.ts`.
+`VITE_BRAND_*` is the **sole** source of truth (no server-side `BRAND_*` twin). Server-side email rendering reads from `appConfig.brand` (`src/lib/config.server.ts`, which imports `brandConfig` from `#/lib/config`); UI reads `brandConfig` directly — same values, one env declaration, zero drift surface. Do not import `*.client.*` filenames from route modules — TanStack Start's import-protection plugin blocks them on the server bundle; keep client-safe config under `src/lib/config.ts` and server-only config under `src/lib/config.server.ts`.
 
 Title meta (`src/routes/__root.tsx`) reads `brandConfig.name` directly since `<title>` is a string attribute, not a component.
 

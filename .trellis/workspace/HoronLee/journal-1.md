@@ -581,3 +581,38 @@ PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: 代码与 spec 组织结构梳理（Kolm 化全配版）
+
+**Date**: 2026-04-27
+**Task**: 代码与 spec 组织结构梳理（Kolm 化全配版）
+**Branch**: `main`
+
+### Summary
+
+完成 04-26-code-and-spec-reorg 任务三 PR 拆分：PR1 删死代码 + lib 散文件归位 + 顶层文件下沉（db.ts/env.ts→lib/，seed.ts→server/，mcp-handler→lib/mcp/，zenstack/client→integrations/zenstack-query/）；PR2 建 src/middleware/ 三文件 + queries/ 骨架 + lib/config{,.server}.ts 分层（HIGH-1）+ users/index.tsx 拆 7 子组件 1079→374 行（HIGH-2）+ layout/ 5 文件 kebab-case（MED-4）；PR3 spec 三件套同步 + guides/server-fn-vs-orpc-vs-queries.md 决策树新增 + 17 spec 文件漂移扫尾 + MED-3 错判（guards.ts server-only marker 撤回，因 createServerFn 是同构 RPC 桥）。顶层 14→10 目录，pnpm check + pnpm test + pnpm dev 全绿。中途暴露子代盲信 audit 加 marker 砍断 5 处 client RPC 桥的回归，及时撤回。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9e55c47` | (see git log) |
+| `b1b6215` | (see git log) |
+| `c35bdda` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

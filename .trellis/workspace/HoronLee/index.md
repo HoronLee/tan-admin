@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
-- **Last Active**: 2026-04-25
+- **Total Sessions**: 18
+- **Last Active**: 2026-04-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~583 | Active |
+| `journal-1.md` | ~618 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-04-27 | 代码与 spec 组织结构梳理（Kolm 化全配版） | `9e55c47`, `b1b6215`, `c35bdda` | `main` |
 | 17 | 2026-04-25 | BA 插件剩余能力收口（addMember 双视角 + 邀请闭环 + 深度防御） | `021114d`, `15e1138`, `6632a2c` | `main` |
 | 16 | 2026-04-24 | BA 插件 API 扩展落地 + saas 流程断点修复 | `a04b967`, `cbd3b81`, `8448e12`, `31a47b8`, `894166f` | `main` |
 | 15 | 2026-04-24 | Task 2b ba-ui-email: BA UI 7 模板 + 全站品牌统一 + env 单份 VITE_ 约定 | `f258d82`, `ab68cfc`, `231dbb1` | `main` |

@@ -41,6 +41,8 @@ pnpm db:push | db:migrate | db:generate | db:studio | db:seed | auth:migrate
 pnpm dlx shadcn@latest add button card ...
 ```
 
+> **`pnpm auth:migrate` 是 fallback，正常流程不用**：BA 表的 DDL 由 `pnpm ba:shadow` 生成 `zenstack/_better-auth.zmodel`（@@ignore）→ `pnpm db:push` 通过 prisma DDL 一并建表。`auth:migrate` 走 BA CLI 直接对 BA 表做 diff/apply，仅在 `ba:shadow` + `db:push` 失灵时应急。日常**只跑 `db:push`**就够了。
+
 ## 首次部署 seed 流程
 
 ### 产品形态开关

@@ -1,8 +1,7 @@
 import { createRequire } from "node:module";
 import { trace } from "@opentelemetry/api";
 import pino from "pino";
-import { appConfig } from "#/config/app";
-import { logConfig } from "#/config/log";
+import { appConfig, logConfig } from "#/lib/config.server";
 
 const isDev = appConfig.env === "dev";
 

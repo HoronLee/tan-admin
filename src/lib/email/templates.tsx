@@ -24,12 +24,12 @@ import {
 	ResetPasswordEmail,
 	type ResetPasswordEmailProps,
 } from "#/components/email/reset-password";
-import { appConfig } from "#/config/app";
 import { InviteMember, type InviteMemberProps } from "#/emails/invite-member";
 import {
 	TransferOwnership,
 	type TransferOwnershipProps,
 } from "#/emails/transfer-ownership";
+import { appConfig } from "#/lib/config.server";
 import {
 	emailChangedLocalization,
 	magicLinkLocalization,

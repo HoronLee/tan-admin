@@ -1,7 +1,12 @@
 import { env } from "#/lib/env";
 
 /**
- * Brand 单一真相源（R6）。直接读 `VITE_BRAND_*`，前后端共用同一份：
+ * Client-safe configuration. Both server and client modules may import from
+ * this file. Server-only configs (with `node:os`, secrets, etc.) live in
+ * `./config.server.ts` and must NOT be re-exported from here, otherwise the
+ * client bundle would inherit the server-only transitive deps.
+ *
+ * R6: brand 单一真相源。直接读 `VITE_BRAND_*`，前后端共用同一份：
  * - 浏览器：Vite build 时把 `VITE_*` 值内联到 bundle
  * - Node：`process.env.VITE_BRAND_*` 照常可读
  *

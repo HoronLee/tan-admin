@@ -12,7 +12,7 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { Providers } from "#/components/providers";
 import { ThemeProvider } from "#/components/theme-provider";
 import { Toaster } from "#/components/ui/sonner";
-import { brandConfig } from "#/config/brand";
+import { brandConfig } from "#/lib/config";
 import { getLocale } from "#/paraglide/runtime";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";

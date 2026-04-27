@@ -1,6 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { Resend } from "resend";
-import { appConfig } from "#/config/app";
+import { appConfig } from "#/lib/config.server";
 import { env } from "#/lib/env";
 import { createModuleLogger } from "#/lib/observability/logger";
 

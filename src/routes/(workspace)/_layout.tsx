@@ -9,10 +9,10 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { useStore } from "@tanstack/react-store";
 import { useEffect } from "react";
 import LocaleSwitcher from "#/components/LocaleSwitcher";
-import AppSidebar from "#/components/layout/AppSidebar";
-import AppTabbar from "#/components/layout/AppTabbar";
-import ImpersonationBanner from "#/components/layout/ImpersonationBanner";
-import OrganizationSwitcher from "#/components/layout/OrganizationSwitcher";
+import AppSidebar from "#/components/layout/app-sidebar";
+import AppTabbar from "#/components/layout/app-tabbar";
+import ImpersonationBanner from "#/components/layout/impersonation-banner";
+import OrganizationSwitcher from "#/components/layout/organization-switcher";
 import ThemeToggle from "#/components/ThemeToggle";
 import { Separator } from "#/components/ui/separator";
 import {

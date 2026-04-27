@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BrandMark } from "#/components/brand-mark";
 import { Button } from "#/components/ui/button";
-import { brandConfig } from "#/config/brand";
+import { brandConfig } from "#/lib/config";
 
 // 占位 marketing index。公开可访问，已登录用户不 redirect（允许返回官网看）。
 // 以后要补 pricing / about / blog 时在 `src/routes/(marketing)/` 下平铺。

@@ -83,6 +83,7 @@ function scheduleProcessExit(): void {
  * It mirrors oRPC's boundary behavior:
  * - structured error logging
  * - Sentry capture
+ * - DB-unavailable fail-fast (process.exit so orchestrator restarts the pod)
  * - rethrow to preserve route-level error behavior
  */
 export const serverFnErrorMiddleware = createMiddleware({

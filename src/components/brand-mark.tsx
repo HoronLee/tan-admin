@@ -1,4 +1,4 @@
-import { brandConfig } from "#/config/brand";
+import { brandConfig } from "#/lib/config";
 import { cn } from "#/lib/utils";
 
 type BrandMarkSize = "sm" | "md" | "lg";

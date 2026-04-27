@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "目标顶层布局契约（要被本任务改写），现状版用于参照对比"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "后端目录组织（mcp-handler / emails 位置当前来源）"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "命名规则、文件行数上限等质量约束"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端质量约束"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "frontend 概览，定位 lib/ 子目录化范式"}
+{"file": ".trellis/spec/backend/index.md", "reason": "backend 概览"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层 import 调整时的思维框架"}
+{"file": ".trellis/tasks/04-26-code-and-spec-reorg/research/internal-audit.md", "reason": "内部审计具体清单：目标文件 / import 影响范围 / HIGH 与 MED 项细节"}
+{"file": ".trellis/tasks/04-26-code-and-spec-reorg/research/community-best-practices.md", "reason": "社区最佳实践调研，架构原则参照"}

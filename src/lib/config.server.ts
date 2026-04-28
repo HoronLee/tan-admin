@@ -2,6 +2,11 @@ import "@tanstack/react-start/server-only";
 
 import { hostname } from "node:os";
 import type { Level } from "pino";
+import {
+	DEFAULT_DARK_OKLCH,
+	DEFAULT_LIGHT_OKLCH,
+	deriveBrandPair,
+} from "#/lib/brand/oklch";
 import { brandConfig } from "#/lib/config";
 import { env } from "#/lib/env";
 
@@ -22,12 +27,33 @@ const NODE_ENV_MAP: Record<string, "dev" | "prod" | "test"> = {
 	test: "test",
 };
 
+/**
+ * 品牌主色一次性派生：boot 时算好 web (oklch) + 邮件 (hex) + 前景色（auto pick）
+ * 全套，运行时不再重算。
+ *
+ * 缺省兜底优先级：**主人显式 > 静态 default > 算法派生**。
+ *
+ * - `BRAND_PRIMARY_OKLCH` 显式 → 用主人的；缺省 → 用 `DEFAULT_LIGHT_OKLCH`
+ *   （shadcn neutral 现状），UI 与现状无差。
+ * - `BRAND_PRIMARY_DARK_OKLCH` 显式 → 用主人的；
+ *   未配但 light 配了 → 走 culori 算法派生（dark 跟随 light）；
+ *   两者都未配 → 用 `DEFAULT_DARK_OKLCH`（shadcn neutral 现状），不让算法
+ *   覆盖已有 default，避免出现 0.072 L 偏差的 dark regression。
+ */
+const lightInput = env.BRAND_PRIMARY_OKLCH;
+const darkInput = env.BRAND_PRIMARY_DARK_OKLCH;
+const brandColor = deriveBrandPair(
+	lightInput ?? DEFAULT_LIGHT_OKLCH,
+	darkInput ?? (lightInput ? undefined : DEFAULT_DARK_OKLCH),
+);
+
 export const appConfig = {
 	name: env.APP_NAME ?? "tan-servora",
 	version: env.APP_VERSION ?? "0.0.1",
 	env: env.APP_ENV ?? NODE_ENV_MAP[process.env.NODE_ENV ?? ""] ?? "dev",
 	instanceId: env.APP_INSTANCE_ID ?? hostname(),
 	brand: brandConfig,
+	brandColor,
 } as const;
 
 const DEFAULT_REDACT_PATHS = [

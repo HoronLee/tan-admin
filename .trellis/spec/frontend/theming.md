@@ -142,9 +142,18 @@ export const brandConfig = {
 - `logoURL` set, `logoDarkURL` unset → renders `<img>` (same logo in light + dark)
 - Both set → renders `<picture>` with `<source media="(prefers-color-scheme: dark)">`
 
-`VITE_BRAND_*` is the **sole** source of truth (no server-side `BRAND_*` twin). Server-side email rendering reads from `appConfig.brand` (`src/lib/config.server.ts`, which imports `brandConfig` from `#/lib/config`); UI reads `brandConfig` directly — same values, one env declaration, zero drift surface. Do not import `*.client.*` filenames from route modules — TanStack Start's import-protection plugin blocks them on the server bundle; keep client-safe config under `src/lib/config.ts` and server-only config under `src/lib/config.server.ts`.
+`VITE_BRAND_*`（display name + logo URL）是前后端共用 brand 字段的真相源——这些字段 client UI 直接读，必须 `VITE_` 暴露给浏览器 bundle。**纯服务端 brand 字段**（如品牌主色 OKLCH 派生、SSR head 注入、邮件 hex 派生）走非 `VITE_` 服务端 env（`BRAND_PRIMARY_OKLCH` / `BRAND_PRIMARY_DARK_OKLCH`），消费链路全在 server，client 通过 CSS `var(--primary)` cascade 消费、不经 JS。一份字段一种语义，不存在"server-side `BRAND_*` twin"——`VITE_` 与非 `VITE_` 是不同字段。Server-side email rendering reads from `appConfig.brand` (`src/lib/config.server.ts`, which imports `brandConfig` from `#/lib/config`); UI reads `brandConfig` directly. Do not import `*.client.*` filenames from route modules — TanStack Start's import-protection plugin blocks them on the server bundle; keep client-safe config under `src/lib/config.ts` and server-only config under `src/lib/config.server.ts`.
 
 Title meta (`src/routes/__root.tsx`) reads `brandConfig.name` directly since `<title>` is a string attribute, not a component.
+
+**Brand primary color injection**（PR `04-27-brand-color-injection`）：
+
+- 真相源：服务端 env `BRAND_PRIMARY_OKLCH` + 可选 `BRAND_PRIMARY_DARK_OKLCH`（裸 OKLCH 三元组，无 `VITE_`）。
+- 派生：`src/lib/brand/oklch.ts` 用 culori `formatCss` + `formatHex` 一次性产出 web (oklch 字面量) + 邮件 (hex)。
+- 注入路径：`src/routes/__root.tsx` 用 root loader + `createServerFn` 派生，head() 从 loaderData 读 `<style>` 注入 `:root` / `.dark` 的 `--brand-primary` / `--brand-primary-foreground`，client navigate 后稳定保留（loaderData 序列化机制，不会被 React reconcile）。
+- Approach A 边界：仅 `--primary` / `--primary-foreground` / `--sidebar-primary` / `--sidebar-primary-foreground` 4 个 shadcn token 跟随；`--ring` / `--sidebar-ring` / `--chart-*` / `--destructive` / `--muted` / `--accent` 保持现状中性灰。focus ring 中性是为可访问性 / 色弱友好。
+- 缺省兜底优先级：**主人显式 > 静态 default > 算法派生**（见 `src/lib/config.server.ts`）。两个 env 都未配置时，`--brand-primary` 严格回退到 shadcn neutral 默认（light=`oklch(0.205 0 0)` / dark=`oklch(0.922 0 0)`），UI 与历史现状零偏差。
+- `<meta name="theme-color">` 双 media 退化：原计划注入 light + dark 两条带 `media` 属性的 meta，TanStack Router `headContentUtils` 按 `name` 字段去重，实际只保留 dark variant；light mode 移动地址栏走浏览器默认色。该限制可接受（移动 light 地址栏色非核心 surface），如要双 variant 需在 `RootDocument` 旁路渲染 JSX `<meta>`。
 
 ---
 

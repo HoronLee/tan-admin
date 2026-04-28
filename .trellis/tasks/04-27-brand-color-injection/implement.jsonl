@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/frontend/theming.md", "reason": "主题/CSS token 契约。§3 Brand integration 字面写 'VITE_BRAND_* is sole source, no server-side BRAND_* twin'——本任务 PRD 决策与之冲突：纯服务端 BRAND_PRIMARY_OKLCH 不带 VITE_，需在 PR3 docs sync 修订该段。implement 子代需理解：spec 规则的语境是'前后端都要读的 brand env'，纯服务端 brand env 不在该约束内。同时 §3 中层桥接、§4 validation matrix、§5 good/bad cases 是改 styles.css 时的合规基线"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "决定 src/lib/brand/oklch.ts 该放在 lib/ 哪一层（按现状 lib/ 是 infrastructure-only，brand 工具属于此类；lib/auth/ 是参考 pattern）"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端实现质量基线（lint/test/类型/immutability/无 console.log 等）"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "PR2 邮件透传依赖：邮件 transport (console/smtp/resend)、模板渲染入口、appConfig 怎么读到、既有 EmailColors 定义。implement 子代要找出所有 sendEmail 调用方并统一注入 colors prop"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "server 端实现质量基线（错误处理 / 日志 / env schema 校验）"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "config.server.ts 与 config.ts 的隔离 pattern（brandColor 字段加在 config.server.ts，不进 client config）"}
+{"file": ".trellis/tasks/04-27-brand-color-injection/research/shadcn-oklch-brand-injection.md", "reason": "Web UI 注入路径全套答案：@theme inline 桥接已验证 + 中层 var --brand-primary 写法 + culori 派生算法 + theme-color meta 双 media SSR 注入。implement 子代写 styles.css / __root.tsx / brand/oklch.ts 时直接对照"}
+{"file": ".trellis/tasks/04-27-brand-color-injection/research/react-email-brand-injection.md", "reason": "邮件层注入答案：caniemail 兼容性（Outlook 经典版 + 国内 webmail 不支持 oklch，必须 hex）、culori formatHex 30 行示例、8 个邮件模板调用方清单、better-auth-ui EmailTemplate 不复用的理由"}

@@ -38,6 +38,14 @@ export const env = createEnv({
 
 		// Resend driver
 		RESEND_API_KEY: z.string().optional(),
+
+		// --- Brand color (server-only) ---
+		// 纯服务端 env（无 VITE_ 前缀），消费链路全在 server：SSR head 注入 +
+		// 邮件模板 OKLCH→hex 派生。client 通过 CSS `var(--primary)` cascade 消费、
+		// 不经 JS。形如 `"0.55 0.18 264"` 或 `"oklch(0.55 0.18 264)"`。
+		// 缺省时 UI 回归到现状中性灰（src/styles.css 默认）。
+		BRAND_PRIMARY_OKLCH: z.string().optional(),
+		BRAND_PRIMARY_DARK_OKLCH: z.string().optional(),
 	},
 
 	/**
@@ -108,6 +116,9 @@ export const env = createEnv({
 		SMTP_USER: process.env.SMTP_USER,
 		SMTP_PASS: process.env.SMTP_PASS,
 		RESEND_API_KEY: process.env.RESEND_API_KEY,
+		// Brand color (server-only)
+		BRAND_PRIMARY_OKLCH: process.env.BRAND_PRIMARY_OKLCH,
+		BRAND_PRIMARY_DARK_OKLCH: process.env.BRAND_PRIMARY_DARK_OKLCH,
 		// Client vars — Vite exposes VITE_* via import.meta.env at build time;
 		// in Node.js contexts (tsx scripts, vitest) fall back to process.env.
 		VITE_APP_TITLE:

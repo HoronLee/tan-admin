@@ -59,6 +59,8 @@ VITE_PRODUCT_MODE=private   # private=甲方交付 / saas=公开 B2B SaaS worksp
 
 本项目规定：**"前后端都要读"的 env 只保留 `VITE_*` 前缀一份**（如 `VITE_PRODUCT_MODE` / `VITE_BRAND_NAME` / `VITE_BRAND_LOGO_URL`）；**纯服务端 secrets** 不带前缀（如 `DATABASE_URL` / `BETTER_AUTH_SECRET` / `SMTP_PASS`）。避免"服务端真源 + 客户端镜像"双份约定带来的 drift 风险，同时保持 Vite 的 secrets 黑名单。
 
+> 反过来：仅服务端读的 env **不加** `VITE_` 前缀（例：`BRAND_PRIMARY_OKLCH` / `BRAND_PRIMARY_DARK_OKLCH`，详见 `spec/frontend/theming.md` § Brand integration）。
+
 ### Team / 邀请 / 成员数等 feature 由 plan 决定（不是 env）
 
 每个 workspace 有 `organization.plan` 字段（`free | personal_pro | team_pro | enterprise`），驱动 feature 配额（team 数 / 是否能邀请 / 成员上限等）。`src/lib/plan.ts` 是单一真相源。

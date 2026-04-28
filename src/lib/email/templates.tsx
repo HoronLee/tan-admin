@@ -3,6 +3,7 @@ import {
 	EmailChangedEmail,
 	type EmailChangedEmailProps,
 } from "#/components/email/email-changed";
+import type { EmailColors } from "#/components/email/email-styles";
 import {
 	EmailVerificationEmail,
 	type EmailVerificationEmailProps,
@@ -120,6 +121,22 @@ function buildBrandProps(): {
 	};
 }
 
+/**
+ * 品牌主色 → 邮件 `EmailColors`（boot 时一次性派生）。
+ *
+ * Approach A 边界：只覆盖 `primary`，其余中性 token（background / card / muted /
+ * foreground 等）保留 `defaultColors` 的现状值——和 PRD "shadcn token 只动 4 个
+ * `--primary` 系" 决策对齐。
+ *
+ * 邮件层必须用 hex（research B § 1：caniemail 兼容性表证 Outlook Windows 桌面 +
+ * 国内 webmail 不支持 oklch）。`appConfig.brandColor.{lightHex,darkHex}` 由 PR1
+ * 在 `config.server.ts` 经 culori `formatHex` 派生（自带 sRGB gamut clip）。
+ */
+const brandEmailColors: EmailColors = {
+	light: { primary: appConfig.brandColor.lightHex },
+	dark: { primary: appConfig.brandColor.darkHex },
+};
+
 async function renderTemplate(
 	payload: EmailPayload,
 ): Promise<RenderedTemplate> {
@@ -132,6 +149,7 @@ async function renderTemplate(
 				<EmailVerificationEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={verifyLocalization()}
 				/>,
 				{ pretty },
@@ -147,6 +165,7 @@ async function renderTemplate(
 				<ResetPasswordEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={resetPasswordLocalization()}
 				/>,
 				{ pretty },
@@ -162,6 +181,7 @@ async function renderTemplate(
 				<EmailChangedEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={emailChangedLocalization()}
 				/>,
 				{ pretty },
@@ -177,6 +197,7 @@ async function renderTemplate(
 				<PasswordChangedEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={passwordChangedLocalization()}
 				/>,
 				{ pretty },
@@ -192,6 +213,7 @@ async function renderTemplate(
 				<MagicLinkEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={magicLinkLocalization()}
 				/>,
 				{ pretty },
@@ -207,6 +229,7 @@ async function renderTemplate(
 				<NewDeviceEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={newDeviceLocalization()}
 				/>,
 				{ pretty },
@@ -222,6 +245,7 @@ async function renderTemplate(
 				<OtpEmail
 					{...payload.props}
 					{...brand}
+					colors={brandEmailColors}
 					localization={otpLocalization()}
 				/>,
 				{ pretty },
@@ -234,7 +258,11 @@ async function renderTemplate(
 		}
 		case "invite": {
 			const html = await render(
-				<InviteMember {...payload.props} {...brand} />,
+				<InviteMember
+					{...payload.props}
+					{...brand}
+					colors={brandEmailColors}
+				/>,
 				{ pretty },
 			);
 			return {
@@ -248,7 +276,11 @@ async function renderTemplate(
 		}
 		case "transfer": {
 			const html = await render(
-				<TransferOwnership {...payload.props} {...brand} />,
+				<TransferOwnership
+					{...payload.props}
+					{...brand}
+					colors={brandEmailColors}
+				/>,
 				{ pretty },
 			);
 			return {

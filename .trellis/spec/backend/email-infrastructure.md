@@ -123,6 +123,14 @@ function buildBrandProps() {
 
 Every `render()` spreads `{...buildBrandProps()}` before spreading caller props, so templates stay consistent across emails without per-callsite boilerplate.
 
+### Brand color 注入
+
+- 入口：`src/lib/email/templates.tsx#brandEmailColors`（模块级常量，从 `appConfig.brandColor.{lightHex,darkHex}` 派生 `EmailColors`）。
+- 9 个邮件模板（verify / reset / email-changed / password-changed / magic-link / new-device / otp / invite-member / transfer-ownership）共用单一注入点，统一传 `colors={brandEmailColors}` prop。
+- **必须 hex**——caniemail 兼容性证 Outlook Windows 桌面（Word 引擎，国内企业 IT 标配）+ 网易/QQ webmail 不支持 oklch。culori `formatHex` 自带 sRGB gamut clip，安全。
+- Approach A 边界：仅覆盖 `light.primary` / `dark.primary`，不动 background / card / muted / foreground 中性 token。
+- 未配 `BRAND_PRIMARY_OKLCH` 时，default `lightHex=#171717` / `darkHex=#e5e5e5` 与 `email-styles.tsx#defaultColors.light.primary` / `dark.primary` 字面对齐——非破坏性回归。
+
 ### Template component contract
 
 ```ts

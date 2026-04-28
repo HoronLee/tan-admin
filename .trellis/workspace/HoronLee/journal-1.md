@@ -616,3 +616,36 @@ PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: 品牌色统一注入 OKLCH→Web/邮件
+
+**Date**: 2026-04-28
+**Task**: 品牌色统一注入 OKLCH→Web/邮件
+**Branch**: `main`
+
+### Summary
+
+服务端 env BRAND_PRIMARY_OKLCH（+ DARK 可选）→ culori 派生 → 4 个 shadcn primary token (web oklch) + 9 个邮件模板 (hex) 同步换色。Approach A 边界（仅 primary 系跟随，--ring/chart/destructive/muted 保中性）；缺省优先级显式>default>派生（未配 env 时 shadcn neutral 字面零偏差）；root loader+createServerFn 解决 client navigate 后 <style> 被 React reconcile 卸掉的 R1；邮件强制 hex（caniemail：Outlook 经典版+国内 webmail 不支持 oklch）；spec/AGENTS/.env.example 同步。衍生 2 条 memory feedback：spec 是参考不是教条 + 默认值优先级。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dc4e83a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

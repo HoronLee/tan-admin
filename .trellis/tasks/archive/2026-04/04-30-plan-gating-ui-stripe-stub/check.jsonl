@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/plan-gating.md", "reason": "验证实现是否符合 plan→limits 契约；本任务还修了 §3 表格 free 行，check 时要确认 spec 与 plan.ts 一致。"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端代码质量约束（虽然本任务以前端为主，env.ts / auth/config.ts 改动属后端边界）。"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "验证 VITE_PRODUCT_MODE 判断逻辑正确：private 模式不渲染升级 CTA / plan badge。"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端质量基线：immutability、错误处理、文件大小、props 类型化。"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件结构、props、a11y、shadcn 用法 compliance。"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "验证新增文案全部走 paraglide en/zh，没有硬编码字符串。"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "验证 plan 字段窄化处理 + 没有引入 any。"}

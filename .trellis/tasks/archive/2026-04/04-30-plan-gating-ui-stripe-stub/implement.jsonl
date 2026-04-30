@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/backend/plan-gating.md", "reason": "Plan→limits 契约的真相源；本任务要按这个 spec 落地 UI gating，并修正 §3 表格里 free 行的 drift（D2 决策）。"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "personal type org 的服务端硬挡钩子，UI 层 R2 邀请按钮要保持 type 优先于 plan 的判断顺序，避免和 hook 语义打架。"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "VITE_PRODUCT_MODE=private/saas 的判定规则，本任务 R3/R7 升级 CTA + plan badge 仅在 saas 模式渲染；private 模式不能出现升级提示。"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "Better Auth 拥有 organization 表，plan 字段通过 additionalFields 挂上；R4 Stripe 预留 TODO 注释要明确未来动 schema 时遵循 BA 边界。"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端 spec 入口，列出层级总览。"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "新建 UpgradePlanButton / UpgradePlanCard / PlanBadge 组件需遵循的 props 设计、命名、文件大小约束。"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "新建 src/components/billing/ 目录的位置与命名约定要符合 spec。"}
+{"file": ".trellis/spec/frontend/i18n.md", "reason": "R5 paraglide 文案补 en/zh 双份，遵循 m.xxx() 调用 + messages 文件结构。"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "活动 org 的 plan 字段从 BA additionalFields 来，TS 类型要按 spec 的窄化方式处理（参考 app-sidebar.tsx:286-291）。"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "useActiveOrganization 是 BA client hook，loading 态和缓存语义要遵循 spec 状态管理约定。"}

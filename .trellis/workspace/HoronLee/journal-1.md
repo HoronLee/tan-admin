@@ -649,3 +649,37 @@ PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: Plan gating UI + Stripe 接入位预留
+
+**Date**: 2026-04-30
+**Task**: Plan gating UI + Stripe 接入位预留
+**Branch**: `main`
+
+### Summary
+
+把 organization.plan 从纯后端字段升级为产品化 UI 概念：sidebar PlanBadge / teams 配额 / 邀请按钮 plan gating / 升级 CTA stub（saas-only），全部 private 模式不渲染；修了 settings/organization 页的 PLAN_OPTIONS drift（free/pro/enterprise → 4 个真实 plan），保存后 setActive 让 sidebar 立刻刷新；Stripe 接入位 A 档最轻预留（env optional + TODO 注释 + billing-stripe.md），不装 dep。spec 沉淀两条：PLAN_NAMES 单一真相源 + BA additionalField mutation 后用 setActive 刷 active-org 缓存。E2E 推到下个 PRD。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e451da3` | (see git log) |
+| `5ae2e6a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

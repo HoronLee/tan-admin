@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 19
-- **Last Active**: 2026-04-28
+- **Total Sessions**: 20
+- **Last Active**: 2026-04-30
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~651 | Active |
+| `journal-1.md` | ~685 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 20 | 2026-04-30 | Plan gating UI + Stripe 接入位预留 | `e451da3`, `5ae2e6a` | `main` |
 | 19 | 2026-04-28 | 品牌色统一注入 OKLCH→Web/邮件 | `dc4e83a` | `main` |
 | 18 | 2026-04-27 | 代码与 spec 组织结构梳理（Kolm 化全配版） | `9e55c47`, `b1b6215`, `c35bdda` | `main` |
 | 17 | 2026-04-25 | BA 插件剩余能力收口（addMember 双视角 + 邀请闭环 + 深度防御） | `021114d`, `15e1138`, `6632a2c` | `main` |

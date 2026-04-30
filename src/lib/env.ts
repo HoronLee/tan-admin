@@ -46,6 +46,12 @@ export const env = createEnv({
 		// 缺省时 UI 回归到现状中性灰（src/styles.css 默认）。
 		BRAND_PRIMARY_OKLCH: z.string().optional(),
 		BRAND_PRIMARY_DARK_OKLCH: z.string().optional(),
+
+		// --- Stripe (reserved, not active) ---
+		// 当前 stub 状态：未启用，仅为未来 `@better-auth/stripe` plugin 接入预留
+		// 占位。runtime 不读取，缺省 boot 正常。详见 spec/backend/billing-stripe.md。
+		STRIPE_SECRET_KEY: z.string().optional(),
+		STRIPE_WEBHOOK_SECRET: z.string().optional(),
 	},
 
 	/**
@@ -119,6 +125,9 @@ export const env = createEnv({
 		// Brand color (server-only)
 		BRAND_PRIMARY_OKLCH: process.env.BRAND_PRIMARY_OKLCH,
 		BRAND_PRIMARY_DARK_OKLCH: process.env.BRAND_PRIMARY_DARK_OKLCH,
+		// Stripe (reserved, not active — stub stage)
+		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		// Client vars — Vite exposes VITE_* via import.meta.env at build time;
 		// in Node.js contexts (tsx scripts, vitest) fall back to process.env.
 		VITE_APP_TITLE:

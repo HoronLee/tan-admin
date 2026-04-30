@@ -479,5 +479,23 @@
 	"site_users_sessions_revoke_all_success": "All sessions revoked",
 
 	"impersonation_banner_message": "You are acting as {email}",
-	"impersonation_banner_stop": "Stop"
+	"impersonation_banner_stop": "Stop",
+
+	"upgrade_coming_soon": "Plan upgrades are coming soon — please contact your administrator.",
+	"upgrade_button_label": "Upgrade plan",
+	"upgrade_card_title": "Unlock more capabilities",
+	"upgrade_card_description": "The current {plan} plan does not support this feature. Upgrade to a paid plan for team subgroups, more seats and advanced management.",
+
+	"plan_label_free": "Free",
+	"plan_label_personal_pro": "Personal Pro",
+	"plan_label_team_pro": "Team Pro",
+	"plan_label_enterprise": "✨ Enterprise",
+
+	"teams_quota_used": "{used} / {max} teams used",
+	"teams_quota_unlimited": "Unlimited teams",
+	"members_quota_used": "{used} / {max} members",
+	"members_quota_unlimited": "Unlimited members",
+
+	"invite_disabled_plan": "The current plan does not allow inviting new members. Upgrade to enable.",
+	"invite_disabled_quota": "Member limit reached ({max}). Upgrade your plan to invite more members."
 }

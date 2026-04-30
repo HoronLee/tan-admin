@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { BrandMark } from "#/components/brand-mark";
+import { PlanBadge } from "#/components/layout/plan-badge";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -284,11 +285,20 @@ export default function AppSidebar() {
 	// Plan gating 的唯一真相源：当前 active org 的 plan 字段。未 hydrate 时
 	// 默认按 "feature disabled" 走，避免首帧闪现可点击后又灰化。
 	const { data: activeOrg } = authClient.useActiveOrganization();
+	const activePlan = (activeOrg as { plan?: string | null } | null | undefined)
+		?.plan;
 	const gates: SidebarGates = {
-		teamsDisabled: !planAllowsTeams(
-			(activeOrg as { plan?: string | null } | null | undefined)?.plan,
-		),
+		teamsDisabled: !planAllowsTeams(activePlan),
 	};
+
+	// Plan badge 仅在 saas 模式渲染——private 模式默认 org 是 enterprise，
+	// "升级" 概念对私有化交付客户不存在。同 organization-switcher.tsx 的
+	// PRODUCT_MODE 读取方式：Vite 内联 client bundle，Node SSR 走 process.env。
+	const productMode =
+		typeof import.meta.env !== "undefined"
+			? (import.meta.env.VITE_PRODUCT_MODE as string | undefined)
+			: process.env.VITE_PRODUCT_MODE;
+	const showPlanBadge = productMode === "saas";
 
 	useEffect(() => {
 		if (!data) return;
@@ -306,7 +316,10 @@ export default function AppSidebar() {
 					<p className="text-xs font-semibold tracking-[0.18em] text-sidebar-foreground/60 uppercase">
 						Workspace
 					</p>
-					<BrandMark size="md" className="text-sidebar-foreground" />
+					<div className="flex items-center justify-between gap-2">
+						<BrandMark size="md" className="text-sidebar-foreground" />
+						{showPlanBadge && <PlanBadge plan={activePlan} />}
+					</div>
 				</div>
 			</SidebarHeader>
 			<SidebarContent>

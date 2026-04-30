@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontalIcon, PlusIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { UpgradePlanCard } from "#/components/billing/upgrade-plan-button";
 import { ConfirmDialog } from "#/components/confirm-dialog";
 import { DataTable } from "#/components/data-table/data-table";
 import { FormDrawer } from "#/components/form-drawer";
@@ -32,7 +33,7 @@ import {
 } from "#/components/ui/select";
 import { authClient } from "#/lib/auth/client";
 import { translateAuthError } from "#/lib/auth/errors";
-import { planAllowsTeams } from "#/lib/auth/plan";
+import { getPlanLimits, planAllowsTeams } from "#/lib/auth/plan";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(workspace)/_layout/teams/")({
@@ -65,23 +66,26 @@ function TeamsPage() {
 	const { data: activeOrg } = authClient.useActiveOrganization();
 	const plan = (activeOrg as { plan?: string | null } | null | undefined)?.plan;
 	if (!planAllowsTeams(plan)) {
-		return <TeamsDisabledCard />;
+		return <TeamsDisabledCard plan={plan} />;
 	}
-	return <TeamsEnabledView />;
+	return <TeamsEnabledView plan={plan} />;
 }
 
-function TeamsDisabledCard() {
+function TeamsDisabledCard({ plan }: { plan: string | null | undefined }) {
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>{m.teams_disabled_title()}</CardTitle>
-				<CardDescription>{m.teams_disabled_plan_hint()}</CardDescription>
-			</CardHeader>
-		</Card>
+		<div className="space-y-4">
+			<Card>
+				<CardHeader>
+					<CardTitle>{m.teams_disabled_title()}</CardTitle>
+					<CardDescription>{m.teams_disabled_plan_hint()}</CardDescription>
+				</CardHeader>
+			</Card>
+			<UpgradePlanCard plan={plan} />
+		</div>
 	);
 }
 
-function TeamsEnabledView() {
+function TeamsEnabledView({ plan }: { plan: string | null | undefined }) {
 	const { data: activeOrg, isPending: orgPending } =
 		authClient.useActiveOrganization();
 
@@ -102,10 +106,16 @@ function TeamsEnabledView() {
 		);
 	}
 
-	return <TeamsSection orgId={activeOrg.id} />;
+	return <TeamsSection orgId={activeOrg.id} plan={plan} />;
 }
 
-function TeamsSection({ orgId }: { orgId: string }) {
+function TeamsSection({
+	orgId,
+	plan,
+}: {
+	orgId: string;
+	plan: string | null | undefined;
+}) {
 	const queryClient = useQueryClient();
 
 	const { data, isPending } = useQuery({
@@ -240,12 +250,21 @@ function TeamsSection({ orgId }: { orgId: string }) {
 		},
 	];
 
+	const planLimits = getPlanLimits(plan);
+	const quotaText = Number.isFinite(planLimits.maxTeams)
+		? m.teams_quota_used({
+				used: String(teams.length),
+				max: String(planLimits.maxTeams),
+			})
+		: m.teams_quota_unlimited();
+
 	return (
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
 				<div>
 					<CardTitle>{m.teams_page_title()}</CardTitle>
 					<CardDescription>{m.teams_page_desc()}</CardDescription>
+					<p className="mt-1 text-xs text-muted-foreground">{quotaText}</p>
 				</div>
 				<Button size="sm" onClick={() => setCreateOpen(true)}>
 					<PlusIcon className="size-4" />

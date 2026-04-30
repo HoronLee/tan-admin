@@ -25,6 +25,7 @@ import {
 import { authClient } from "#/lib/auth/client";
 import { translateAuthError } from "#/lib/auth/errors";
 import { requireOrgMemberRole } from "#/lib/auth/guards";
+import { PLAN_NAMES, type PlanName } from "#/lib/auth/plan";
 import { env } from "#/lib/env";
 import * as m from "#/paraglide/messages";
 
@@ -37,8 +38,16 @@ export const Route = createFileRoute(
 	component: OrganizationSettingsPage,
 });
 
-type PlanOption = "free" | "pro" | "enterprise";
-const PLAN_OPTIONS: PlanOption[] = ["free", "pro", "enterprise"];
+/**
+ * Plan 显示文案 lookup table。复用 paraglide i18n key，
+ * 对齐 `plan.ts` 的真相源；新加 plan 时这里也要补一行（TS Record 会逼着你补）。
+ */
+const PLAN_LABEL: Record<PlanName, () => string> = {
+	free: m.plan_label_free,
+	personal_pro: m.plan_label_personal_pro,
+	team_pro: m.plan_label_team_pro,
+	enterprise: m.plan_label_enterprise,
+};
 
 // R7: 压缩目标 ≤ ~200KB。data-url 会比原始二进制大 ~33%（base64），因此
 // compression 目标定得略低（0.15MB），保留余量。
@@ -53,7 +62,7 @@ interface OrgSettingsForm {
 	name: string;
 	slug: string;
 	logo: string;
-	plan: PlanOption;
+	plan: PlanName;
 	industry: string;
 	billingEmail: string;
 }
@@ -143,7 +152,7 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 			name: fullOrg.name ?? "",
 			slug: fullOrg.slug ?? "",
 			logo: fullOrg.logo ?? "",
-			plan: (fullOrg.plan as PlanOption | undefined) ?? "free",
+			plan: (fullOrg.plan as PlanName | undefined) ?? "free",
 			industry: fullOrg.industry ?? "",
 			billingEmail: fullOrg.billingEmail ?? "",
 		});
@@ -170,11 +179,16 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 			});
 			if (error) throw new Error(translateAuthError(error));
 		},
-		onSuccess: () => {
+		onSuccess: async () => {
 			toast.success(m.org_settings_saved());
 			queryClient.invalidateQueries({
 				queryKey: ["organization", "full", orgId],
 			});
+			// 让 sidebar PlanBadge 等消费 useActiveOrganization 的组件
+			// 立刻拿到新 plan，避免用户改完 plan 后 UI 仍显示旧值。
+			// setActive 同时充当"重激活"和"刷新 active-org 缓存"双重职责，
+			// BA 内部对相同 organizationId 的 setActive 是幂等的。
+			await authClient.organization.setActive({ organizationId: orgId });
 		},
 		onError: (err: Error) => {
 			toast.error(err.message);
@@ -396,16 +410,16 @@ function OrganizationSettingsForm({ orgId }: { orgId: string }) {
 							<Select
 								value={form.plan}
 								onValueChange={(v) =>
-									setForm((prev) => ({ ...prev, plan: v as PlanOption }))
+									setForm((prev) => ({ ...prev, plan: v as PlanName }))
 								}
 							>
 								<SelectTrigger id="org-plan">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									{PLAN_OPTIONS.map((p) => (
+									{PLAN_NAMES.map((p) => (
 										<SelectItem key={p} value={p}>
-											{p}
+											{PLAN_LABEL[p]()}
 										</SelectItem>
 									))}
 								</SelectContent>

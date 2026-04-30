@@ -493,6 +493,20 @@ export const authConfig = {
 		}),
 		multiSession(),
 		tanstackStartCookies(),
+		// TODO(stripe): 当前 stub 状态。未来接入 `@better-auth/stripe` 时按
+		// .trellis/spec/backend/billing-stripe.md §3 顺序：
+		//   1. `pnpm add @better-auth/stripe stripe`，在文件顶部 import
+		//      `stripe as stripePlugin` from "@better-auth/stripe" + Stripe SDK
+		//   2. 把 stripePlugin({ stripeClient, stripeWebhookSecret,
+		//      subscription: { plans, authorizeReference }, onSubscriptionUpdate,
+		//      onSubscriptionDeleted }) 追加进本数组（保持在 multiSession /
+		//      tanstackStartCookies 之前），并把 STRIPE_SECRET_KEY /
+		//      STRIPE_WEBHOOK_SECRET 在 env.ts 改成 required
+		//   3. `pnpm ba:shadow` 同步 subscription 表 schema 进 zenstack/
+		//      _better-auth.zmodel，然后 `pnpm db:push` 迁移 DB
+		//   4. 在 onSubscriptionUpdate / onSubscriptionDeleted 里写 UPDATE
+		//      organization SET plan = ... 同步 organization.plan（plan-gating
+		//      的真相源），webhook 端点由 BA 自动挂在 /api/auth/stripe/webhook
 	],
 	user: {
 		additionalFields: {

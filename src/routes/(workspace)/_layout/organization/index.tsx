@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontalIcon, UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { UpgradePlanButton } from "#/components/billing/upgrade-plan-button";
 import { ConfirmDialog } from "#/components/confirm-dialog";
 import { DataTable } from "#/components/data-table/data-table";
 import { FormDrawer } from "#/components/form-drawer";
@@ -31,8 +32,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "#/components/ui/tooltip";
 import { authClient } from "#/lib/auth/client";
 import { translateAuthError } from "#/lib/auth/errors";
+import { getPlanLimits } from "#/lib/auth/plan";
 import * as m from "#/paraglide/messages";
 
 export const Route = createFileRoute("/(workspace)/_layout/organization/")({
@@ -84,6 +92,7 @@ function OrganizationPage() {
 
 	const orgType = (activeOrg as { type?: string }).type;
 	const isPersonal = orgType === "personal";
+	const plan = (activeOrg as { plan?: string | null }).plan;
 
 	return (
 		<div className="space-y-6">
@@ -95,7 +104,8 @@ function OrganizationPage() {
 			<MembersSection
 				orgId={activeOrg.id}
 				currentUserId={currentUserId}
-				canInvite={!isPersonal}
+				isPersonal={isPersonal}
+				plan={plan}
 			/>
 			{!isPersonal && <PendingInvitationsSection orgId={activeOrg.id} />}
 			{!isPersonal && <LeaveOrganizationSection orgId={activeOrg.id} />}
@@ -296,11 +306,13 @@ function OrgInfoSection({
 function MembersSection({
 	orgId,
 	currentUserId,
-	canInvite,
+	isPersonal,
+	plan,
 }: {
 	orgId: string;
 	currentUserId: string | undefined;
-	canInvite: boolean;
+	isPersonal: boolean;
+	plan: string | null | undefined;
 }) {
 	const queryClient = useQueryClient();
 	const { data, isPending } = useQuery({
@@ -491,6 +503,29 @@ function MembersSection({
 		},
 	];
 
+	const planLimits = getPlanLimits(plan);
+	const memberCount = members.length;
+	const quotaText = Number.isFinite(planLimits.maxMembers)
+		? m.members_quota_used({
+				used: String(memberCount),
+				max: String(planLimits.maxMembers),
+			})
+		: m.members_quota_unlimited();
+
+	// Type 优先于 plan：personal org 直接隐藏整个邀请按钮（与服务端
+	// `beforeCreateInvitation` 钩子语义一致，见 spec/backend/personal-org.md）。
+	const showInviteSlot = !isPersonal;
+	const planAllowsInvite = planLimits.canInviteMembers;
+	const quotaReached =
+		Number.isFinite(planLimits.maxMembers) &&
+		memberCount >= planLimits.maxMembers;
+	const canInvite = showInviteSlot && planAllowsInvite && !quotaReached;
+	const inviteDisabledReason = !planAllowsInvite
+		? m.invite_disabled_plan()
+		: quotaReached
+			? m.invite_disabled_quota({ max: String(planLimits.maxMembers) })
+			: null;
+
 	return (
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
@@ -499,12 +534,42 @@ function MembersSection({
 					<CardDescription>
 						{m.organization_page_members_desc()}
 					</CardDescription>
+					{showInviteSlot && (
+						<p className="mt-1 text-xs text-muted-foreground">{quotaText}</p>
+					)}
 				</div>
-				{canInvite && (
-					<Button size="sm" onClick={() => setInviteOpen(true)}>
-						<UserPlusIcon className="size-4" />
-						{m.organization_page_invite_member()}
-					</Button>
+				{showInviteSlot && (
+					<div className="flex items-center gap-2">
+						<UpgradePlanButton plan={plan} variant="outline" />
+						{canInvite ? (
+							<Button size="sm" onClick={() => setInviteOpen(true)}>
+								<UserPlusIcon className="size-4" />
+								{m.organization_page_invite_member()}
+							</Button>
+						) : (
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										{/*
+										 * Disabled buttons swallow pointer events, so Tooltip
+										 * never sees hover/focus. Wrap in an inline-block span
+										 * (no tabIndex — span is non-interactive; Tooltip uses
+										 * mouseenter on this wrapper instead).
+										 */}
+										<span className="inline-block">
+											<Button size="sm" disabled>
+												<UserPlusIcon className="size-4" />
+												{m.organization_page_invite_member()}
+											</Button>
+										</span>
+									</TooltipTrigger>
+									{inviteDisabledReason && (
+										<TooltipContent>{inviteDisabledReason}</TooltipContent>
+									)}
+								</Tooltip>
+							</TooltipProvider>
+						)}
+					</div>
 				)}
 			</CardHeader>
 			<CardContent>

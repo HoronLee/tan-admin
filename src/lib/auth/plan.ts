@@ -40,6 +40,18 @@ const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
 	enterprise: { maxTeams: INF, canInviteMembers: true, maxMembers: INF },
 };
 
+/**
+ * Plan 全集，按"展示顺序"排列（free → personal_pro → team_pro → enterprise）。
+ * 集中维护，避免 settings 页 / select / sidebar badge 等多处 hardcode 后 drift。
+ * 加 plan 时同步改 `PLAN_LIMITS` 与本数组。
+ */
+export const PLAN_NAMES: PlanName[] = [
+	"free",
+	"personal_pro",
+	"team_pro",
+	"enterprise",
+];
+
 export function getPlanLimits(plan: string | null | undefined): PlanLimits {
 	const key = (plan ?? "free") as PlanName;
 	return PLAN_LIMITS[key] ?? PLAN_LIMITS.free;

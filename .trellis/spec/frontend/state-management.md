@@ -116,8 +116,57 @@ onSuccess: () => {
 - Put state in Store for app-wide client state (theme/UI preferences, ephemeral shared values, cross-component derived data).
 - Keep state local by default; lift only when multiple siblings need the same state.
 
+## Better Auth Active-Org Cache Refresh
+
+Better Auth 的 `authClient.useActiveOrganization()` 在客户端是独立缓存，**TanStack Query 的 `invalidateQueries` 不会让它失效**。当你在 settings 页保存了 `organization` 上的 `additionalFields`（如 `plan` / `industry` / `billingEmail` / `logo`），下游消费者（sidebar 的 `<PlanBadge>`、任何读 `useActiveOrganization()` 的组件）默认仍拿到旧值。
+
+### 触发条件
+
+mutation 调用了 `authClient.organization.update({ data: { ...additionalFields } })` 之后，UI 上**当前会话内**有组件依赖那条 org 的数据立即可见。
+
+### Convention
+
+`onSuccess` 里在 invalidate ReactQuery 之外，**额外**调一次 `setActive` 强制 BA 重拉 active-org 缓存：
+
+```ts
+// src/routes/(workspace)/_layout/settings/organization/index.tsx
+const saveMutation = useMutation({
+  mutationFn: async (data: OrgSettingsForm) => {
+    const { error } = await authClient.organization.update({
+      organizationId: orgId,
+      data: { name: data.name, plan: data.plan, /* ... */ },
+    });
+    if (error) throw new Error(error.message);
+  },
+  onSuccess: async () => {
+    queryClient.invalidateQueries({ queryKey: ["organization", "full", orgId] });
+    // ↓ 让 useActiveOrganization 消费者（sidebar PlanBadge 等）立刻拿新值
+    await authClient.organization.setActive({ organizationId: orgId });
+  },
+});
+```
+
+### 为什么用 setActive 而不是 reload
+
+- `window.location.reload()` 会丢掉用户当前的滚动位置、表单未提交输入、tabbar 状态（`stores/tabbar.ts`），是最次方案
+- `setActive` 对 same-id 调用是幂等的，BA 内部会重拉 active org → 比 reload 优雅
+- 已实测验证：4 个 plan 切换后 sidebar `<PlanBadge>` 立刻反映新值（plan-gating-ui-stripe-stub task 实测）
+
+### 其他 BA additionalField 也适用
+
+任何 `organization.additionalFields` / `user.additionalFields` 的 mutation，只要 UI 有依赖该字段的客户端 hook 消费方，都要套这个 pattern。
+
+```ts
+// 反模式 ❌：只 invalidate ReactQuery
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ["organization", "full", orgId] });
+  // ← 缺 setActive，sidebar 的 PlanBadge / 其他 useActiveOrganization 消费者拿到的是旧 plan
+},
+```
+
 ## Forbidden / Anti-Patterns
 
 - Duplicating server query data into TanStack Store (creates invalidation drift).
 - Mutating Store state directly instead of `setState` immutable updates.
 - Using global store for one-component transient inputs.
+- 改完 BA additionalField 只 invalidate ReactQuery、不调 `setActive` 刷 BA active-org 缓存（导致 sidebar / `useActiveOrganization` 消费者显示旧值）。

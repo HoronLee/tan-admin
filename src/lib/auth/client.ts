@@ -30,5 +30,14 @@ export const authClient = createAuthClient({
 			schema: inferOrgAdditionalFields<typeof auth>(),
 		}),
 		multiSessionClient(),
+		// TODO(stripe): 当前 stub 状态。未来接入计费时：
+		//   1. `pnpm add @better-auth/stripe`（client 桥已在主包内），import
+		//      `stripeClient` from "@better-auth/stripe/client"
+		//   2. 在本数组追加 `stripeClient({ subscription: true })`，启用
+		//      `authClient.subscription.upgrade(...)` / `.list(...)` 等 helper
+		//   3. 把 src/components/billing/upgrade-plan-button.tsx 里的
+		//      `toast.info(m.upgrade_coming_soon())` 替换成真实
+		//      `authClient.subscription.upgrade({ plan, referenceId, ... })`
+		// 详见 .trellis/spec/backend/billing-stripe.md §3.5–3.6。
 	],
 });

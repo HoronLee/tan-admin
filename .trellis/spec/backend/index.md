@@ -21,6 +21,7 @@ This directory documents backend-role conventions extracted from real code paths
 | [Product Modes](./product-modes.md) | `PRODUCT_MODE` 产品形态开关（private / saas），signup auto-join / personal org 自建；workspace vs 真·多租户澄清 | Filled |
 | [Plan Gating](./plan-gating.md) | `organization.plan` 驱动的 feature 配额（team 数 / 邀请 / 成员上限）；替代旧的 `TEAM_ENABLED` env flag | Filled |
 | [Personal Organization](./personal-org.md) | saas 模式注册即建 personal org 的钩子 + 保护钩子（禁邀请 / 禁删）| Filled |
+| [Billing — Stripe (Stub)](./billing-stripe.md) | 升级 plan CTA 当前 stub，未来 `@better-auth/stripe` 接入步骤 | Stub |
 | [Email Infrastructure](./email-infrastructure.md) | `EmailTransport` abstraction (console / smtp / resend), react-email templates, boot-time validation | Filled |
 | [Error Handling](./error-handling.md) | Error types, ZenStack HTTP error contract, single-source mapping | Filled |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards and forbidden patterns | Filled |

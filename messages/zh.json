@@ -479,5 +479,23 @@
 	"site_users_sessions_revoke_all_success": "所有会话已终止",
 
 	"impersonation_banner_message": "正在以 {email} 身份操作",
-	"impersonation_banner_stop": "退出"
+	"impersonation_banner_stop": "退出",
+
+	"upgrade_coming_soon": "升级功能即将上线，请联系管理员",
+	"upgrade_button_label": "升级方案",
+	"upgrade_card_title": "解锁更多能力",
+	"upgrade_card_description": "当前 {plan} 方案不支持该功能。升级到付费方案获得 Team 子分组、更多成员名额和高级管理。",
+
+	"plan_label_free": "Free",
+	"plan_label_personal_pro": "Personal Pro",
+	"plan_label_team_pro": "Team Pro",
+	"plan_label_enterprise": "✨ Enterprise",
+
+	"teams_quota_used": "{used} / {max} 个 Team 已使用",
+	"teams_quota_unlimited": "Team 数量不限",
+	"members_quota_used": "{used} / {max} 名成员",
+	"members_quota_unlimited": "成员数量不限",
+
+	"invite_disabled_plan": "当前方案不允许邀请新成员，升级后启用",
+	"invite_disabled_quota": "已达成员上限（{max} 人），升级方案以邀请更多成员"
 }

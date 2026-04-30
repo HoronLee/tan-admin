@@ -80,7 +80,7 @@ const disabled = !planAllowsTeams(plan);
 
 | plan | maxTeams | canInviteMembers | maxMembers | 典型使用 |
 |---|---|---|---|---|
-| `free` | 0 | false | 1 | 个人空间（配合 `type=personal`）/ 未付费 team workspace 试用 |
+| `free` | 0 | true | 5 | 未付费 team workspace 起步：Notion 心智，免费协作（个人空间由 `type=personal` hook 硬挡邀请，与 plan 字段正交） |
 | `personal_pro` | 0 | false | 1 | 个人空间高级功能解锁 |
 | `team_pro` | 10 | true | 25 | 中小 team workspace |
 | `enterprise` | Infinity | true | Infinity | 企业 / 私有化交付默认值 |
@@ -198,10 +198,67 @@ if (planAllowsTeams(org.plan)) { ... }
 
 ---
 
+## 8. Don't redeclare the plan enum locally
+
+**任何**需要"列出所有 plan"的地方（form select、validation schema、显示文案查表）必须从 `#/lib/auth/plan` 导入 `PLAN_NAMES` 和 `PlanName`，不准本地重声明。
+
+### Convention
+
+```ts
+// src/lib/auth/plan.ts —— 真相源
+export type PlanName = "free" | "personal_pro" | "team_pro" | "enterprise";
+export const PLAN_NAMES: PlanName[] = ["free", "personal_pro", "team_pro", "enterprise"];
+```
+
+### Wrong（曾发生的真实 bug）
+
+```ts
+// src/routes/(workspace)/_layout/settings/organization/index.tsx — 旧版（已修）
+type PlanOption = "free" | "pro" | "enterprise";
+const PLAN_OPTIONS: PlanOption[] = ["free", "pro", "enterprise"];
+//                  ^ 缺 personal_pro / team_pro，多了不存在的 "pro"
+```
+
+后果（real symptom）：
+1. DB 里 plan=`team_pro` 时，`<Select>` 找不到匹配 `<SelectItem>` → SelectValue 显示空
+2. 用户保存 `"pro"` 后，`getPlanLimits("pro")` fallback 到 `free` limits → sidebar PlanBadge 显示 Free（fallback 在工作，不是没刷新）
+
+### 为什么这是 silent bug
+
+在 `<PlanBadge>` 出现之前，`organization.plan` 字段没有任何前端 UI 消费方——只在后端 `maximumTeams` 钩子里读。settings 页 enum drift 写错也没人发现，直到加了 PlanBadge 才暴露。
+
+**教训**：任何时候为后端字段加上前端 UI 消费方（badge、card、select、tooltip 文案），都要同步把"该字段的 enum 列表"集中到一个文件，别处只 import。这不是 plan 字段独有的——`organization.type`、`organization.industry` 等同样适用。
+
+### Correct
+
+```ts
+// src/routes/(workspace)/_layout/settings/organization/index.tsx
+import { PLAN_NAMES, type PlanName } from "#/lib/auth/plan";
+import * as m from "#/paraglide/messages";
+
+const PLAN_LABEL: Record<PlanName, () => string> = {
+  free: m.plan_label_free,
+  personal_pro: m.plan_label_personal_pro,
+  team_pro: m.plan_label_team_pro,
+  enterprise: m.plan_label_enterprise,
+};
+
+<Select value={form.plan} onValueChange={(v) => setForm({ ...form, plan: v as PlanName })}>
+  <SelectContent>
+    {PLAN_NAMES.map((p) => (
+      <SelectItem key={p} value={p}>{PLAN_LABEL[p]()}</SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+```
+
+---
+
 ## Related
 
 - `backend/product-modes.md` — private 模式默认 org 用 enterprise；saas 模式 personal org 用 free
 - `backend/personal-org.md` — type=personal 的保护钩子，与 plan gating 叠加
 - `backend/authorization-boundary.md` — BA organization 插件拥有 organization 表，plan 字段通过 additionalFields 挂进去
+- `backend/billing-stripe.md` — 当前 plan 升级 CTA 是 stub；未来 Stripe 接入步骤
 - `#/lib/plan` — 实现
 - `docs/reference/better-auth-plugin-organization.md` §Team Configuration Options — `maximumTeams` 动态函数原文

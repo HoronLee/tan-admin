@@ -189,6 +189,20 @@ Runs **once at import time**. Mis-configured deployment crashes before serving t
 
 `APP_ENV=dev` + signup email ending in `@dev.com` → `sendVerificationEmail` hook flips `user.emailVerified=true` in-place via shared `pool` and skips dispatch. Hardcoded in `src/lib/auth/config.ts` (`DEV_AUTO_VERIFY_DOMAIN`). Prod and non-matching addresses go through normal verification. Super-admin seed bypasses this path entirely via `internalAdapter.createUser({ emailVerified: true })`.
 
+### Admin-created users skip verification (all envs)
+
+Users created via `authClient.admin.createUser` (BA admin plugin path `/admin/create-user`) get `emailVerified=true` set by `databaseHooks.user.create.after` regardless of email suffix or `APP_ENV`. Rationale: the admin已经审核了录入信息，与 seed 内 super-admin 走 `internalAdapter.createUser({ emailVerified: true })` 的语义对齐；私有化交付场景超管批量建账号，员工无需点验证邮件。
+
+Implementation: `flipEmailVerifiedForAdminCreate(user, ctx)` in `src/lib/auth/config.ts` — called from `user.create.after`, gated on `ctx?.path === "/admin/create-user"` + `!user.emailVerified`. Flip uses `ctx.context.internalAdapter.updateUser` (not raw SQL), so it goes through BA's adapter and triggers `user.update.after` → `ensurePersonalOrg` (saas mode personal-org provisioning sticks to one path). Errors are swallowed + logged at `error` level; user creation never rolls back due to flip failure (best-effort, follows email-failure post-commit pattern).
+
+Path discrimination is exhaustive:
+
+| Path | `ctx?.path` | Flip? | Why |
+|---|---|---|---|
+| Public signup (`signUpEmail`) | `/sign-up/email` | No | Verification flow must remain intact for non-admin users |
+| Admin create user | `/admin/create-user` | **Yes** | Admin-vetted users skip verification |
+| Seed (`internalAdapter.createUser`) | `null` (no endpoint context) | No | Seed already passes `emailVerified: true` explicitly |
+
 ### Template / transport interaction
 
 - `pretty: true` in dev (`appConfig.env !== "prod"`), `pretty: false` in prod (minified HTML saves bandwidth).
@@ -235,6 +249,7 @@ organization({
 | `EMAIL_FROM_NAME` unset | From header = bare `EMAIL_FROM` |
 | `EMAIL_FROM_NAME` set | From header = `"Name" <email>` |
 | `APP_ENV=dev` + `user.email` ends `@dev.com` | `sendVerificationEmail` sets `emailVerified=true`, skips dispatch |
+| `ctx?.path === "/admin/create-user"` (any env, any suffix) | `user.create.after` sets `emailVerified=true` via `internalAdapter.updateUser`; no email sent |
 | SMTP `verify()` fails at boot | Warn-only; provider may reject verify but accept `sendMail` |
 | `sendMail` throws in BA hook | `sendEmail` logs + rethrows; BA hook is post-commit (#7260), signup still succeeds |
 | React-email render throws | Propagates; caller sees error |

@@ -109,7 +109,8 @@ beforeUpdateOrganization: async ({ organization: patch, member }) => {
 
 - **user.update.after** fires 在 BA 对 `user` 表做 update 之后。常见触发点：
   - 用户点击验证邮件链接 → `emailVerified: false → true`
-  - `@dev.com` 邮箱 dev 自动 verify（走 raw SQL 直接 set true，**不经过 BA update flow**，因此这个 hook **不触发**）
+  - `@dev.com` 邮箱 dev 自动 verify（走 raw SQL 直接 set true，**不经过 BA update flow**，因此这个 hook **不触发** —— 由 `sendVerificationEmail` 内分支显式调用 `ensurePersonalOrg`）
+  - super-admin 通过 `authClient.admin.createUser` 在后台创建用户 → `databaseHooks.user.create.after` 内的 `flipEmailVerifiedForAdminCreate` 用 `internalAdapter.updateUser` flip → **触发** user.update.after → personal org 自然 provision（沿用此路径，不必显式补调）
   - super-admin 在 `/site/users` 页手动 verify 用户邮箱
   - 用户自己改资料（name / avatar 等），同样触发 → 幂等查会早退
 - Hook 每次触发都**查询是否已存在 personal org**；存在则早退。所以 emailVerified 被重复 set true 也不会重复建

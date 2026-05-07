@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/auth-module-layout.md", "reason": "src/lib/auth/{config,server,client,session,plan}.ts 的职责边界 + databaseHooks 写在哪一层的约定，本任务直接改 config.ts 的 user.create.after"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "@dev.com 自动 verify 的现有契约（硬编码 + IS_DEV_MODE gate）+ super-admin seed 走 internalAdapter.createUser 的先例，本任务要在此 spec 补一条 admin.createUser 兜底契约"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "saas 模式 personal org provision 的多入口幂等约定（user.update.after / sendVerificationEmail / session.create.before），本任务依赖 internalAdapter.updateUser 触发 user.update.after 链路自动 provision"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "VITE_PRODUCT_MODE=private vs saas 在 user.create.after 内的分支语义（private 模式 auto-join default org 不能回归）"}
+{"file": ".trellis/spec/backend/authorization-boundary.md", "reason": "身份层（BA）vs 业务层（ZenStack policy）边界，确认 emailVerified flip 是身份层操作，不破坏业务隔离"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "raw SQL vs internalAdapter 的选型约定，本任务选 internalAdapter.updateUser 而非 raw SQL flip 的依据"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "hook 内异常处理与 log.error 的 pattern，flip 失败时的 fallback 行为参考既有 ensurePersonalOrg 的 try/catch + Sentry 写法"}
+{"file": ".trellis/tasks/05-07-admin-created-user-email-verify-bypass/research/ba-hook-admin-path-detection.md", "reason": "本任务核心 research 输出 —— ctx?.path 路径识别 + internalAdapter.updateUser 触发链 + resend rate-limit 解释，落地伪代码出处"}

@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/auth-module-layout.md", "reason": "验证 hook 改动落在 config.ts 而非 server.ts/codegen.ts；导入路径 + 模块边界合规"}
+{"file": ".trellis/spec/backend/email-infrastructure.md", "reason": "回归点 1：@dev.com signUpEmail 路径仍由 sendVerificationEmail 内 dev 分支兜底；回归点 2：admin.createUser 路径 emailVerified=true 已写入 spec"}
+{"file": ".trellis/spec/backend/personal-org.md", "reason": "回归点：admin 创建用户在 saas 模式下 personal org 仍能 provision（验证 user.update.after 链触发）；幂等性保持"}
+{"file": ".trellis/spec/backend/product-modes.md", "reason": "回归点：private 模式 admin 创建用户仍能 auto-join default org；super-admin email 跳过逻辑保持"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "通用质量门槛 — Vitest 覆盖、lint、type-check、commit 规范"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "验证 flip 失败时的 log.error + 不回滚 user 创建的兜底语义符合 spec"}
+{"file": ".trellis/tasks/05-07-admin-created-user-email-verify-bypass/research/ba-hook-admin-path-detection.md", "reason": "对照 research 中的源码引用核对实现是否真按 ctx?.path === '/admin/create-user' + internalAdapter.updateUser 落地，没用 raw SQL 偏离"}

@@ -683,3 +683,36 @@ PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: fix admin.createUser 路径用户 emailVerified 自动 flip
+
+**Date**: 2026-05-07
+**Task**: fix admin.createUser 路径用户 emailVerified 自动 flip
+**Branch**: `main`
+
+### Summary
+
+诊断并修复 super-admin 通过 admin plugin 创建的用户登录被拒 'Email not verified' 的 drift。根因：dev auto-verify 唯一锚点在 emailVerification.sendVerificationEmail hook，admin.createUser 不走 signUpEmail 路径不触发该 hook。研究后选 Approach 2（admin plugin 路径不论邮箱后缀都视为已审核），实现 flipEmailVerifiedForAdminCreate 纯函数挂在 user.create.after，用 ctx.path === '/admin/create-user' 精准识别 + internalAdapter.updateUser 触发既有 user.update.after 链路。8 个单测全绿，spec email-infrastructure.md / personal-org.md 同步。手动验证：超管 UI 创建任意邮箱后缀用户均可直接登录；公开注册路径未回归。新发现的邀请 accept 流程 'invitation not found' bug 留作下一任务调查。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cc50514` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

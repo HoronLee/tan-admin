@@ -716,3 +716,36 @@ PR1: 超管 addMember 双入口（site/users 行操作 + site/organizations 行�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: Split database integration tests
+
+**Date**: 2026-05-26
+**Task**: Split database integration tests
+**Branch**: `main`
+
+### Summary
+
+Separated default unit tests from DB-backed integration tests, extracted auth helper to avoid DB import side effects, and documented the test layering convention.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b3153c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

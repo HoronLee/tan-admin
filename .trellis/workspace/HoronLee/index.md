@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
-- **Last Active**: 2026-05-07
+- **Total Sessions**: 22
+- **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~718 | Active |
+| `journal-1.md` | ~751 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-05-26 | Split database integration tests | `8b3153c` | `main` |
 | 21 | 2026-05-07 | fix admin.createUser 路径用户 emailVerified 自动 flip | `cc50514` | `main` |
 | 20 | 2026-04-30 | Plan gating UI + Stripe 接入位预留 | `e451da3`, `5ae2e6a` | `main` |
 | 19 | 2026-04-28 | 品牌色统一注入 OKLCH→Web/邮件 | `dc4e83a` | `main` |

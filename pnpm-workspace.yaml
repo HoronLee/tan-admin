@@ -1,0 +1,8 @@
+allowBuilds:
+  "@better-auth/cli": true
+  "@prisma/engines": true
+  "@sentry/cli": true
+  esbuild: true
+  lightningcss: true
+  msw: true
+  prisma: true

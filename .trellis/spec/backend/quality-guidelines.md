@@ -7,6 +7,8 @@
 ## Core Baseline
 
 - Use `pnpm` scripts for all quality/build/database actions. No npm/yarn.
+- Keep pnpm project settings in `pnpm-workspace.yaml`; pnpm v11 no longer reads
+  non-auth settings from `package.json#pnpm`.
 - Keep formatting/linting under Biome (`pnpm check`).
 - Use `#/*` imports (declared in `package.json#imports`) for cross-module source access.
 - Do not edit generated artifacts.

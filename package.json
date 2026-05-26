@@ -117,16 +117,5 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
     "vitest": "^4.1.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@better-auth/cli",
-      "@prisma/engines",
-      "@sentry/cli",
-      "esbuild",
-      "lightningcss",
-      "msw",
-      "prisma"
-    ]
   }
 }

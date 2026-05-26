@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/config";
+import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/admin-create-user";
 
 function makeCtx(path: string) {
 	const updateUser = vi.fn().mockResolvedValue({});

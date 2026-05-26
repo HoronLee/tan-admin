@@ -5,6 +5,7 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/admin-create-user";
 import { getPlanLimits } from "#/lib/auth/plan";
 import { pool } from "#/lib/db";
 import { sendEmail } from "#/lib/email/templates";
@@ -27,51 +28,6 @@ const IS_DEV_MODE =
 
 function isDevAutoVerifyEmail(email: string): boolean {
 	return IS_DEV_MODE && email.toLowerCase().endsWith(DEV_AUTO_VERIFY_DOMAIN);
-}
-
-// admin plugin createUser 路径下的 emailVerified 兜底 flip。提取为可导出
-// 纯函数，便于单测。结构子类型签名避免 import BA 私有类型。
-//
-// 命中条件：ctx.path === "/admin/create-user" 且 user.emailVerified === false。
-// signUpEmail 路径 ("/sign-up/email")、seed 路径 (ctx == null)、已验证用户都
-// 不命中 —— 与 spec/backend/email-infrastructure.md 的契约一致。
-//
-// flip 走 internalAdapter.updateUser（不是 raw SQL）— 经 BA 适配器的写入会
-// 触发 user.update.after 链，saas 模式下 ensurePersonalOrg 会沿用既有路径
-// 自动 provision，无需在此重复调用。
-export async function flipEmailVerifiedForAdminCreate(
-	user: { id: string; email: string; emailVerified: boolean },
-	ctx:
-		| {
-				path?: string;
-				context: {
-					internalAdapter: {
-						updateUser: (
-							userId: string,
-							data: { emailVerified: boolean },
-						) => Promise<unknown>;
-					};
-				};
-		  }
-		| null
-		| undefined,
-): Promise<void> {
-	if (ctx?.path !== "/admin/create-user") return;
-	if (user.emailVerified) return;
-	try {
-		await ctx.context.internalAdapter.updateUser(user.id, {
-			emailVerified: true,
-		});
-		log.info(
-			{ userId: user.id, email: user.email },
-			"admin.createUser path: emailVerified flipped to true.",
-		);
-	} catch (err) {
-		log.error(
-			{ err, userId: user.id, email: user.email },
-			"admin.createUser path: failed to flip emailVerified — user may be stuck at sign-in.",
-		);
-	}
 }
 
 // Saas-mode personal org provisioning. Idempotent — safe to call repeatedly
@@ -291,7 +247,7 @@ export const authConfig = {
 				after: async (user, ctx) => {
 					// admin plugin 兜底：超管通过 /admin/create-user 创建的用户视为
 					// 已审核，跳过邮件验证。详见 flipEmailVerifiedForAdminCreate。
-					await flipEmailVerifiedForAdminCreate(user, ctx);
+					await flipEmailVerifiedForAdminCreate(user, ctx, log);
 
 					if (env.VITE_PRODUCT_MODE !== "private") return;
 					// The super-admin bootstrap is handled by seed. Skip to avoid

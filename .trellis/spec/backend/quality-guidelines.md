@@ -97,7 +97,8 @@ import { orpc } from '#/orpc/client'             // 业务路由
 Vitest is installed. Backend testing should start with in-process oRPC router/client tests (no HTTP transport), then add route-level integration tests.
 
 ```json
-"test": "vitest run",
+"test": "vitest run --passWithNoTests --exclude '**/*.integration.test.*'",
+"test:integration": "dotenv -e .env.local -- vitest run --passWithNoTests '**/*.integration.test.*'",
 "vitest": "^3.0.5"
 ```
 
@@ -105,6 +106,25 @@ Vitest is installed. Backend testing should start with in-process oRPC router/cl
 // src/orpc/client.ts
 import { createRouterClient } from '@orpc/server'
 createRouterClient(router, { context: () => ({ headers: getRequestHeaders() }) })
+```
+
+### Unit vs Database Integration Tests
+
+- Default `pnpm test` is for unit/component tests and must not require
+  PostgreSQL, `.env.local`, or other external services.
+- Database-backed tests use the suffix `*.integration.test.ts` and run through
+  `pnpm test:integration`.
+- Tests that import `#/lib/db` are integration tests unless the DB module is
+  explicitly mocked before import.
+- Pure helper tests should import DB-free helper modules instead of broad config
+  modules that transitively load `#/lib/db`.
+
+```ts
+// Good: unit test imports the DB-free helper.
+import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/admin-create-user";
+
+// Bad: this can transitively load #/lib/db and connect at module import time.
+import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/config";
 ```
 
 ## Sentry Wiring Must Not Be Removed

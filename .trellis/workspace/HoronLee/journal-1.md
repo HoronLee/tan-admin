@@ -749,3 +749,36 @@ Separated default unit tests from DB-backed integration tests, extracted auth he
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Migrate pnpm settings
+
+**Date**: 2026-05-26
+**Task**: Migrate pnpm settings
+**Branch**: `main`
+
+### Summary
+
+Moved pnpm v11 build-script approvals from package.json to pnpm-workspace.yaml, verified the warning disappeared, and documented the settings location convention.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9e0d06c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

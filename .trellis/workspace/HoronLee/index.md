@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~751 | Active |
+| `journal-1.md` | ~784 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-05-26 | Migrate pnpm settings | `9e0d06c` | `main` |
 | 22 | 2026-05-26 | Split database integration tests | `8b3153c` | `main` |
 | 21 | 2026-05-07 | fix admin.createUser 路径用户 emailVerified 自动 flip | `cc50514` | `main` |
 | 20 | 2026-04-30 | Plan gating UI + Stripe 接入位预留 | `e451da3`, `5ae2e6a` | `main` |

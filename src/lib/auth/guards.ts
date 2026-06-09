@@ -20,7 +20,9 @@ import { getSessionUser } from "#/lib/auth/session";
 
 export const requireSiteAdmin = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const headers = new Headers(getRequestHeaders() as Record<string, string>);
+		const headers = new Headers(
+			getRequestHeaders() as unknown as Record<string, string>,
+		);
 		const ctx = await getSessionUser(headers);
 		if (!ctx) {
 			throw redirect({ to: "/auth/$path", params: { path: "sign-in" } });
@@ -33,12 +35,14 @@ export const requireSiteAdmin = createServerFn({ method: "GET" }).handler(
 );
 
 export const requireOrgMemberRole = createServerFn({ method: "POST" })
-	.inputValidator(
+	.validator(
 		(data: { allowed?: string[] } | undefined) =>
 			data ?? { allowed: ["admin", "owner"] },
 	)
 	.handler(async ({ data }) => {
-		const headers = new Headers(getRequestHeaders() as Record<string, string>);
+		const headers = new Headers(
+			getRequestHeaders() as unknown as Record<string, string>,
+		);
 		const ctx = await getSessionUser(headers);
 		if (!ctx) {
 			throw redirect({ to: "/auth/$path", params: { path: "sign-in" } });

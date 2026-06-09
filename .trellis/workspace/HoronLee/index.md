@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 23
-- **Last Active**: 2026-05-26
+- **Total Sessions**: 24
+- **Last Active**: 2026-06-09
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~784 | Active |
+| `journal-1.md` | ~817 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 24 | 2026-06-09 | Upgrade component stack | `dddaa34` | `main` |
 | 23 | 2026-05-26 | Migrate pnpm settings | `9e0d06c` | `main` |
 | 22 | 2026-05-26 | Split database integration tests | `8b3153c` | `main` |
 | 21 | 2026-05-07 | fix admin.createUser 路径用户 emailVerified 自动 flip | `cc50514` | `main` |

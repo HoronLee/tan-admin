@@ -34,7 +34,9 @@ interface WorkspaceGuardResult {
 
 const inspectWorkspaceSession = createServerFn({ method: "GET" }).handler(
 	async (): Promise<WorkspaceGuardResult> => {
-		const headers = new Headers(getRequestHeaders() as Record<string, string>);
+		const headers = new Headers(
+			getRequestHeaders() as unknown as Record<string, string>,
+		);
 		const session = await getSessionUser(headers);
 		if (!session) {
 			return { authenticated: false, hasActiveOrg: false, isAdmin: false };

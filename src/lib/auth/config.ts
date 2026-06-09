@@ -5,9 +5,9 @@ import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
 import { admin, multiSession, organization } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import type { QueryResult, QueryResultRow } from "pg";
 import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/admin-create-user";
 import { getPlanLimits } from "#/lib/auth/plan";
-import { pool } from "#/lib/db";
 import { sendEmail } from "#/lib/email/templates";
 import { env } from "#/lib/env";
 import { createModuleLogger } from "#/lib/observability/logger";
@@ -25,6 +25,14 @@ const DEV_AUTO_VERIFY_DOMAIN = "@dev.com";
 const IS_DEV_MODE =
 	env.APP_ENV === "dev" ||
 	(env.APP_ENV === undefined && process.env.NODE_ENV !== "production");
+
+async function runtimeQuery<T extends QueryResultRow = QueryResultRow>(
+	text: string,
+	values?: unknown[],
+): Promise<QueryResult<T>> {
+	const { pool } = await import("#/lib/db");
+	return pool.query<T>(text, values);
+}
 
 function isDevAutoVerifyEmail(email: string): boolean {
 	return IS_DEV_MODE && email.toLowerCase().endsWith(DEV_AUTO_VERIFY_DOMAIN);
@@ -55,7 +63,7 @@ async function ensurePersonalOrg(params: {
 		return;
 	}
 	try {
-		const existing = await pool.query(
+		const existing = await runtimeQuery(
 			'SELECT 1 FROM "member" WHERE "userId" = $1 LIMIT 1',
 			[params.userId],
 		);
@@ -70,7 +78,7 @@ async function ensurePersonalOrg(params: {
 		// ON CONFLICT on the unique slug absorbs races between concurrent
 		// triggers (e.g. dev auto-verify + user.update.after firing on the
 		// same verify event).
-		const orgInsert = await pool.query<{ id: string }>(
+		const orgInsert = await runtimeQuery<{ id: string }>(
 			`INSERT INTO "organization" (id, name, slug, "createdAt", plan, "type")
 			 VALUES ($1, $2, $3, now(), $4, $5)
 			 ON CONFLICT (slug) DO NOTHING
@@ -82,7 +90,7 @@ async function ensurePersonalOrg(params: {
 		const effectiveOrgId =
 			orgInsert.rows[0]?.id ??
 			(
-				await pool.query<{ id: string }>(
+				await runtimeQuery<{ id: string }>(
 					'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
 					[slug],
 				)
@@ -95,12 +103,12 @@ async function ensurePersonalOrg(params: {
 			return;
 		}
 
-		const memberExists = await pool.query(
+		const memberExists = await runtimeQuery(
 			'SELECT 1 FROM "member" WHERE "organizationId" = $1 AND "userId" = $2 LIMIT 1',
 			[effectiveOrgId, params.userId],
 		);
 		if (!memberExists.rowCount) {
-			await pool.query(
+			await runtimeQuery(
 				'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
 				[randomUUID(), effectiveOrgId, params.userId, "owner"],
 			);
@@ -108,7 +116,7 @@ async function ensurePersonalOrg(params: {
 		// Sync activeOrganizationId on any existing sessions. BA only bootstraps
 		// it on sign-in; without this, a user whose session pre-dates the org
 		// creation would be routed to /onboarding as "no workspace".
-		await pool.query(
+		await runtimeQuery(
 			'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2 AND ("activeOrganizationId" IS NULL OR "activeOrganizationId" = \'\')',
 			[effectiveOrgId, params.userId],
 		);
@@ -145,7 +153,7 @@ export const authConfig = {
 	emailVerification: {
 		sendVerificationEmail: async ({ user, url }) => {
 			if (isDevAutoVerifyEmail(user.email)) {
-				await pool.query(
+				await runtimeQuery(
 					'UPDATE "user" SET "emailVerified" = true WHERE id = $1',
 					[user.id],
 				);
@@ -185,14 +193,14 @@ export const authConfig = {
 				// no longer depends on `user.update.after` as a single anchor.
 				before: async (session) => {
 					let organizationId: string | undefined = (
-						await pool.query<{ organizationId: string }>(
+						await runtimeQuery<{ organizationId: string }>(
 							'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
 							[session.userId],
 						)
 					).rows[0]?.organizationId;
 
 					if (!organizationId && env.VITE_PRODUCT_MODE === "saas") {
-						const { rows: userRows } = await pool.query<{
+						const { rows: userRows } = await runtimeQuery<{
 							email: string;
 							name: string | null;
 							emailVerified: boolean;
@@ -208,7 +216,7 @@ export const authConfig = {
 								name: u.name,
 							});
 							organizationId = (
-								await pool.query<{ organizationId: string }>(
+								await runtimeQuery<{ organizationId: string }>(
 									'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
 									[session.userId],
 								)
@@ -260,7 +268,7 @@ export const authConfig = {
 					}
 
 					try {
-						const { rows } = await pool.query<{ id: string }>(
+						const { rows } = await runtimeQuery<{ id: string }>(
 							'SELECT id FROM "organization" WHERE slug = $1 LIMIT 1',
 							[env.SEED_DEFAULT_ORG_SLUG],
 						);
@@ -275,13 +283,13 @@ export const authConfig = {
 
 						// Idempotent: bail if already a member (concurrency / retry safe).
 						// No unique (orgId, userId) constraint in BA schema, so guard here.
-						const existing = await pool.query(
+						const existing = await runtimeQuery(
 							'SELECT 1 FROM "member" WHERE "organizationId" = $1 AND "userId" = $2 LIMIT 1',
 							[orgId, user.id],
 						);
 						if (existing.rowCount && existing.rowCount > 0) return;
 
-						await pool.query(
+						await runtimeQuery(
 							'INSERT INTO "member" (id, "organizationId", "userId", role, "createdAt") VALUES ($1, $2, $3, $4, now())',
 							[randomUUID(), orgId, user.id, "member"],
 						);
@@ -330,7 +338,7 @@ export const authConfig = {
 			teams: {
 				enabled: true,
 				maximumTeams: async ({ organizationId }) => {
-					const { rows } = await pool.query<{ plan: string | null }>(
+					const { rows } = await runtimeQuery<{ plan: string | null }>(
 						'SELECT plan FROM "organization" WHERE id = $1',
 						[organizationId],
 					);
@@ -396,7 +404,7 @@ export const authConfig = {
 					const needsSlugCheck = patch.slug !== undefined;
 					if (!needsTypeCheck && !needsSlugCheck) return;
 
-					const { rows } = await pool.query<{
+					const { rows } = await runtimeQuery<{
 						slug: string;
 						type: string | null;
 					}>('SELECT slug, "type" FROM "organization" WHERE id = $1 LIMIT 1', [
@@ -449,7 +457,7 @@ export const authConfig = {
 				beforeAcceptInvitation: async ({ invitation, user, organization }) => {
 					if (invitation.role !== "owner") return;
 					try {
-						await pool.query(
+						await runtimeQuery(
 							'UPDATE "member" SET role = $1 WHERE "organizationId" = $2 AND role = $3',
 							["admin", organization.id, "owner"],
 						);
@@ -474,7 +482,7 @@ export const authConfig = {
 					organization,
 				}) => {
 					if (target.role !== "owner" || newRole === "owner") return;
-					const { rows } = await pool.query<{ count: string }>(
+					const { rows } = await runtimeQuery<{ count: string }>(
 						'SELECT COUNT(*)::text AS count FROM "member" WHERE "organizationId" = $1 AND role = $2',
 						[organization.id, "owner"],
 					);
@@ -485,7 +493,7 @@ export const authConfig = {
 				},
 				beforeRemoveMember: async ({ member: target, organization }) => {
 					if (target.role !== "owner") return;
-					const { rows } = await pool.query<{ count: string }>(
+					const { rows } = await runtimeQuery<{ count: string }>(
 						'SELECT COUNT(*)::text AS count FROM "member" WHERE "organizationId" = $1 AND role = $2',
 						[organization.id, "owner"],
 					);

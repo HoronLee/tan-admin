@@ -12,7 +12,9 @@ const getORPCClient = createIsomorphicFn()
 	.server(() =>
 		createRouterClient(router, {
 			context: () => ({
-				headers: new Headers(getRequestHeaders() as Record<string, string>),
+				headers: new Headers(
+					getRequestHeaders() as unknown as Record<string, string>,
+				),
 			}),
 		}),
 	)

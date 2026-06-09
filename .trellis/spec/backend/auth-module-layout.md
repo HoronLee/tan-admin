@@ -67,6 +67,35 @@ export const auth = betterAuth({
 
 两边共享 `authConfig`——**这是影子永远和 runtime 同步的唯一保证**。绝不允许两个文件各自重新声明 plugin / additionalFields。
 
+### Critical contract: config.ts must be CLI-import safe
+
+`src/lib/auth/config.ts` 会被两类入口 import：
+
+- runtime：`server.ts` 绑定真实 `pg.Pool`
+- codegen：`codegen.ts` 绑定 `prismaAdapter`，供 `pnpm ba:shadow` / BA CLI 读取 schema
+
+因此 `config.ts` **不能在模块顶层 import `#/lib/db` 或任何会立即连接 Postgres 的模块**。`#/lib/db` 在 module load 时会执行 `db.$connect()`；如果 `config.ts` 顶层 import 它，`pnpm ba:shadow` 只是读取配置也会依赖正在运行的数据库，常见失败是 `ECONNREFUSED`。
+
+需要数据库访问的 hook/helper 必须用函数内 lazy import：
+
+```ts
+import type { QueryResult, QueryResultRow } from "pg";
+
+async function runtimeQuery<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  values?: unknown[],
+): Promise<QueryResult<T>> {
+  const { pool } = await import("#/lib/db");
+  return pool.query<T>(text, values);
+}
+```
+
+约束边界：
+
+- `server.ts` 可以静态 import `pool`，因为它是 runtime BA 实例
+- `codegen.ts` 不应触发真实数据库连接，除 `.env.local` 提供 `DATABASE_URL` 让 BA CLI 读取 datasource 外
+- `config.ts` 可以声明 runtime hooks，但 hook 内部需要 DB 时才 lazy import
+
 ---
 
 ## 3. Contracts
@@ -124,6 +153,7 @@ export const authConfig = {
 | `pnpm zen generate` 报 "Expecting EOF but found import" | `import "_better-auth"` 不在 schema.zmodel 顶部 | import 必须在 datasource/plugin 之前 |
 | BA 跑得起来但 ZenStack policy 看不到 BA 字段 | runtime 改了但 codegen.ts 没共享 config | 必须从 `./config` import authConfig，不能两边各写一份 |
 | `satisfies Omit<BetterAuthOptions, "database">` 报错 | BA 升级换了某个 option 名 / 某字段类型变严格 | 修正 config.ts 直到 satisfies 通过；server.ts/codegen.ts 不动 |
+| `pnpm ba:shadow` 报 `ECONNREFUSED` 且堆栈经过 `src/lib/db.ts` | `config.ts` 顶层 import 了会连接 DB 的模块 | 移除顶层 DB import；把 `pool` 放进 helper/hook 内 lazy import |
 
 ---
 
@@ -165,6 +195,35 @@ export const auth = betterAuth({
 ```
 
 后果：codegen.ts 看不到这些 plugin → `_better-auth.zmodel` 不含对应表 → ZenStack policy 依赖这些表会编译报错或 silent miss。**任何会影响 BA schema 的字段必须在 config.ts**。
+
+### Bad：config.ts 顶层 import 数据库
+
+```ts
+// src/lib/auth/config.ts
+import { pool } from "#/lib/db"; // ❌ CLI import config.ts 时也会连接 Postgres
+
+async function ensurePersonalOrg(userId: string) {
+  await pool.query('SELECT 1 FROM "member" WHERE "userId" = $1', [userId]);
+}
+```
+
+后果：`pnpm ba:shadow` / BA CLI 只是读取 `codegen.ts`，也会因为 `config.ts -> db.ts` 的顶层副作用要求数据库在线。
+
+### Correct：hook 内 lazy import
+
+```ts
+// src/lib/auth/config.ts
+async function runtimeQuery(text: string, values?: unknown[]) {
+  const { pool } = await import("#/lib/db");
+  return pool.query(text, values);
+}
+
+async function ensurePersonalOrg(userId: string) {
+  await runtimeQuery('SELECT 1 FROM "member" WHERE "userId" = $1', [userId]);
+}
+```
+
+这样 runtime hook 仍使用同一个 `pg.Pool`，但 `codegen.ts` import `authConfig` 时不会拉起真实 DB 连接。
 
 ---
 

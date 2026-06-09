@@ -782,3 +782,36 @@ Moved pnpm v11 build-script approvals from package.json to pnpm-workspace.yaml, 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Upgrade component stack
+
+**Date**: 2026-06-09
+**Task**: Upgrade component stack
+**Branch**: `main`
+
+### Summary
+
+Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI app registry on 1.6.3 due upstream incompatibility, fixed BA shadow codegen DB import boundary, updated auth spec, and validated check/test/tsc/build/peers.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dddaa34` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

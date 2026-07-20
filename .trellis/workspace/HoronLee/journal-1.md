@@ -815,3 +815,37 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: 架构分层收尾：review 修复权限漏洞并全量过质量门
+
+**Date**: 2026-07-21
+**Task**: 架构分层收尾：review 修复权限漏洞并全量过质量门
+**Branch**: `main`
+
+### Summary
+
+对 06-19 架构分层任务做收尾 review（context7/exa 核验官方最佳实践）：确认 ZenStack hooks/oRPC/queries/route 拆分方向正确；发现并修复 Menu policy 两个漏洞——post-update 逃逸（owner 可改 organizationId 出域）与跨 org 菜单读泄漏；客户端改用 schema-lite，orm shim 抽模块加漂移测试，guards 去重 getActiveMember，修 test:integration glob；check/test/integration/tsc/build 全绿后提交，三个遗留优化项记入 TODO.md。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `da9ba3b` | (see git log) |
+| `1a2887a` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

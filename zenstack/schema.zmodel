@@ -15,8 +15,10 @@ plugin policy {
 
 /// Auth context injected per-request via authDb.$setAuth()
 type Auth {
-  userId  String  @id
-  isAdmin Boolean?
+  userId                 String  @id
+  isAdmin               Boolean?
+  activeOrganizationId   String?
+  activeOrganizationRole String?
   @@auth
 }
 
@@ -68,7 +70,17 @@ model Menu {
   createdAt          DateTime  @default(now())
 
   @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
+  // Read isolation: global menus (organizationId == null) are visible to any
+  // authenticated user; org-scoped menus only to members of that org.
+  @@allow('read', auth() != null && (organizationId == null || organizationId == auth().activeOrganizationId))
   @@allow('all', auth().isAdmin == true)
+  @@allow('create', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  @@allow('update', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  @@allow('delete', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  // 'update' rules only see the PRE-update state, and 'all' does NOT expand to
+  // post-update in ZenStack v3 — without the rules below an org owner could
+  // re-scope a menu (organizationId -> null / another org) to escape the
+  // write boundary. Admins may re-scope; owners must keep the org unchanged.
+  @@allow('post-update', auth().isAdmin == true)
+  @@allow('post-update', organizationId == auth().activeOrganizationId)
 }
-

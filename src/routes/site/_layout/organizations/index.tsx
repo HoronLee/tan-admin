@@ -9,13 +9,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2Icon, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import { Building2Icon, MoreHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "#/components/confirm-dialog";
 import { DataTable } from "#/components/data-table/data-table";
-import { FormDrawer } from "#/components/form-drawer";
-import { UserPickerCombobox } from "#/components/UserPickerCombobox";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
@@ -31,26 +29,18 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu";
-import { Input } from "#/components/ui/input";
-import { Label } from "#/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "#/components/ui/select";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "#/components/ui/tooltip";
 import { authClient } from "#/lib/auth/client";
 import { requireSiteAdmin } from "#/lib/auth/guards";
 import { env } from "#/lib/env";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
+import {
+	organizationsAdminKey,
+	organizationsAdminListQueryOptions,
+} from "#/queries/organizations-admin";
+import { AddOrganizationMemberDrawer } from "./-components/add-organization-member-drawer";
+import { CreateOrganizationButton } from "./-components/create-organization-button";
+import { CreateOrganizationDrawer } from "./-components/create-organization-drawer";
 
 export const Route = createFileRoute("/site/_layout/organizations/")({
 	beforeLoad: async () => {
@@ -102,9 +92,7 @@ function OrganizationsPage() {
 
 function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 	const queryClient = useQueryClient();
-	const listQueryOptions = orpc.organizationsAdmin.list.queryOptions({
-		input: {},
-	});
+	const listQueryOptions = organizationsAdminListQueryOptions();
 	const { data, isPending } = useQuery(listQueryOptions);
 	const rows = (data ?? []) as OrganizationRow[];
 
@@ -116,7 +104,7 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 		useState<OrganizationRow | null>(null);
 
 	const invalidate = () =>
-		queryClient.invalidateQueries({ queryKey: listQueryOptions.queryKey });
+		queryClient.invalidateQueries({ queryKey: organizationsAdminKey() });
 
 	const dissolveMutation = useMutation({
 		mutationFn: async (organizationId: string) => {
@@ -228,7 +216,7 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 						<CardDescription>{m.organizations_page_desc()}</CardDescription>
 					</div>
 				</div>
-				<CreateButton
+				<CreateOrganizationButton
 					isPrivateMode={isPrivateMode}
 					onClick={() => setCreateOpen(true)}
 				/>
@@ -242,14 +230,14 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 				/>
 			</CardContent>
 
-			<CreateOrgDrawer
+			<CreateOrganizationDrawer
 				open={createOpen}
 				onOpenChange={setCreateOpen}
 				onCreated={invalidate}
 			/>
 
 			{addMemberTarget && (
-				<AddMemberDrawer
+				<AddOrganizationMemberDrawer
 					organization={addMemberTarget}
 					onOpenChange={(open) => {
 						if (!open) setAddMemberTarget(null);
@@ -287,266 +275,5 @@ function OrganizationsTable({ isPrivateMode }: { isPrivateMode: boolean }) {
 				}}
 			/>
 		</Card>
-	);
-}
-
-function CreateButton({
-	isPrivateMode,
-	onClick,
-}: {
-	isPrivateMode: boolean;
-	onClick: () => void;
-}) {
-	if (isPrivateMode) {
-		return (
-			<TooltipProvider>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<span>
-							<Button size="sm" disabled>
-								<PlusIcon className="size-4" />
-								{m.organizations_create_button()}
-							</Button>
-						</span>
-					</TooltipTrigger>
-					<TooltipContent side="bottom">
-						{m.organizations_create_disabled_tooltip()}
-					</TooltipContent>
-				</Tooltip>
-			</TooltipProvider>
-		);
-	}
-	return (
-		<Button size="sm" onClick={onClick}>
-			<PlusIcon className="size-4" />
-			{m.organizations_create_button()}
-		</Button>
-	);
-}
-
-interface CreateForm {
-	name: string;
-	slug: string;
-	plan: string;
-	industry: string;
-	billingEmail: string;
-}
-
-const INITIAL_FORM: CreateForm = {
-	name: "",
-	slug: "",
-	plan: "free",
-	industry: "",
-	billingEmail: "",
-};
-
-function CreateOrgDrawer({
-	open,
-	onOpenChange,
-	onCreated,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onCreated: () => void;
-}) {
-	const [form, setForm] = useState<CreateForm>(INITIAL_FORM);
-	const [submitting, setSubmitting] = useState(false);
-
-	async function handleSubmit() {
-		if (!form.name || !form.slug) {
-			toast.error(m.organizations_create_validate());
-			return;
-		}
-		setSubmitting(true);
-		try {
-			await orpc.organizationsAdmin.create.call({
-				name: form.name,
-				slug: form.slug,
-				plan: form.plan || undefined,
-				industry: form.industry || undefined,
-				billingEmail: form.billingEmail || undefined,
-			});
-			toast.success(m.organizations_created_toast());
-			onOpenChange(false);
-			setForm(INITIAL_FORM);
-			onCreated();
-		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : m.organizations_create_failed(),
-			);
-		} finally {
-			setSubmitting(false);
-		}
-	}
-
-	return (
-		<FormDrawer
-			open={open}
-			onOpenChange={(next) => {
-				onOpenChange(next);
-				if (!next) setForm(INITIAL_FORM);
-			}}
-			title={m.organizations_create_drawer_title()}
-			submitText={m.organizations_create_submit()}
-			submitting={submitting}
-			onSubmit={handleSubmit}
-		>
-			<div className="space-y-4">
-				<div className="space-y-2">
-					<Label htmlFor="org-name">{m.organizations_field_org_name()}</Label>
-					<Input
-						id="org-name"
-						value={form.name}
-						onChange={(e) => setForm({ ...form, name: e.target.value })}
-						placeholder={m.organizations_field_org_name_placeholder()}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="org-slug">slug</Label>
-					<Input
-						id="org-slug"
-						value={form.slug}
-						onChange={(e) => setForm({ ...form, slug: e.target.value })}
-						placeholder="my-org"
-					/>
-					<p className="text-xs text-muted-foreground">
-						{m.organizations_field_slug_hint()}
-					</p>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="org-plan">{m.organizations_col_plan()}</Label>
-					<Input
-						id="org-plan"
-						value={form.plan}
-						onChange={(e) => setForm({ ...form, plan: e.target.value })}
-						placeholder={m.organizations_field_plan_placeholder()}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="org-industry">
-						{m.organizations_field_industry_optional()}
-					</Label>
-					<Input
-						id="org-industry"
-						value={form.industry}
-						onChange={(e) => setForm({ ...form, industry: e.target.value })}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="org-billing-email">
-						{m.organizations_field_billing_email_optional()}
-					</Label>
-					<Input
-						id="org-billing-email"
-						type="email"
-						value={form.billingEmail}
-						onChange={(e) => setForm({ ...form, billingEmail: e.target.value })}
-					/>
-				</div>
-			</div>
-		</FormDrawer>
-	);
-}
-
-// ---------------------------------------------------------------------------
-// Add member to organization — site-admin reverse entry. Mirrors the user-
-// scoped flow on `/site/users` (AddToOrganizationDrawer there) but with the
-// organization fixed and the user picked via UserPickerCombobox.
-//
-// Reuses `orpc.organizationsAdmin.addMember` — no new endpoint. Errors come
-// back already narrowed (CONFLICT / NOT_FOUND / FORBIDDEN), so a plain toast
-// is enough.
-// ---------------------------------------------------------------------------
-
-const ADD_MEMBER_ROLES = ["owner", "admin", "member"] as const;
-type AddMemberRole = (typeof ADD_MEMBER_ROLES)[number];
-
-function AddMemberDrawer({
-	organization,
-	onOpenChange,
-	onSuccess,
-}: {
-	organization: OrganizationRow;
-	onOpenChange: (open: boolean) => void;
-	onSuccess: () => void;
-}) {
-	const [userId, setUserId] = useState<string | null>(null);
-	const [role, setRole] = useState<AddMemberRole>("member");
-
-	const addMutation = useMutation({
-		mutationFn: async () => {
-			if (!userId) throw new Error(m.organizations_add_member_error_no_user());
-			await orpc.organizationsAdmin.addMember.call({
-				userId,
-				organizationId: organization.id,
-				role,
-			});
-		},
-		onSuccess: () => {
-			toast.success(m.organizations_add_member_success());
-			onSuccess();
-		},
-		onError: (err: Error) => {
-			toast.error(err.message);
-		},
-	});
-
-	function handleSubmit() {
-		if (!userId) {
-			toast.error(m.organizations_add_member_error_no_user());
-			return;
-		}
-		addMutation.mutate();
-	}
-
-	const roleLabels: Record<AddMemberRole, string> = {
-		owner: m.site_users_add_to_org_role_owner(),
-		admin: m.site_users_add_to_org_role_admin(),
-		member: m.site_users_add_to_org_role_member(),
-	};
-
-	return (
-		<FormDrawer
-			open={true}
-			onOpenChange={onOpenChange}
-			title={m.organizations_add_member_title({ name: organization.name })}
-			description={m.organizations_add_member_desc()}
-			submitText={m.organizations_add_member_submit()}
-			submitting={addMutation.isPending}
-			onSubmit={handleSubmit}
-		>
-			<div className="space-y-4">
-				<div className="space-y-2">
-					<Label htmlFor="add-member-user">
-						{m.organizations_add_member_field_user()}
-					</Label>
-					<UserPickerCombobox
-						id="add-member-user"
-						value={userId}
-						onChange={(id) => setUserId(id)}
-					/>
-				</div>
-				<div className="space-y-2">
-					<Label htmlFor="add-member-role">
-						{m.organizations_add_member_field_role()}
-					</Label>
-					<Select
-						value={role}
-						onValueChange={(v) => setRole(v as AddMemberRole)}
-					>
-						<SelectTrigger id="add-member-role">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{ADD_MEMBER_ROLES.map((r) => (
-								<SelectItem key={r} value={r}>
-									{roleLabels[r]}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-			</div>
-		</FormDrawer>
 	);
 }

@@ -1,3 +1,5 @@
+import "@tanstack/react-start/server-only";
+
 import { createRequire } from "node:module";
 import { trace } from "@opentelemetry/api";
 import pino from "pino";

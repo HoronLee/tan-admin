@@ -12,6 +12,7 @@ import {
 } from "#/components/ui/select";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
+import { organizationsAdminListQueryOptions } from "#/queries/organizations-admin";
 import type { AdminUser } from "./_shared";
 
 /**
@@ -41,9 +42,7 @@ export function AddToOrganizationDrawer({
 	const [organizationId, setOrganizationId] = useState<string>("");
 	const [role, setRole] = useState<AddMemberRole>("member");
 
-	const orgListQuery = useQuery(
-		orpc.organizationsAdmin.list.queryOptions({ input: {} }),
-	);
+	const orgListQuery = useQuery(organizationsAdminListQueryOptions());
 	const organizations = (orgListQuery.data ?? []) as OrganizationOption[];
 
 	const addMutation = useMutation({

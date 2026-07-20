@@ -78,13 +78,18 @@ model Order {
 }
 ```
 
-**C. 状态流转约束**：
+**C. 状态流转约束**（v3：`update` 规则只看更新前状态；更新后状态用 `post-update` + `before()`）：
 ```prisma
 model WorkOrder {
   status String  // draft | submitted | approved
-  @@allow('update', before.status == 'draft')
+  // 只有 draft 状态可以被更新（pre-update 状态检查）
+  @@allow('update', status == 'draft')
+  // 更新后只允许进入 submitted（post-update 状态检查）
+  @@allow('post-update', status == 'submitted' && before().status == 'draft')
 }
 ```
+
+> ⚠️ **`@@allow('all', ...)` 不会展开到 `post-update`**；模型没有任何 post-update 规则时更新后状态不设防。凡是"某字段决定行归属/作用域"（如 `organizationId`、`ownerId`）且允许非管理员 update 的表，必须补 post-update 规则防止改字段逃逸作用域——`Menu` 就是范例。
 
 **D. 字段级可见性**：
 ```prisma
@@ -94,12 +99,21 @@ model Employee {
 }
 ```
 
-**E. 匿名禁止 + 登录只读 + 管理员全权**（Menu 当前就是这种）：
+**E. 匿名禁止 + 全局/org 混合读 + 管理员全权 + org owner 域内写**（Menu 当前就是这种）：
 ```prisma
 model SomeTable {
+  organizationId String?  // null = 全局行，非 null = org-scoped 行
   @@deny('all', auth() == null)
-  @@allow('read', auth() != null)
+  // 全局行人人可读；org 行只有本 org 成员可读
+  @@allow('read', auth() != null && (organizationId == null || organizationId == auth().activeOrganizationId))
   @@allow('all', auth().isAdmin == true)
+  // org owner 只能写本 org 的行
+  @@allow('create', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  @@allow('update', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  @@allow('delete', auth().activeOrganizationRole == "owner" && organizationId == auth().activeOrganizationId)
+  // 防逃逸：owner 更新后 organizationId 必须仍是本 org；admin 可任意 re-scope
+  @@allow('post-update', auth().isAdmin == true)
+  @@allow('post-update', organizationId == auth().activeOrganizationId)
 }
 ```
 
@@ -177,10 +191,11 @@ betterAuth({
 
 Better Auth session → ZenStack `auth()` 的字段流：`auth-session.ts` 从 BA session 提取 → `middleware/auth.ts` 调 `authDb.$setAuth(...)` → zmodel 的 `@@allow` 以 `auth().xxx` 引用。
 
-**当前暴露字段**（以 `auth-session.ts` 类型为准）：
-- `auth().id`：用户 id
+**当前暴露到 ZenStack `auth()` 的字段**（以 `zenstack/schema.zmodel` 的 `type Auth` 和 `src/lib/auth/session.ts` 的 `policyAuth` 为准）：
+- `auth().userId`：用户 id
 - `auth().isAdmin`：全站管理员（来自 `user.role === "admin"`）
 - `auth().activeOrganizationId`：当前激活组织 id
+- `auth().activeOrganizationRole`：当前用户在激活组织中的 BA member role
 
 ### 扩展字段的顺序（不可颠倒）
 

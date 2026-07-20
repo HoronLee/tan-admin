@@ -56,9 +56,9 @@ import type { RouterClient } from '@orpc/server'
 .client((): RouterClient<typeof router> => { ... })
 export const client: RouterClient<typeof router> = getORPCClient()
 
-// src/routes/(workspace)/_layout/settings/organization/menus.tsx — typed query/mutation
-useQuery(orpc.listMenus.queryOptions({ input: {} }))
-useMutation({ ...orpc.createMenu.mutationOptions() })
+// src/queries/organizations-admin.ts — typed queryOptions from oRPC
+orpc.organizationsAdmin.list.queryOptions({ input: {} })
+orpc.organizationsAdmin.key()
 ```
 
 ## Typed Router Context

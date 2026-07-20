@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
@@ -31,6 +31,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/ui/select";
+import { useZenStackQueries } from "#/integrations/zenstack-query/client";
+import { authClient } from "#/lib/auth/client";
 import { requireOrgMemberRole } from "#/lib/auth/guards";
 import { resolveMenuLabel } from "#/lib/menu/menu-label";
 import { orpc } from "#/orpc/client";
@@ -81,6 +83,13 @@ interface MenuNode {
 	children?: MenuNode[];
 }
 
+interface MenuInclude {
+	children?: {
+		orderBy: { order: "asc" };
+		include: MenuInclude;
+	};
+}
+
 interface FlatMenuRow extends MenuNode {
 	depth: number;
 }
@@ -120,13 +129,30 @@ function flatten(nodes: MenuNode[], depth = 0, acc: FlatMenuRow[] = []) {
 	return acc;
 }
 
-const MENUS_KEY = ["menus", "tree"] as const;
+function buildMenuInclude(depth: number): MenuInclude {
+	if (depth <= 0) return {};
+	return {
+		children: {
+			orderBy: { order: "asc" },
+			include: buildMenuInclude(depth - 1),
+		},
+	};
+}
 
 function MenusPage() {
 	const queryClient = useQueryClient();
-	const { data, isPending } = useQuery(
-		orpc.listMenus.queryOptions({ input: {} }),
-	);
+	const zenstack = useZenStackQueries();
+	const menu = zenstack.menu;
+	const { data, isPending } = menu.useFindMany({
+		where: { parentId: null },
+		orderBy: { order: "asc" },
+		include: buildMenuInclude(5),
+	});
+	const { data: session } = authClient.useSession();
+	const { data: activeOrg } = authClient.useActiveOrganization();
+	const isSuperAdmin =
+		(session?.user as { role?: string | null } | undefined)?.role === "admin";
+	const activeOrganizationId = activeOrg?.id;
 
 	const tree = (data ?? []) as unknown as MenuNode[];
 	const rows = useMemo(() => flatten(tree), [tree]);
@@ -136,39 +162,20 @@ function MenusPage() {
 	const [removeTarget, setRemoveTarget] = useState<MenuNode | null>(null);
 
 	const invalidate = () => {
-		queryClient.invalidateQueries({ queryKey: MENUS_KEY });
-		queryClient.invalidateQueries({ queryKey: ["orpc"] });
+		queryClient.invalidateQueries({ queryKey: orpc.getUserMenus.key() });
 	};
 
-	const createMutation = useMutation({
-		...orpc.createMenu.mutationOptions(),
-		onSuccess: () => {
-			toast.success("Menu created");
-			invalidate();
-			setDrawerOpen(false);
-		},
-		onError: (err: Error) => toast.error(err.message),
-	});
+	const createMutation = menu.useCreate();
+	const updateMutation = menu.useUpdate();
+	const deleteMutation = menu.useDelete();
 
-	const updateMutation = useMutation({
-		...orpc.updateMenu.mutationOptions(),
-		onSuccess: () => {
-			toast.success("Menu updated");
-			invalidate();
-			setDrawerOpen(false);
-		},
-		onError: (err: Error) => toast.error(err.message),
-	});
-
-	const deleteMutation = useMutation({
-		...orpc.deleteMenu.mutationOptions(),
-		onSuccess: () => {
-			toast.success("Menu deleted");
-			invalidate();
-			setRemoveTarget(null);
-		},
-		onError: (err: Error) => toast.error(err.message),
-	});
+	function canWriteMenu(node: MenuNode) {
+		return (
+			isSuperAdmin ||
+			(node.organizationId !== null &&
+				node.organizationId === activeOrganizationId)
+		);
+	}
 
 	function openCreate(parentId: number | null = null) {
 		setForm({ ...EMPTY_FORM, parentId });
@@ -193,6 +200,11 @@ function MenusPage() {
 	}
 
 	function handleSubmit() {
+		if (!form.id && !isSuperAdmin && !activeOrganizationId) {
+			toast.error("Active organization is required.");
+			return;
+		}
+
 		const meta: MenuMeta = {};
 		if (form.title) meta.title = form.title;
 		if (form.icon) meta.icon = form.icon;
@@ -211,9 +223,34 @@ function MenusPage() {
 		};
 
 		if (form.id) {
-			updateMutation.mutate({ id: form.id, data: payload });
+			updateMutation.mutate(
+				{ where: { id: form.id }, data: payload },
+				{
+					onSuccess: () => {
+						toast.success("Menu updated");
+						invalidate();
+						setDrawerOpen(false);
+					},
+					onError: (err: Error) => toast.error(err.message),
+				},
+			);
 		} else {
-			createMutation.mutate(payload);
+			createMutation.mutate(
+				{
+					data: {
+						...payload,
+						organizationId: activeOrganizationId,
+					},
+				},
+				{
+					onSuccess: () => {
+						toast.success("Menu created");
+						invalidate();
+						setDrawerOpen(false);
+					},
+					onError: (err: Error) => toast.error(err.message),
+				},
+			);
 		}
 	}
 
@@ -288,7 +325,10 @@ function MenusPage() {
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem onSelect={() => openEdit(row.original)}>
+						<DropdownMenuItem
+							disabled={!canWriteMenu(row.original)}
+							onSelect={() => openEdit(row.original)}
+						>
 							Edit
 						</DropdownMenuItem>
 						<DropdownMenuItem onSelect={() => openCreate(row.original.id)}>
@@ -296,6 +336,7 @@ function MenusPage() {
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							variant="destructive"
+							disabled={!canWriteMenu(row.original)}
 							onSelect={() => setRemoveTarget(row.original)}
 						>
 							Delete
@@ -498,7 +539,19 @@ function MenusPage() {
 				confirmText="Delete"
 				confirming={deleteMutation.isPending}
 				onConfirm={() => {
-					if (removeTarget) deleteMutation.mutate({ id: removeTarget.id });
+					if (removeTarget) {
+						deleteMutation.mutate(
+							{ where: { id: removeTarget.id } },
+							{
+								onSuccess: () => {
+									toast.success("Menu deleted");
+									invalidate();
+									setRemoveTarget(null);
+								},
+								onError: (err: Error) => toast.error(err.message),
+							},
+						);
+					}
 				}}
 			/>
 		</Card>

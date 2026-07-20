@@ -11,8 +11,11 @@ export interface AuthSessionContext {
 	policyAuth: {
 		userId: string;
 		isAdmin: boolean;
+		activeOrganizationId?: string;
+		activeOrganizationRole?: string;
 	};
 	activeOrganizationId: string | undefined;
+	activeOrganizationRole: string | undefined;
 }
 
 function toHeaders(input: Request | Headers): Headers {
@@ -37,6 +40,16 @@ export async function getSessionUser(
 	const activeOrganizationId =
 		(session.session as { activeOrganizationId?: string })
 			.activeOrganizationId ?? undefined;
+	let activeOrganizationRole: string | undefined;
+
+	if (activeOrganizationId) {
+		try {
+			const member = await auth.api.getActiveMember({ headers });
+			activeOrganizationRole = member?.role;
+		} catch {
+			activeOrganizationRole = undefined;
+		}
+	}
 
 	return {
 		session,
@@ -44,7 +57,10 @@ export async function getSessionUser(
 		policyAuth: {
 			userId: session.user.id,
 			isAdmin,
+			activeOrganizationId,
+			activeOrganizationRole,
 		},
 		activeOrganizationId,
+		activeOrganizationRole,
 	};
 }

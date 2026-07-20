@@ -12,8 +12,6 @@ if (!databaseUrl) {
 	throw new Error("DATABASE_URL is required");
 }
 
-type Db = InstanceType<typeof ZenStackClient<typeof schema>>;
-
 declare global {
 	var __pgPool: Pool | undefined;
 	var __db: Db | undefined;
@@ -26,11 +24,18 @@ declare global {
 export const pool =
 	globalThis.__pgPool ?? new Pool({ connectionString: databaseUrl });
 
-export const db =
-	globalThis.__db ??
-	new ZenStackClient(schema, {
+function createClient() {
+	return new ZenStackClient(schema, {
 		dialect: new PostgresDialect({ pool }),
 	});
+}
+
+// Derive Db from the actual construction so the `globalThis.__db ?? ...`
+// fallback below stays a single type instead of a union of two client
+// instantiations (unions of deep ZenStack generics blow up tsc).
+type Db = ReturnType<typeof createClient>;
+
+export const db: Db = globalThis.__db ?? createClient();
 
 /**
  * Policy-enforced client. Install once; bind a user per-request via

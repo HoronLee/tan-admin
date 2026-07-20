@@ -63,14 +63,14 @@ Every new backend boundary must validate input:
 
 - oRPC procedures with `os.input(z.object(...))`
 - MCP tools with `inputSchema`
-- Server functions with `.inputValidator(...)` (prefer zod schema for non-trivial payloads)
+- Server functions with `.validator(...)` (prefer zod schema for non-trivial payloads)
 
 ```ts
 // oRPC
 .input(z.object({ name: z.string() }))
 
 // Server fn
-.inputValidator((data: { title: string }) => data)
+.validator((data: { title: string }) => data)
 
 // MCP
 inputSchema: { title: z.string().describe('The title of the todo') }
@@ -100,14 +100,17 @@ Vitest is installed. Backend testing should start with in-process oRPC router/cl
 
 ```json
 "test": "vitest run --passWithNoTests --exclude '**/*.integration.test.*'",
-"test:integration": "dotenv -e .env.local -- vitest run --passWithNoTests '**/*.integration.test.*'",
+"test:integration": "dotenv -e .env.local -- vitest run integration.test",
 "vitest": "^3.0.5"
 ```
 
 ```ts
-// src/orpc/client.ts
+// 测试内构造 in-process client（不走 HTTP transport）。
+// 注意：src/orpc/client.ts 是 client-reachable 模块，只允许 `import type` router；
+// runtime `createRouterClient(router)` 只出现在 server-only 文件（如测试、server route）。
 import { createRouterClient } from '@orpc/server'
-createRouterClient(router, { context: () => ({ headers: getRequestHeaders() }) })
+import router from '#/orpc/router'
+const client = createRouterClient(router, { context: () => ({ headers: new Headers() }) })
 ```
 
 ### Unit vs Database Integration Tests

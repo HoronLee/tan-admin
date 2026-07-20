@@ -1,7 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { auth } from "#/lib/auth/server";
 import { getSessionUser } from "#/lib/auth/session";
 
 /**
@@ -55,13 +54,8 @@ export const requireOrgMemberRole = createServerFn({ method: "POST" })
 		if (!ctx.activeOrganizationId) {
 			throw redirect({ to: "/dashboard", search: { denied: "no-active-org" } });
 		}
-		let role: string | undefined;
-		try {
-			const member = await auth.api.getActiveMember({ headers });
-			role = member?.role;
-		} catch {
-			role = undefined;
-		}
+		// getSessionUser already resolved the active-org member role.
+		const role = ctx.activeOrganizationRole;
 		if (!role || !allowed.includes(role)) {
 			throw redirect({ to: "/dashboard", search: { denied: "org-role" } });
 		}

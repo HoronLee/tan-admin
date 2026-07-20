@@ -202,7 +202,7 @@ R2 模板从 `#/components/email/email-styles` import `EmailStyles` 与 `EmailCo
 - `src/orpc/` — oRPC routers + 自身 middleware（跨组件复用的 typed RPC）
 - `src/queries/` — `queryOptions` 工厂（前端缓存键命名空间）
 
-ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，**不在四目录里写代码**——业务侧通过 `useZenStackQueries()` 间接使用。决策树详见 [`guides/server-fn-vs-orpc-vs-queries.md`](../guides/server-fn-vs-orpc-vs-queries.md)。
+ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，**不在四目录里写代码**——业务侧通过 `useZenStackQueries()` 在组件 / 自定义 hook 中使用。普通 `queries/` 工厂不能调用 React hook；需要纯 `queryOptions` 复用时，先提供 oRPC / Better Auth client / server function wrapper 数据源。决策树详见 [`guides/server-fn-vs-orpc-vs-queries.md`](../guides/server-fn-vs-orpc-vs-queries.md)。
 
 ## Sentry Bootstrap Location
 

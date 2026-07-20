@@ -1,11 +1,4 @@
 import {
-	createMenu,
-	deleteMenu,
-	getMenu,
-	listMenus,
-	updateMenu,
-} from "./menus";
-import {
 	addMemberToOrganization,
 	create as createOrganizationAdmin,
 	dissolve as dissolveOrganizationAdmin,
@@ -14,12 +7,6 @@ import {
 import { getUserMenus } from "./user-menus";
 
 export default {
-	// Menus
-	listMenus,
-	getMenu,
-	createMenu,
-	updateMenu,
-	deleteMenu,
 	// Dynamic menus for current user
 	getUserMenus,
 	// Site-level super-admin cross-org management (R10).

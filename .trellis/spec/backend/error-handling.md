@@ -288,7 +288,7 @@ return Response.json(
 
 ## Boundary Validation Rule
 
-Validate request input at boundary declarations (`os.input(...)`, `.inputValidator(...)`, MCP `inputSchema`). Boundary Zod errors are auto-upgraded to `INPUT_VALIDATION_FAILED` by the interceptor chain.
+Validate request input at boundary declarations (`os.input(...)`, `.validator(...)`, MCP `inputSchema`). Boundary Zod errors are auto-upgraded to `INPUT_VALIDATION_FAILED` by the interceptor chain.
 
 ```ts
 base.input(z.object({ name: z.string() })).handler(({ input }) => ...)

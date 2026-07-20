@@ -30,20 +30,20 @@ const [banTarget, setBanTarget] = useState<AdminUser | null>(null)
 
 ## Layer 2: Server State (Cached)
 
-Use TanStack Query for server-backed data. Prefer oRPC query utilities for end-to-end typed options; prefer ZenStack auto-generated hooks for single-model CRUD (see `frontend/hook-guidelines.md`).
+Use TanStack Query for server-backed data. Prefer oRPC query utilities for end-to-end typed business actions; prefer ZenStack auto-generated hooks for single-model CRUD (see `frontend/hook-guidelines.md`).
 
 ```ts
 // src/orpc/client.ts
 export const client: RouterClient<typeof router> = getORPCClient()
 export const orpc = createTanstackQueryUtils(client)
 
-// src/routes/(workspace)/_layout/settings/organization/menus.tsx
+// oRPC business/action query
 const { data, isPending } = useQuery(
-  orpc.listMenus.queryOptions({ input: {} }),
+  orpc.organizationsAdmin.list.queryOptions({ input: {} }),
 )
 const createMutation = useMutation({
-  ...orpc.createMenu.mutationOptions(),
-  onSuccess: () => queryClient.invalidateQueries({ queryKey: MENUS_KEY }),
+  mutationFn: (input: CreateOrganizationInput) => orpc.organizationsAdmin.create.call(input),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.organizationsAdmin.key() }),
 })
 
 // Plain Query wrapping a non-oRPC SDK (src/routes/site/_layout/users/index.tsx)
@@ -83,7 +83,7 @@ Route loaders can prefetch query cache on the server; router-level integration h
 ```ts
 // 概念示例：route loader 预热查询缓存
 await context.queryClient.prefetchQuery(
-  orpc.listMenus.queryOptions({ input: {} }),
+  orpc.organizationsAdmin.list.queryOptions({ input: {} }),
 )
 
 // src/router.tsx

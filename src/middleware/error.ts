@@ -1,9 +1,7 @@
 import * as Sentry from "@sentry/tanstackstart-react";
 import { createMiddleware } from "@tanstack/react-start";
 import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
-import { createModuleLogger } from "#/lib/observability/logger";
 
-const log = createModuleLogger("server-fn");
 const DB_UNAVAILABLE_CODES = new Set([
 	"ECONNREFUSED",
 	"ENOTFOUND",
@@ -12,6 +10,18 @@ const DB_UNAVAILABLE_CODES = new Set([
 	"ENETUNREACH",
 ]);
 let exitScheduled = false;
+let logPromise:
+	| Promise<
+			ReturnType<typeof import("#/lib/observability/logger").createModuleLogger>
+	  >
+	| undefined;
+
+async function getLog() {
+	logPromise ??= import("#/lib/observability/logger").then(
+		({ createModuleLogger }) => createModuleLogger("server-fn"),
+	);
+	return logPromise;
+}
 
 function hasDbUnavailableCode(value: unknown): boolean {
 	if (
@@ -92,6 +102,7 @@ export const serverFnErrorMiddleware = createMiddleware({
 	try {
 		return await next();
 	} catch (error) {
+		const log = await getLog();
 		log.error(
 			{
 				err: error,

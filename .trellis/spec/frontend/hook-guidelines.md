@@ -41,12 +41,13 @@ Model CRUD goes through ZenStack's TanStack Query client, not hand-written oRPC 
 
 ```ts
 // src/integrations/zenstack-query/client.ts
-import { schema } from "zenstack/schema"
-import { useClientQueries } from "@zenstackhq/tanstack-query/runtime-v5/react"
-import type { authDb } from "#/lib/db"
+// schema-lite（`zen generate --lite` 产物）：剥离 policy/attribute 元数据，
+// 浏览器 bundle 不携带访问策略表达式；server 侧继续用完整 zenstack/schema
+import { schema } from "zenstack/schema-lite"
+import { useClientQueries } from "@zenstackhq/tanstack-query/react"
 
 export function useZenStackQueries() {
-  return useClientQueries<typeof authDb>(schema, { endpoint: "/api/model" })
+  return useClientQueries(schema, { endpoint: "/api/model" })
 }
 
 // 业务路由调用方
@@ -94,7 +95,9 @@ catch (error) {
 
 ### Gotcha: typing the client
 
-Pass `typeof authDb` as the generic so return types include plugin extensions (PolicyPlugin-attached fields). Bare `useClientQueries(schema, ...)` loses plugin typings.
+Do not import `#/lib/db`, `@zenstackhq/orm`, or `typeof authDb` into the client helper just for generic inference. Those imports can make Vite parse server-only `pg` / dialect modules during the client build. Keep `src/integrations/zenstack-query/client.ts` schema-only unless ZenStack exposes a client-safe type export for a future computed-field use case.
+
+Current `@zenstackhq/tanstack-query` also imports the `@zenstackhq/orm` barrel indirectly for transaction invalidation constants. That barrel pulls Kysely's Postgres exports into the client resolver, so `vite.config.ts` provides a client-build-only shim for the bare `@zenstackhq/orm` entry while leaving `@zenstackhq/orm/common-types` and all SSR/server imports real. The shim's operation lists live in `src/integrations/zenstack-query/orm-client-shim.ts` and are drift-guarded by `orm-client-shim.test.ts` — re-run tests after upgrading `@zenstackhq/*`.
 
 ### Don't: hand-write oRPC for plain CRUD
 
@@ -111,6 +114,8 @@ export const listRoles = authed.handler(async ({ context }) =>
 ## Route and Data Hooks
 
 Preferred data hooks in route components: `Route.useLoaderData()` · `useQuery` / `useMutation` · `useRouter()`. Server-state 优先走 `src/queries/<domain>.ts` 的 queryOptions 工厂（参 `frontend/state-management.md` 与 `src/queries/README.md`）。
+
+`src/queries/<domain>.ts` 是普通 TypeScript 工厂层，不能调用 React hooks，包括 `useZenStackQueries()`。单模型 CRUD 在组件 / 自定义 hook 中直接使用 ZenStack hooks；跨入口纯 `queryOptions` 复用时，用 oRPC / Better Auth client / server function wrapper 作为数据源。
 
 ```ts
 // 业务路由调用方

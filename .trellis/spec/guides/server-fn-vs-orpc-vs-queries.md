@@ -13,9 +13,9 @@
 | TanStack Start `createServerFn` | `src/server/` | `xxxFn({ data })` | 同进程 SSR / 路由 loader / action |
 | oRPC | `src/orpc/` | `orpc.<domain>.<op>.call(input)` / `useQuery(orpc.xxx.queryOptions(...))` | 同进程 SSR + 浏览器 RPC，跨组件复用 |
 | TanStack Query `queryOptions` 工厂 | `src/queries/` | `xxxQueryOptions(input)` | 路由 loader prefetch + 组件 `useQuery` + 跨页弹窗 |
-| ZenStack TanStack Query | `/api/model/**` 自动派生 | `useZenStackQueries().<model>.useFindMany(...)` | 浏览器组件（policy 兜底） |
+| ZenStack TanStack Query | `/api/model/**` 自动派生 | `useZenStackQueries().<model>.useFindMany(...)` | 浏览器组件 / 自定义 hook（policy 兜底） |
 
-ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 `zenstack/schema.zmodel` 自动生成 + PolicyPlugin 兜底，**不在四目录里写代码**。业务侧通过 `useZenStackQueries()` 间接使用，必要时用 `queries/` 包一层做缓存键统一。
+ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 `zenstack/schema.zmodel` 自动生成 + PolicyPlugin 兜底，**不在四目录里写代码**。业务侧通过 `useZenStackQueries()` 在组件 / 自定义 hook 中使用；普通 `queries/` 工厂不能调用这个 React hook。
 
 类比心法：
 
@@ -33,7 +33,7 @@ ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 `zenstack/sc
 ```
 ┌─ 数据形状是 entity？(单 model CRUD，policy 能表达访问控制)
 │    └─ Yes → ZenStack RPC（不写代码，加 @@allow / @@deny 即可）
-│         └─ 缓存键要跨 route 复用？→ queries/<domain>.ts 包一层
+│         └─ 需要 route loader 纯 queryOptions 复用？→ 新增显式 oRPC read，再进 queries/<domain>.ts
 │
 ├─ 是动作 / 跨组件复用 / 复杂聚合？
 │    └─ Yes → oRPC（src/orpc/router/<domain>.ts）
@@ -76,9 +76,9 @@ ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 `zenstack/sc
 
 | 业务场景 | 主存储 | 工具 | 路径示例 |
 |---------|-------|------|---------|
-| 电站列表（CRUD） | `Plant` model + policy | ZenStack RPC（包 `queries/plants.ts` 复用缓存键） | `useZenStackQueries().plant.useFindMany(...)` |
-| 设备列表 | `Device` model + policy | ZenStack RPC（包 `queries/devices.ts`） | `useZenStackQueries().device.useFindMany(...)` |
-| 告警列表（首页角标 + 告警页 + 设备侧栏） | `Alert` model + policy | ZenStack + `queries/alerts.ts` 缓存键 | `alertsListQueryOptions({ status: "open" })` |
+| 电站列表（CRUD） | `Plant` model + policy | ZenStack hooks | `useZenStackQueries().plant.useFindMany(...)` |
+| 设备列表 | `Device` model + policy | ZenStack hooks | `useZenStackQueries().device.useFindMany(...)` |
+| 告警列表（首页角标 + 告警页 + 设备侧栏） | `Alert` model + policy；若需要跨 route prefetch，另开显式 read procedure | ZenStack hooks 或 oRPC + `queries/alerts.ts` | `useZenStackQueries().alert.useFindMany(...)` 或 `alertsListQueryOptions(...)` |
 | 告警确认（写日志 + 推送） | 跨 `Alert` + `AuditLog` 事务 | oRPC | `orpc.alerts.acknowledge.call({ id })` |
 | 派单（跨 `WorkOrder` + `Device` + `User`） | 跨 model 事务 | oRPC | `orpc.workOrders.dispatch.call(...)` |
 | 报表 CSV 导出 | 动态聚合 + 流式 | oRPC | `orpc.reports.exportCsv.call(...)` |
@@ -150,7 +150,7 @@ ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 `zenstack/sc
 1. `zenstack/schema.zmodel` 加 `Plant` model + `@@allow` policy。
 2. `pnpm db:push` + `pnpm db:generate`。
 3. 业务页面 `useZenStackQueries().plant.useFindMany(...)` 直接用。
-4. 跨 route 复用？→ 在 `src/queries/plants.ts` 写 `plantsListQueryOptions(input)`，`queryFn` 用 oRPC 包一层（或保留组件直调 ZenStack hook，两条路）。
+4. 组件内直接用 ZenStack hooks。若确实需要 route loader + 多组件共用的纯 `queryOptions`，先新增显式 oRPC read procedure，再在 `src/queries/plants.ts` 包装它；不要在 `queries/` 调 `useZenStackQueries()`。
 
 ### B. 业务动作（告警确认）
 
@@ -195,7 +195,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 
 export const submitWorkOrderFn = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ deviceId: z.string(), title: z.string() }))
+  .validator(z.object({ deviceId: z.string(), title: z.string() }))
   .handler(async ({ data }) => { /* ... */ })
 
 // route action

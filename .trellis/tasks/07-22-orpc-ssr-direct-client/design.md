@@ -23,5 +23,4 @@
 - server-only module test：注册 client 后 direct call 使用当前 request headers。
 - import boundary test/build：client bundle 不含 runtime router、server-only auth/db 或 `createRouterClient`。
 - browser fallback test：无 server global 且有 window 时使用 fetch link；无 window 时得到明确错误。
-- SSR smoke：`getUserMenus`/`navigation.get` 不产生本机 `/api/rpc` fetch。
-
+- SSR topology smoke：先注册 server client，再通过共享 client 模拟 loader/SSR prefetch 调用，验证 `navigation.get` 不产生本机 `/api/rpc` fetch。当前 Sidebar 使用非 suspense `useQuery`，浏览器发起的 `/api/rpc` 属于需保留的 browser transport，不作为 SSR self-call 失败证据。

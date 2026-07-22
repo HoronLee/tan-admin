@@ -2,13 +2,13 @@
 
 ## Checklist
 
-- [ ] 盘点 `src/orpc/client.ts` 的所有消费者和 `SERVER_URL` 的全部仓库消费者。
-- [ ] 新增 `src/orpc/server-client.ts`，注册带 request-scoped headers factory 的 `createRouterClient`。
-- [ ] 在 `src/server.ts` 入口最早位置加载 registration，更新 client fallback 与 global type declaration。
-- [ ] 将 `serverOrigin`/`serverHeaders` 及只为 self-call 服务的 env/spec 内容移除或改写。
-- [ ] 同步菜单任务可能带来的 `getUserMenus` → `navigation.get` query key 变化。
-- [ ] 补 direct-client、browser-fallback、header isolation 测试或可重复 smoke harness。
-- [ ] 运行 check/test/build，并检查产物不出现 server-only import warning。
+- [x] 盘点 `src/orpc/client.ts` 的所有消费者和 `SERVER_URL` 的全部仓库消费者。
+- [x] 新增 `src/orpc/server-client.ts`，注册带 request-scoped headers factory 的 `createRouterClient`。
+- [x] 在 `src/server.ts` 入口最早位置加载 registration，更新 client fallback 与 global type declaration。
+- [x] 将 `serverOrigin`/`serverHeaders` 及只为 self-call 服务的 env/spec 内容移除或改写。
+- [x] 同步菜单任务可能带来的 `getUserMenus` → `navigation.get` query key 变化。
+- [x] 补 direct-client、browser-fallback、header isolation 测试或可重复 smoke harness。
+- [x] 运行 check/test/build，并检查产物不出现 server-only import warning。
 
 ## Validation
 

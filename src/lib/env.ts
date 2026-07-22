@@ -3,7 +3,6 @@ import { z } from "zod";
 
 export const env = createEnv({
 	server: {
-		SERVER_URL: z.string().url().optional(),
 		APP_NAME: z.string().min(1).optional(),
 		APP_VERSION: z.string().min(1).optional(),
 		APP_ENV: z.enum(["dev", "prod", "test"]).optional(),
@@ -95,7 +94,6 @@ export const env = createEnv({
 	 */
 	runtimeEnv: {
 		// Server vars — read from process.env
-		SERVER_URL: process.env.SERVER_URL,
 		APP_NAME: process.env.APP_NAME,
 		APP_VERSION: process.env.APP_VERSION,
 		APP_ENV: process.env.APP_ENV,

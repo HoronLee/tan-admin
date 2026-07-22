@@ -35,9 +35,20 @@ POST: async ({ request }) => handleMcpRequest(request, server),
 - Procedure definitions: `src/orpc/router/*.ts`
 - Router aggregation: `src/orpc/router/index.ts`
 - Shared schemas: `src/orpc/schema.ts`
-- Isomorphic client wiring: `src/orpc/client.ts`
+- Shared client type/global contract: `src/orpc/client-types.ts`
+- Client-reachable browser fallback: `src/orpc/client.ts`
+- Server-only SSR registration: `src/orpc/server-client.ts`
 
 Keep the exported router map flat until namespace growth requires sub-routers.
+
+`src/server.ts` imports `server-client.ts` before the TanStack Start handler.
+SSR therefore uses `createRouterClient(router)` in-process, with
+`getRequestHeaders()` evaluated by the async context factory for every call.
+The shared global must never capture request headers. In the browser,
+`client.ts` falls back to an `RPCLink` rooted at the current origin's
+`/api/rpc`; using that fallback on the server is a registration error and must
+throw before `fetch`. See [`orpc-ssr-client.md`](./orpc-ssr-client.md) for the
+runtime matrix, error contract, and required tests.
 
 ```ts
 // src/orpc/router/index.ts

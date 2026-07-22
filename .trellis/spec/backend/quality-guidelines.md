@@ -107,7 +107,7 @@ Vitest is installed. Backend testing should start with in-process oRPC router/cl
 ```ts
 // 测试内构造 in-process client（不走 HTTP transport）。
 // 注意：src/orpc/client.ts 是 client-reachable 模块，只允许 `import type` router；
-// runtime `createRouterClient(router)` 只出现在 server-only 文件（如测试、server route）。
+// runtime `createRouterClient(router)` 只出现在 server-only 文件（如测试、server-client.ts）。
 import { createRouterClient } from '@orpc/server'
 import router from '#/orpc/router'
 const client = createRouterClient(router, { context: () => ({ headers: new Headers() }) })

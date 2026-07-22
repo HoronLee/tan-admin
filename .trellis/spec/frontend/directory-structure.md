@@ -67,7 +67,7 @@ PR1/PR2 后**已消失**的旧路径：`src/utils/`、`src/data/`、`src/modules
 
 ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，由 ZenStack 生成 + policy 兜底，**不在上述四个目录里写代码**——业务侧通过 `useZenStackQueries()` 在组件 / 自定义 hook 中使用。普通 `queries/` 工厂不能调用 React hook；需要纯 `queryOptions` 复用时，先提供 oRPC / Better Auth client / server function wrapper 数据源。
 
-`src/orpc/client.ts` 是 client-reachable helper：只能 `import type` router 类型，不能 runtime import `#/orpc/router`、`#/lib/db` 或 oRPC server middleware。浏览器和 SSR 都通过 `RPCLink` 调 `/api/rpc`；SSR 分支用当前 request headers 派生 origin 并转发 headers。真正的 in-process router 只存在于 `src/routes/api.rpc.$.ts` / `src/routes/api.$.ts` 这类 server route 文件中。
+`src/orpc/client.ts` 是 client-reachable helper：只能通过 `src/orpc/client-types.ts` type-import router 类型，不能 runtime import `#/orpc/router`、`#/lib/db` 或 oRPC server middleware。浏览器使用当前 origin 下的 `/api/rpc` `RPCLink`；SSR 由 `src/server.ts` 预先加载 server-only `src/orpc/server-client.ts`，通过 `globalThis.$client` 使用 in-process `createRouterClient(router)`。该全局 client 的 async context factory 必须每次调用时读取 `getRequestHeaders()`，不得缓存某一次请求的 headers；服务端缺少注册时必须明确失败，不得退回 HTTP self-call。公开 `/api/rpc` route 仍供浏览器和外部调用。
 
 类比：server fn = "Gin handler 紧绑路由"，oRPC = "纯 gRPC contract"，queries/ = "前端缓存键命名空间"——三者共存不互斥。决策树详见 [`guides/server-fn-vs-orpc-vs-queries.md`](../guides/server-fn-vs-orpc-vs-queries.md)。
 

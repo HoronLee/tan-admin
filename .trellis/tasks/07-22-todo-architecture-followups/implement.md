@@ -10,7 +10,7 @@
 
 - [x] 审阅父任务与三个子任务的 PRD、design、implement，确认无 open question。
 - [x] 完成 `07-22-menu-global-scope`，包含 surface schema、navigation projection、双入口和 route/seed 清理。
-- [ ] 完成 `07-22-orpc-ssr-direct-client`，包含 server-only registration、browser fallback、build boundary。
+- [x] 完成 `07-22-orpc-ssr-direct-client`，包含 server-only registration、browser fallback、build boundary。
 - [ ] 完成 `07-22-session-active-role-cache`，包含基线、session field、mutation path 同步和 fail-closed 回归。
 - [ ] 更新 backend/frontend spec，特别是 route organization、authorization boundary、dynamic navigation 和 oRPC SSR boundary。
 - [ ] 从 `TODO.md` 删除已完成事项或改为剩余 follow-up，并保留链接到归档任务。

@@ -1,3 +1,5 @@
+import "#/orpc/server-client";
+
 // Server entry: wire Paraglide SSR middleware so the runtime can resolve the
 // request locale (cookie / Accept-Language) before TanStack Start renders the page.
 //

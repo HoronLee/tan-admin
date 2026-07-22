@@ -20,7 +20,7 @@ Validate every external boundary with Zod (or T3Env built on Zod).
 // src/lib/env.ts
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
-server:       { SERVER_URL: z.string().url().optional() }
+server:       { APP_NAME: z.string().min(1).optional() }
 clientPrefix: 'VITE_'
 client:       { VITE_APP_TITLE: z.string().min(1).optional() }
 
@@ -52,9 +52,9 @@ Server router types flow into the client using `RouterClient<typeof router>`:
 
 ```ts
 // src/orpc/client.ts
-import type { RouterClient } from '@orpc/server'
-.client((): RouterClient<typeof router> => { ... })
-export const client: RouterClient<typeof router> = getORPCClient()
+import type { AppRouterClient } from '#/orpc/client-types'
+export const client: AppRouterClient =
+  globalThis.$client ?? createORPCClient(browserLink)
 
 // src/queries/organizations-admin.ts — typed queryOptions from oRPC
 orpc.organizationsAdmin.list.queryOptions({ input: {} })

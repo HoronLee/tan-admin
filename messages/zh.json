@@ -31,6 +31,7 @@
 	"menu.audit_login": "登录日志",
 	"menu.audit_api": "API 日志",
 	"menu.system": "系统管理",
+	"menu.site_management": "平台管理",
 	"menu.files": "文件管理",
 
 	"sidebar_nav_label": "导航",

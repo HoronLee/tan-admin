@@ -31,11 +31,11 @@ src/routes/
 ├── (marketing)/                    # 括号组：URL 不带前缀
 │   └── index.tsx                   # → /
 ├── site/                           # 无括号：URL 带 /site/ 前缀
-│   ├── _layout.tsx                 # 用 AppSiteSidebar（静态菜单）
+│   ├── _layout.tsx                 # 用 AppSiteSidebar（动态 SITE 菜单）
 │   └── _layout/
 │       ├── users/index.tsx         # → /site/users
 │       ├── organizations/index.tsx # → /site/organizations
-│       └── metrics/index.tsx       # → /site/metrics（占位）
+│       └── menus/index.tsx         # → /site/menus
 ├── (workspace)/                    # 括号组：URL 不带前缀
 │   ├── _layout.tsx                 # 用 AppSidebar（动态菜单）
 │   └── _layout/
@@ -130,7 +130,7 @@ TanStack Router 括号组 `(name)/` 不进 URL，普通文件夹 `name/` 进 URL
 | 路由组 | `_layout.tsx` | Sidebar 组件 | Header 标识 |
 |---|---|---|---|
 | `(marketing)/` | 无 layout（平铺页）| 无 | 无 |
-| `site/` | `site/_layout.tsx` | `AppSiteSidebar` | "Platform Admin" |
+| `site/` | `site/_layout.tsx` | `AppSiteSidebar`（动态 SITE） | "Platform Admin" |
 | `(workspace)/` | `(workspace)/_layout.tsx` | `AppSidebar`（动态）| "Workspace" |
 | `auth/` | 无 shell | 无 | 无 |
 | `onboarding.tsx` | 无 shell（bare） | 无 | 无 |
@@ -176,7 +176,7 @@ git mv src/routes/(admin)/_layout/dashboard.tsx src/routes/(workspace)/_layout/d
 src/routes/site/_layout/audit/index.tsx
 → URL: /site/audit
 → 自动继承 site/_layout 的 requireSiteAdmin gate
-→ 自动挂 AppSiteSidebar（但要在 AppSiteSidebar.tsx 的静态菜单 SITE_MENU 里加条目）
+→ 自动挂 AppSiteSidebar；同时在 Menu seed/UI 中增加 `surface=SITE` 的 ACTIVE 行
 ```
 
 ### Bad — 把 workspace 页面放进 `site/`

@@ -121,7 +121,7 @@ model SomeTable {
 
 ## Session Active Org 自动填充（必配 hook）
 
-Better Auth 默认 `session.activeOrganizationId = null`，新用户登录后所有 org-scoped `hasPermission(...)` 返回 false，`getUserMenus` 把带 `requiredPermission` 的菜单全过滤。
+Better Auth 默认 `session.activeOrganizationId = null`，新用户登录后所有 org-scoped `hasPermission(...)` 返回 false，workspace 的 `navigation.get` 会返回空树；SITE 投影不依赖 active org。
 
 修复：`betterAuth({ databaseHooks.session.create.before })` 查用户最早绑定的 org 填入：
 

@@ -1,5 +1,5 @@
 import { getSessionUser } from "#/lib/auth/session";
-import { authDb } from "#/lib/db";
+import { bindAuthDb } from "#/lib/db";
 import { base } from "#/orpc/errors";
 import { pub } from "#/orpc/middleware/orm-error";
 
@@ -25,7 +25,10 @@ export const authMiddleware = base.middleware(
 		}
 
 		// Create a per-request policy client bound to this user.
-		const userDb = authDb.$setAuth(sessionContext.policyAuth);
+		const userDb = bindAuthDb(
+			sessionContext.policyAuth,
+			sessionContext.user.id,
+		);
 
 		return next({
 			context: {

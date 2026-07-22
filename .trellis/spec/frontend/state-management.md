@@ -74,7 +74,7 @@ store.subscribe(() => {
 store.setState((state) => ({ ...state, firstName: e.target.value }))
 ```
 
-Real usage: `menuStore` (dynamic sidebar items from `getUserMenus`), `tabbarStore` (tab navigation state). See `frontend/layout-guidelines.md`.
+Real usage: `menuStore` (dynamic sidebar items from `navigation.get`), `tabbarStore` (tab navigation state). See `frontend/layout-guidelines.md`.
 
 ## SSR Prefetch + Hydration Contract
 

@@ -4,6 +4,7 @@ import { ZenStackClient } from "@zenstackhq/orm";
 import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
 import { PolicyPlugin } from "@zenstackhq/plugin-policy";
 import { Pool } from "pg";
+import { createMenuMutationGuard } from "#/lib/menu/menu-mutation-guard.server";
 import { schema } from "../../zenstack/schema";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -42,6 +43,37 @@ export const db: Db = globalThis.__db ?? createClient();
  * `authDb.$setAuth({ userId, isAdmin })` inside the authed middleware.
  */
 export const authDb = db.$use(new PolicyPlugin());
+
+export interface PolicyAuthContext {
+	[key: string]: unknown;
+	userId: string;
+	isAdmin: boolean;
+	activeOrganizationId?: string;
+	activeOrganizationRole?: string;
+}
+
+/** Bind policy identity and server-side Menu invariants for one request. */
+export function bindAuthDb(
+	policyAuth: PolicyAuthContext | undefined,
+	actorId?: string,
+) {
+	return authDb.$setAuth(policyAuth).$use(
+		createMenuMutationGuard(
+			async (id, includeChildren) =>
+				db.menu.findUnique({
+					where: { id },
+					...(includeChildren
+						? { include: { children: { select: { id: true } } } }
+						: {}),
+				}),
+			{
+				actorId,
+				isAdmin: policyAuth?.isAdmin,
+				activeOrganizationId: policyAuth?.activeOrganizationId,
+			},
+		),
+	);
+}
 
 if (process.env.NODE_ENV !== "production") {
 	globalThis.__pgPool = pool;

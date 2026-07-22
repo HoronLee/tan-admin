@@ -28,10 +28,11 @@ const resetMenus = process.argv.slice(2).includes("--reset-menus");
 interface SeedMenu {
 	name: string;
 	type: "MENU" | "CATALOG";
+	surface?: "WORKSPACE" | "SITE";
 	path: string | null;
 	component: string | null;
 	meta: { title: string; icon?: string; order?: number };
-	status: "ACTIVE";
+	status: "ACTIVE" | "DISABLED";
 	order: number;
 	requiredPermission: string | null;
 	parentName?: string;
@@ -42,6 +43,7 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "overview",
 		type: "CATALOG",
+		surface: "WORKSPACE",
 		path: null,
 		component: null,
 		meta: { title: "menu.overview", icon: "LayoutDashboard", order: 1 },
@@ -65,6 +67,7 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "org-management",
 		type: "CATALOG",
+		surface: "WORKSPACE",
 		path: null,
 		component: null,
 		meta: { title: "menu.org_management", icon: "Building2", order: 10 },
@@ -100,25 +103,51 @@ const MENUS: SeedMenu[] = [
 		// Super-admin cross-tenant organization list.
 		name: "organizations",
 		type: "MENU",
+		surface: "SITE",
 		path: "/site/organizations",
 		component: "organizations",
 		meta: { title: "menu.organizations", icon: "Building", order: 3 },
 		status: "ACTIVE",
 		order: 3,
 		requiredPermission: "site:admin",
-		parentName: "org-management",
+		parentName: "site-management",
+	},
+	{
+		name: "site-management",
+		type: "CATALOG",
+		surface: "SITE",
+		path: null,
+		component: null,
+		meta: { title: "menu.site_management", icon: "Building", order: 5 },
+		status: "ACTIVE",
+		order: 5,
+		requiredPermission: "site:admin",
 	},
 
 	// ---------- 用户管理（独立顶级，BA admin only） ----------
 	{
 		name: "users",
 		type: "MENU",
+		surface: "SITE",
 		path: "/site/users",
 		component: "users",
 		meta: { title: "menu.users", icon: "Users", order: 20 },
 		status: "ACTIVE",
 		order: 20,
 		requiredPermission: "site:admin",
+		parentName: "site-management",
+	},
+	{
+		name: "site-menus",
+		type: "MENU",
+		surface: "SITE",
+		path: "/site/menus",
+		component: "site-menus",
+		meta: { title: "menu.menus", icon: "Menu", order: 30 },
+		status: "ACTIVE",
+		order: 30,
+		requiredPermission: "site:admin",
+		parentName: "site-management",
 	},
 
 	// ---------- 团队管理（独立顶级，feature flag 控制灰掉） ----------
@@ -137,20 +166,22 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "permission-management",
 		type: "CATALOG",
+		surface: "SITE",
 		path: null,
 		component: null,
 		meta: { title: "menu.permission_management", icon: "Shield", order: 40 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 40,
-		requiredPermission: "site:admin",
+		requiredPermission: "organization:update",
 	},
 	{
 		name: "permissions",
 		type: "MENU",
+		surface: "SITE",
 		path: "/permissions",
 		component: "permissions",
 		meta: { title: "menu.permissions", icon: "Lock", order: 1 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 1,
 		requiredPermission: "site:admin",
 		parentName: "permission-management",
@@ -158,10 +189,11 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "roles",
 		type: "MENU",
+		surface: "SITE",
 		path: "/roles",
 		component: "roles",
 		meta: { title: "menu.roles", icon: "Key", order: 2 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 2,
 		requiredPermission: "site:admin",
 		parentName: "permission-management",
@@ -171,20 +203,22 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "messages",
 		type: "CATALOG",
+		surface: "SITE",
 		path: null,
 		component: null,
 		meta: { title: "menu.messages", icon: "Bell", order: 50 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 50,
 		requiredPermission: null,
 	},
 	{
 		name: "message-list",
 		type: "MENU",
+		surface: "SITE",
 		path: "/messages",
 		component: "messages",
 		meta: { title: "menu.message_list", icon: "Mail", order: 1 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 1,
 		requiredPermission: null,
 		parentName: "messages",
@@ -192,10 +226,11 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "message-categories",
 		type: "MENU",
+		surface: "SITE",
 		path: "/messages/categories",
 		component: "message-categories",
 		meta: { title: "menu.message_categories", icon: "Tag", order: 2 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 2,
 		requiredPermission: "site:admin",
 		parentName: "messages",
@@ -205,20 +240,22 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "audit",
 		type: "CATALOG",
+		surface: "SITE",
 		path: null,
 		component: null,
 		meta: { title: "menu.audit", icon: "FileText", order: 60 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 60,
 		requiredPermission: "site:admin",
 	},
 	{
 		name: "audit-login",
 		type: "MENU",
+		surface: "SITE",
 		path: "/audit/login",
 		component: "audit-login",
 		meta: { title: "menu.audit_login", icon: "LogIn", order: 1 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 1,
 		requiredPermission: "site:admin",
 		parentName: "audit",
@@ -226,10 +263,11 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "audit-api",
 		type: "MENU",
+		surface: "SITE",
 		path: "/audit/api",
 		component: "audit-api",
 		meta: { title: "menu.audit_api", icon: "Activity", order: 2 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 2,
 		requiredPermission: "site:admin",
 		parentName: "audit",
@@ -239,34 +277,36 @@ const MENUS: SeedMenu[] = [
 	{
 		name: "system",
 		type: "CATALOG",
+		surface: "WORKSPACE",
 		path: null,
 		component: null,
 		meta: { title: "menu.system", icon: "Settings", order: 99 },
 		status: "ACTIVE",
 		order: 99,
-		requiredPermission: "site:admin",
+		requiredPermission: "organization:update",
 	},
 	{
 		name: "menus",
 		type: "MENU",
+		surface: "WORKSPACE",
 		path: "/settings/organization/menus",
 		component: "menus",
 		meta: { title: "menu.menus", icon: "Menu", order: 1 },
 		status: "ACTIVE",
 		order: 1,
-		// Commit 4 起改为 owner-only 的路由级 beforeLoad；菜单这里保持
-		// site:admin 让"系统 > 菜单管理"这一栏对超管可见（他们也能管）。
-		// 普通 owner 从 `/settings/organization/menus` 直接访问，不依赖菜单。
-		requiredPermission: "site:admin",
+		// owner 从 `/settings/organization/menus` 管理当前组织菜单；site-admin
+		// 仍会因 admin bypass 看到此工作区入口。
+		requiredPermission: "organization:update",
 		parentName: "system",
 	},
 	{
 		name: "files",
 		type: "MENU",
+		surface: "WORKSPACE",
 		path: "/files",
 		component: "files",
 		meta: { title: "menu.files", icon: "File", order: 2 },
-		status: "ACTIVE",
+		status: "DISABLED",
 		order: 2,
 		requiredPermission: "site:admin",
 		parentName: "system",
@@ -282,15 +322,27 @@ async function seedMenus(): Promise<void> {
 	}
 
 	const nameToId = new Map<string, number>();
+	const nameToSurface = new Map<string, "WORKSPACE" | "SITE">();
+
+	function resolveSurface(node: SeedMenu): "WORKSPACE" | "SITE" {
+		if (node.surface) return node.surface;
+		if (node.path?.startsWith("/site/")) return "SITE";
+		if (node.parentName) {
+			return nameToSurface.get(node.parentName) ?? "WORKSPACE";
+		}
+		return "WORKSPACE";
+	}
 
 	// Two-phase upsert: roots first, then children — resolves parentId via
 	// nameToId. Loop until all children have a resolvable parent (supports
 	// arbitrary nesting, not just one level).
 	const roots = MENUS.filter((x) => !x.parentName);
 	for (const node of roots) {
+		const surface = resolveSurface(node);
 		const row = await db.menu.upsert({
 			where: { name: node.name },
 			update: {
+				surface,
 				type: node.type,
 				path: node.path,
 				component: node.component,
@@ -301,6 +353,7 @@ async function seedMenus(): Promise<void> {
 				parentId: null,
 			},
 			create: {
+				surface,
 				name: node.name,
 				type: node.type,
 				path: node.path,
@@ -313,6 +366,7 @@ async function seedMenus(): Promise<void> {
 			select: { id: true },
 		});
 		nameToId.set(node.name, row.id);
+		nameToSurface.set(node.name, surface);
 	}
 
 	const remaining = MENUS.filter((x) => x.parentName);
@@ -323,9 +377,11 @@ async function seedMenus(): Promise<void> {
 			const node = remaining[i];
 			const parentId = nameToId.get(node.parentName as string);
 			if (parentId === undefined) continue;
+			const surface = resolveSurface(node);
 			const row = await db.menu.upsert({
 				where: { name: node.name },
 				update: {
+					surface,
 					type: node.type,
 					path: node.path,
 					component: node.component,
@@ -336,6 +392,7 @@ async function seedMenus(): Promise<void> {
 					parentId,
 				},
 				create: {
+					surface,
 					name: node.name,
 					type: node.type,
 					path: node.path,
@@ -349,6 +406,7 @@ async function seedMenus(): Promise<void> {
 				select: { id: true },
 			});
 			nameToId.set(node.name, row.id);
+			nameToSurface.set(node.name, surface);
 			remaining.splice(i, 1);
 		}
 	}

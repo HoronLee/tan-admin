@@ -3,7 +3,7 @@ import { RPCApiHandler } from "@zenstackhq/server/api";
 import { TanStackStartHandler } from "@zenstackhq/server/tanstack-start";
 import { schema } from "zenstack/schema";
 import { getSessionUser } from "#/lib/auth/session";
-import { authDb } from "#/lib/db";
+import { bindAuthDb } from "#/lib/db";
 
 const handler = TanStackStartHandler({
 	apiHandler: new RPCApiHandler({ schema }),
@@ -12,7 +12,7 @@ const handler = TanStackStartHandler({
 		// where we pass `undefined` so that `auth() == null` in zmodel triggers
 		// `@@deny('all', auth() == null)` predictably (no reliance on default semantics).
 		const sessionContext = await getSessionUser(request);
-		return authDb.$setAuth(sessionContext?.policyAuth);
+		return bindAuthDb(sessionContext?.policyAuth, sessionContext?.user.id);
 	},
 });
 

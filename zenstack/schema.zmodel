@@ -51,6 +51,8 @@ type MenuMeta {
 model Menu {
   id                 Int       @id @default(autoincrement())
   type               String    @default("MENU")
+  /// Navigation shell: WORKSPACE for tenant navigation, SITE for platform admin navigation.
+  surface            String    @default("WORKSPACE")
   path               String?
   name               String?   @unique
   component          String?
@@ -82,5 +84,6 @@ model Menu {
   // re-scope a menu (organizationId -> null / another org) to escape the
   // write boundary. Admins may re-scope; owners must keep the org unchanged.
   @@allow('post-update', auth().isAdmin == true)
-  @@allow('post-update', organizationId == auth().activeOrganizationId)
+  @@allow('post-update', surface == "WORKSPACE" && organizationId == auth().activeOrganizationId)
+  @@validate(surface != "SITE" || organizationId == null, "SITE menus must be global")
 }

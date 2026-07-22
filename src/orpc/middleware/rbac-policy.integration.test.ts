@@ -1,6 +1,6 @@
 import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
 import { describe, expect, it } from "vitest";
-import { authDb, db } from "#/lib/db";
+import { authDb, bindAuthDb, db } from "#/lib/db";
 
 /**
  * Policy integration tests.
@@ -189,6 +189,35 @@ describe("RBAC Policy paths", () => {
 				await db.menu.delete({ where: { id: orgMenu.id } }).catch(() => {});
 			}
 		});
+
+		it("bob cannot change an org menu to the SITE surface", async () => {
+			const orgMenu = await db.menu.create({
+				data: {
+					name: "test-policy-owner-surface-change",
+					type: "MENU",
+					status: "ACTIVE",
+					order: 991,
+					organizationId: orgId,
+				},
+			});
+			const bobDb = authDb.$setAuth({
+				userId: bobId,
+				isAdmin: false,
+				activeOrganizationId: orgId,
+				activeOrganizationRole: "owner",
+			});
+
+			try {
+				await expect(
+					bobDb.menu.update({
+						where: { id: orgMenu.id },
+						data: { surface: "SITE" },
+					}),
+				).rejects.toBeInstanceOf(ORMError);
+			} finally {
+				await db.menu.delete({ where: { id: orgMenu.id } }).catch(() => {});
+			}
+		});
 	});
 
 	// --- 6. Read isolation across orgs ---
@@ -240,6 +269,126 @@ describe("RBAC Policy paths", () => {
 	});
 
 	// --- 7. Admin override ---
+
+	describe("menu surface validation", () => {
+		it("allows an admin to create a global SITE menu", async () => {
+			const aliceDb = authDb.$setAuth({ userId: aliceId, isAdmin: true });
+			const menu = await aliceDb.menu.create({
+				data: {
+					name: "test-policy-site-global",
+					type: "MENU",
+					surface: "SITE",
+					status: "ACTIVE",
+					order: 993,
+				},
+			});
+			expect(menu.surface).toBe("SITE");
+			await db.menu.delete({ where: { id: menu.id } });
+		});
+
+		it("rejects an organization-scoped SITE menu", async () => {
+			const aliceDb = authDb.$setAuth({ userId: aliceId, isAdmin: true });
+			await expect(
+				aliceDb.menu.create({
+					data: {
+						name: "test-policy-site-org-invalid",
+						type: "MENU",
+						surface: "SITE",
+						status: "ACTIVE",
+						order: 992,
+						organizationId: orgId,
+					},
+				}),
+			).rejects.toBeInstanceOf(ORMError);
+		});
+	});
+
+	describe("menu mutation guard", () => {
+		const aliceDb = bindAuthDb({ userId: aliceId, isAdmin: true }, aliceId);
+
+		it("rejects a parent from another surface", async () => {
+			const parent = await db.menu.create({
+				data: {
+					name: "test-menu-guard-site-parent",
+					type: "CATALOG",
+					surface: "SITE",
+					status: "ACTIVE",
+					order: 980,
+				},
+			});
+
+			try {
+				await expect(
+					aliceDb.menu.create({
+						data: {
+							name: "test-menu-guard-workspace-child",
+							type: "MENU",
+							surface: "WORKSPACE",
+							parentId: parent.id,
+							status: "ACTIVE",
+							order: 981,
+						},
+					}),
+				).rejects.toMatchObject({ reason: ORMErrorReason.INVALID_INPUT });
+			} finally {
+				await db.menu.delete({ where: { id: parent.id } }).catch(() => {});
+			}
+		});
+
+		it("rejects re-scoping a parent that still has children", async () => {
+			const parent = await db.menu.create({
+				data: {
+					name: "test-menu-guard-parent",
+					type: "CATALOG",
+					status: "ACTIVE",
+					order: 982,
+				},
+			});
+			const child = await db.menu.create({
+				data: {
+					name: "test-menu-guard-child",
+					type: "MENU",
+					parentId: parent.id,
+					status: "ACTIVE",
+					order: 983,
+				},
+			});
+
+			try {
+				await expect(
+					aliceDb.menu.update({
+						where: { id: parent.id },
+						data: { organizationId: orgId },
+					}),
+				).rejects.toMatchObject({ reason: ORMErrorReason.INVALID_INPUT });
+			} finally {
+				await db.menu.delete({ where: { id: child.id } }).catch(() => {});
+				await db.menu.delete({ where: { id: parent.id } }).catch(() => {});
+			}
+		});
+
+		it("allows re-scoping a leaf menu", async () => {
+			const leaf = await db.menu.create({
+				data: {
+					name: "test-menu-guard-leaf",
+					type: "MENU",
+					status: "ACTIVE",
+					order: 984,
+				},
+			});
+
+			try {
+				await expect(
+					aliceDb.menu.update({
+						where: { id: leaf.id },
+						data: { organizationId: orgId },
+					}),
+				).resolves.toMatchObject({ organizationId: orgId });
+			} finally {
+				await db.menu.delete({ where: { id: leaf.id } }).catch(() => {});
+			}
+		});
+	});
 
 	describe("admin can write Menu", () => {
 		let tempMenuId: number;

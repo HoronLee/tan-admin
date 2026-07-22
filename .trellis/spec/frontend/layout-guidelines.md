@@ -68,7 +68,7 @@ createFileRoute("/site/_layout/users/")({ ... })  // site/ 无括号，URL 是 /
 
 ```tsx
 // (workspace)/_layout.tsx  ← 用动态菜单 AppSidebar
-// site/_layout.tsx         ← 用静态菜单 AppSiteSidebar，顶部显示 "Platform Admin"
+// site/_layout.tsx         ← 用动态菜单 AppSiteSidebar，顶部显示 "Platform Admin"
 <SidebarProvider>
   <AppSidebar />  {/* 或 <AppSiteSidebar /> */}
   <SidebarInset>
@@ -90,12 +90,12 @@ createFileRoute("/site/_layout/users/")({ ... })  // site/ 无括号，URL 是 /
 
 ### Sidebar 数据来源：动态菜单
 
-Sidebar 内容从 `orpc.getUserMenus` server handler 拉取：
-1. 读 `Menu` 表所有 `status=ACTIVE` 节点
-2. 带 `requiredPermission` 的节点调 `auth.api.hasPermission({ organizationId, permissions })` 过滤
-3. 返回树形结构，前端 `menuStore` 保存，`AppSidebar` 订阅渲染
+两个 Sidebar 都从 `orpc.navigation.get` 拉取同一张 `Menu` 表的投影：
+1. `AppSiteSidebar` 请求 `surface=SITE`；仅 super-admin、仅 global，不依赖 active org。
+2. `AppSidebar` 请求 `surface=WORKSPACE`；普通用户读取 global + active org，再按 `requiredPermission` 过滤。
+3. 返回树形结构，前端 `menuStore` 保存并供 Sidebar 与 Tabbar 标题解析复用。
 
-**前置**：session 必须有 `activeOrganizationId`。见 `backend/authorization-boundary.md` "Session Active Org 自动填充"。
+完整 surface/scope 和 mutation 契约见 `backend/dynamic-navigation.md`。
 
 ### Tabbar 同步
 
@@ -133,6 +133,5 @@ Sidebar 内容从 `orpc.getUserMenus` server handler 拉取：
 
 ## Out of Scope（将来可能加）
 
-- 多层嵌套菜单折叠展开动画
 - 面包屑（`Router.state.matches` 驱动）
 - 菜单拖拽排序

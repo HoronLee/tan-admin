@@ -1,14 +1,14 @@
+import * as navigation from "./navigation";
 import {
 	addMemberToOrganization,
 	create as createOrganizationAdmin,
 	dissolve as dissolveOrganizationAdmin,
 	list as listOrganizationsAdmin,
 } from "./organizations-admin";
-import { getUserMenus } from "./user-menus";
 
 export default {
-	// Dynamic menus for current user
-	getUserMenus,
+	// Dynamic navigation projection shared by workspace and site shells.
+	navigation,
 	// Site-level super-admin cross-org management (R10).
 	organizationsAdmin: {
 		list: listOrganizationsAdmin,

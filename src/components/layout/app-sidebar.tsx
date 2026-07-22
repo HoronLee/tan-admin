@@ -56,6 +56,7 @@ import {
 import { authClient } from "#/lib/auth/client";
 import { planAllowsTeams } from "#/lib/auth/plan";
 import { resolveMenuLabel } from "#/lib/menu/menu-label";
+import type { MenuSurface } from "#/lib/menu/menu-surface";
 import { orpc } from "#/orpc/client";
 import * as m from "#/paraglide/messages";
 import {
@@ -277,7 +278,9 @@ export default function AppSidebar() {
 	const { pathname } = useLocation();
 
 	const { data, isPending } = useQuery(
-		orpc.getUserMenus.queryOptions({ input: {} }),
+		orpc.navigation.get.queryOptions({
+			input: { surface: "WORKSPACE" satisfies MenuSurface },
+		}),
 	);
 
 	const { menus } = useStore(menuStore);

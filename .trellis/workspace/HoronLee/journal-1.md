@@ -849,3 +849,36 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: 统一动态菜单投影与作用域
+
+**Date**: 2026-07-22
+**Task**: 统一动态菜单投影与作用域
+**Branch**: `main`
+
+### Summary
+
+完成 SITE/WORKSPACE 同表动态导航、双侧边栏、跨组织菜单管理、mutation guard、seed/spec 同步与浏览器和数据库验证。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4fd300b` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

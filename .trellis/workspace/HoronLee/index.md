@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 25
-- **Last Active**: 2026-07-21
+- **Total Sessions**: 26
+- **Last Active**: 2026-07-22
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~851 | Active |
+| `journal-1.md` | ~884 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 26 | 2026-07-22 | 统一动态菜单投影与作用域 | `4fd300b` | `main` |
 | 25 | 2026-07-21 | 架构分层收尾：review 修复权限漏洞并全量过质量门 | `da9ba3b`, `1a2887a` | `main` |
 | 24 | 2026-06-09 | Upgrade component stack | `dddaa34` | `main` |
 | 23 | 2026-05-26 | Migrate pnpm settings | `9e0d06c` | `main` |

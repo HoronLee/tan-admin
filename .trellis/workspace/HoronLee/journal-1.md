@@ -882,3 +882,36 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: 完成 oRPC SSR 进程内客户端
+
+**Date**: 2026-07-22
+**Task**: 完成 oRPC SSR 进程内客户端
+**Branch**: `main`
+
+### Summary
+
+将 SSR oRPC 调用改为 server-only createRouterClient 注册，保留浏览器 /api/rpc fallback；补齐请求 header 隔离、缺失注册和浏览器 transport 测试，清理 SERVER_URL 并同步 TODO 与 SSR 规范。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a19c7b0` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

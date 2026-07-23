@@ -915,3 +915,36 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: 完成 session active role 持久化
+
+**Date**: 2026-07-23
+**Task**: 完成 session active role 持久化
+**Branch**: `main`
+
+### Summary
+
+将 active organization role 持久化到 Better Auth session，使用 session hooks 与 PostgreSQL trigger 覆盖切换、角色更新、成员离开和组织解散，移除请求热路径 getActiveMember 查询，并补齐测试与 backend spec。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4104d72` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

@@ -147,7 +147,13 @@ beforeUpdateOrganization: async ({ organization: patch, member }) => {
 
 ```ts
 await pool.query(
-  'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2',
+  `UPDATE "session" s
+      SET "activeOrganizationId" = $1,
+          "activeOrganizationRole" = m.role
+     FROM "member" m
+    WHERE s."userId" = $2
+      AND m."userId" = s."userId"
+      AND m."organizationId" = $1`,
   [orgId, user.id],
 );
 ```

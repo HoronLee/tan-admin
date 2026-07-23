@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 
 import { auth } from "#/lib/auth/server";
+import { resolveActiveOrganizationRole } from "#/lib/auth/session-role";
 
 type SessionResult = Awaited<ReturnType<typeof auth.api.getSession>>;
 type SessionUser = NonNullable<SessionResult>["user"];
@@ -37,19 +38,22 @@ export async function getSessionUser(
 	const isAdmin = userRole === "admin";
 
 	// organization plugin adds `activeOrganizationId` to the session
+	const sessionWithRole = session.session as {
+		activeOrganizationId?: string | null;
+		activeOrganizationRole?: string | null;
+	};
 	const activeOrganizationId =
-		(session.session as { activeOrganizationId?: string })
-			.activeOrganizationId ?? undefined;
-	let activeOrganizationRole: string | undefined;
-
-	if (activeOrganizationId) {
-		try {
-			const member = await auth.api.getActiveMember({ headers });
-			activeOrganizationRole = member?.role;
-		} catch {
-			activeOrganizationRole = undefined;
-		}
-	}
+		typeof sessionWithRole.activeOrganizationId === "string" &&
+		sessionWithRole.activeOrganizationId.length > 0
+			? sessionWithRole.activeOrganizationId
+			: undefined;
+	// The role is persisted and transactionally synchronized with the member
+	// table. Missing or malformed fields intentionally fail closed instead of
+	// issuing a request-time member lookup or trusting stale authorization data.
+	const activeOrganizationRole = resolveActiveOrganizationRole({
+		...sessionWithRole,
+		activeOrganizationId,
+	});
 
 	return {
 		session,

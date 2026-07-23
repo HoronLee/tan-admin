@@ -16,6 +16,7 @@ This directory documents backend-role conventions extracted from real code paths
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | Module organization, file layout, dual-stack (oRPC + ZenStack) topology | Filled |
 | [Auth Module Layout](./auth-module-layout.md) | `src/lib/auth/` 子目录职责、`pnpm ba:shadow` 影子 codegen 流水线、`config.ts` 单一真源契约 | Filled |
+| [Session Authorization Context](./session-authorization-context.md) | active organization role 的 session 持久化、同步矩阵与 fail-closed 契约 | Filled |
 | [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations, PolicyPlugin, BA `@@ignore` tables | Filled |
 | [Dynamic Navigation](./dynamic-navigation.md) | Shared Menu surface/scope projection, mutation invariants, site/workspace consumers | Filled |
 | [oRPC SSR Client](./orpc-ssr-client.md) | In-process SSR registration, request-scoped context, browser fallback, import boundary | Filled |

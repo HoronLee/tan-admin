@@ -22,7 +22,7 @@
 由 `@better-auth/cli migrate` 建 + Better Auth 内置 Kysely 管理。**不得**写入 zmodel 为可操作模型，**不得**用 ZenStack policy 约束：
 
 - `user`（admin plugin 扩展 `role / banned / banReason / banExpires`）
-- `session`（admin plugin 扩展 `impersonatedBy`；organization plugin 扩展 `activeOrganizationId / activeTeamId`）
+- `session`（admin plugin 扩展 `impersonatedBy`；organization plugin 扩展 `activeOrganizationId / activeTeamId`；本项目 additional field `activeOrganizationRole`）
 - `account` / `verification`
 - `organization` / `member` / `invitation`
 - `team` / `teamMember`
@@ -123,7 +123,7 @@ model SomeTable {
 
 Better Auth 默认 `session.activeOrganizationId = null`，新用户登录后所有 org-scoped `hasPermission(...)` 返回 false，workspace 的 `navigation.get` 会返回空树；SITE 投影不依赖 active org。
 
-修复：`betterAuth({ databaseHooks.session.create.before })` 查用户最早绑定的 org 填入：
+修复：`betterAuth({ databaseHooks.session.create.before })` 查用户最早绑定的 org 和 role 填入：
 
 ```ts
 betterAuth({
@@ -131,13 +131,13 @@ betterAuth({
     session: {
       create: {
         before: async (session) => {
-          const { rows } = await pool.query<{ organizationId: string }>(
-            'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+          const { rows } = await pool.query<{ organizationId: string; role: string }>(
+            'SELECT "organizationId", role FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
             [session.userId],
           );
-          const organizationId = rows[0]?.organizationId;
-          if (!organizationId) return { data: session };
-          return { data: { ...session, activeOrganizationId: organizationId } };
+          const membership = rows[0];
+          if (!membership) return { data: { ...session, activeOrganizationId: null, activeOrganizationRole: null } };
+          return { data: { ...session, activeOrganizationId: membership.organizationId, activeOrganizationRole: membership.role } };
         },
       },
     },
@@ -146,6 +146,11 @@ betterAuth({
 ```
 
 **锚点**：`src/lib/auth/config.ts`（`databaseHooks.session.create.before`）。
+
+角色不是 request-time cache，而是授权字段。`session.update.before` 负责 active org 切换，
+`scripts/ensure-auth-session-role-sync.mjs` 安装 PostgreSQL trigger，覆盖 member role update、
+remove/leave、owner transfer 和 organization dissolve 的所有 session。任何缺失或无法解析的
+role 都由 `src/lib/auth/session.ts` fail closed，不得回退到旧 owner 权限。
 
 ---
 
@@ -195,7 +200,7 @@ Better Auth session → ZenStack `auth()` 的字段流：`auth-session.ts` 从 B
 - `auth().userId`：用户 id
 - `auth().isAdmin`：全站管理员（来自 `user.role === "admin"`）
 - `auth().activeOrganizationId`：当前激活组织 id
-- `auth().activeOrganizationRole`：当前用户在激活组织中的 BA member role
+- `auth().activeOrganizationRole`：当前用户在激活组织中的持久化 BA member role；由 session hook + DB trigger 维护
 
 ### 扩展字段的顺序（不可颠倒）
 

@@ -3,7 +3,7 @@
   "name": "session-active-role-cache",
   "title": "优化 active organization role 查询",
   "description": "评估并规划将 active organization role 纳入 Better Auth session，减少每请求额外查询并保证角色一致性。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

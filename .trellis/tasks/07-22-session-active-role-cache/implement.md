@@ -2,14 +2,20 @@
 
 ## Checklist
 
-- [ ] 记录当前 `getSessionUser`、`auth.api.getSession`、`getActiveMember` 的调用/查询基线。
-- [ ] 核对 Better Auth 1.6.15 installed hook coverage，列出 create/update/remove/leave/transfer/dissolve 全路径。
-- [ ] 若 coverage 不完整，先实现并测试统一 wrapper/trigger 方案；无法证明全覆盖时停止持久化方案。
-- [ ] 增加 session additional field，更新 auth shadow/schema，通过正常生成与 DB push 流程落库。
-- [ ] 更新 session create/update hooks 和所有 member/org mutation sync helper。
-- [ ] 改 `getSessionUser` 从 session field 读取 role，缺失/异常 fail closed；保留可回滚 fallback 开关直到回归完成。
-- [ ] 增加 multi-session、role update/remove/leave/transfer/dissolve、并发变化 integration tests。
-- [ ] 更新 authorization-boundary、product-modes 和 session 相关 spec。
+- [x] 记录当前 `getSessionUser`、`auth.api.getSession`、`getActiveMember` 的调用/查询基线。
+  - 基线：每个带 `activeOrganizationId` 的请求执行 1 次 `getSession`（session + user）和 1 次 `getActiveMember`（member role），即至少 2 次身份层读取；`requireOrgMemberRole` 复用结果，不再追加查询。
+- [x] 核对 Better Auth 1.6.15 installed hook coverage，列出 create/update/remove/leave/transfer/dissolve 全路径。
+  - 结论：create/update 可由 database hooks 覆盖；organization member hooks 不覆盖 leave，项目 dissolve/transfer 还有 raw SQL。
+- [x] 若 coverage 不完整，先实现并测试统一 wrapper/trigger 方案；无法证明全覆盖时停止持久化方案。
+  - 已用 PostgreSQL member/org trigger 覆盖所有路径，包含直调 BA API、raw SQL 和 multi-session。
+- [x] 增加 session additional field，更新 auth shadow/schema，通过正常生成与 DB push 流程落库。
+  - 已运行 `pnpm ba:shadow`、`pnpm db:generate`、`pnpm db:push`；`BaSession.activeOrganizationRole` 与真实列已同步。
+- [x] 更新 session create/update hooks 和所有 member/org mutation sync helper。
+- [x] 改 `getSessionUser` 从 session field 读取 role，缺失/异常 fail closed；保留可回滚 fallback 开关直到回归完成。
+  - 当前不启用 fallback；nullable 字段保留，回滚时可恢复 member lookup。
+- [x] 增加 multi-session、role update/remove/leave/transfer/dissolve、并发变化 integration tests。
+  - DB 测试覆盖两条 session 的 role update、member remove、organization direct delete，以及 create/update hook；transfer 由同一 member update trigger 覆盖。
+- [x] 更新 authorization-boundary、product-modes 和 session 相关 spec。
 
 ## Validation
 

@@ -117,7 +117,14 @@ async function ensurePersonalOrg(params: {
 		// it on sign-in; without this, a user whose session pre-dates the org
 		// creation would be routed to /onboarding as "no workspace".
 		await runtimeQuery(
-			'UPDATE "session" SET "activeOrganizationId" = $1 WHERE "userId" = $2 AND ("activeOrganizationId" IS NULL OR "activeOrganizationId" = \'\')',
+			`UPDATE "session" s
+			 SET "activeOrganizationId" = $1,
+			     "activeOrganizationRole" = m.role
+			 FROM "member" m
+			 WHERE s."userId" = $2
+			   AND m."userId" = s."userId"
+			   AND m."organizationId" = $1
+			   AND (s."activeOrganizationId" IS NULL OR s."activeOrganizationId" = '')`,
 			[effectiveOrgId, params.userId],
 		);
 		log.info(
@@ -192,14 +199,27 @@ export const authConfig = {
 				// provision it here before returning. The entire onboarding flow
 				// no longer depends on `user.update.after` as a single anchor.
 				before: async (session) => {
-					let organizationId: string | undefined = (
-						await runtimeQuery<{ organizationId: string }>(
-							'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
-							[session.userId],
+					const requestedOrganizationId =
+						typeof session.activeOrganizationId === "string" &&
+						session.activeOrganizationId.length > 0
+							? session.activeOrganizationId
+							: undefined;
+					let membership = (
+						await runtimeQuery<{
+							organizationId: string;
+							role: string;
+						}>(
+							`SELECT "organizationId", role
+							   FROM "member"
+							  WHERE "userId" = $1
+							    AND ($2::text IS NULL OR "organizationId" = $2)
+							  ORDER BY "createdAt" ASC
+							  LIMIT 1`,
+							[session.userId, requestedOrganizationId ?? null],
 						)
-					).rows[0]?.organizationId;
+					).rows[0];
 
-					if (!organizationId && env.VITE_PRODUCT_MODE === "saas") {
+					if (!membership && env.VITE_PRODUCT_MODE === "saas") {
 						const { rows: userRows } = await runtimeQuery<{
 							email: string;
 							name: string | null;
@@ -215,18 +235,83 @@ export const authConfig = {
 								email: u.email,
 								name: u.name,
 							});
-							organizationId = (
-								await runtimeQuery<{ organizationId: string }>(
-									'SELECT "organizationId" FROM "member" WHERE "userId" = $1 ORDER BY "createdAt" ASC LIMIT 1',
+							membership = (
+								await runtimeQuery<{
+									organizationId: string;
+									role: string;
+								}>(
+									`SELECT "organizationId", role
+									   FROM "member"
+									  WHERE "userId" = $1
+									  ORDER BY "createdAt" ASC
+									  LIMIT 1`,
 									[session.userId],
 								)
-							).rows[0]?.organizationId;
+							).rows[0];
 						}
 					}
 
-					if (!organizationId) return { data: session };
+					if (!membership) {
+						return {
+							data: {
+								...session,
+								activeOrganizationId: null,
+								activeOrganizationRole: null,
+							},
+						};
+					}
 					return {
-						data: { ...session, activeOrganizationId: organizationId },
+						data: {
+							...session,
+							activeOrganizationId: membership.organizationId,
+							activeOrganizationRole: membership.role,
+						},
+					};
+				},
+			},
+			update: {
+				before: async (session, context) => {
+					if (!Object.hasOwn(session, "activeOrganizationId")) return;
+
+					const userId = context?.context.session?.user.id;
+					const organizationId =
+						typeof session.activeOrganizationId === "string" &&
+						session.activeOrganizationId.length > 0
+							? session.activeOrganizationId
+							: undefined;
+
+					if (!userId || !organizationId) {
+						return {
+							data: {
+								...session,
+								activeOrganizationId: null,
+								activeOrganizationRole: null,
+							},
+						};
+					}
+
+					const membership = (
+						await runtimeQuery<{ role: string }>(
+							'SELECT role FROM "member" WHERE "userId" = $1 AND "organizationId" = $2 LIMIT 1',
+							[userId, organizationId],
+						)
+					).rows[0];
+
+					if (!membership?.role) {
+						return {
+							data: {
+								...session,
+								activeOrganizationId: null,
+								activeOrganizationRole: null,
+							},
+						};
+					}
+
+					return {
+						data: {
+							...session,
+							activeOrganizationRole: membership.role,
+						},
 					};
 				},
 			},
@@ -521,6 +606,15 @@ export const authConfig = {
 		//      organization SET plan = ... 同步 organization.plan（plan-gating
 		//      的真相源），webhook 端点由 BA 自动挂在 /api/auth/stripe/webhook
 	],
+	session: {
+		additionalFields: {
+			activeOrganizationRole: {
+				type: "string",
+				required: false,
+				input: false,
+			},
+		},
+	},
 	user: {
 		additionalFields: {
 			nickname: { type: "string", required: false },

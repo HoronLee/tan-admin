@@ -33,18 +33,19 @@ model BaUser {
 }
 
 model BaSession {
-  id                   String   @id
-  expiresAt            DateTime
-  token                String
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  ipAddress            String?
-  userAgent            String?
-  userId               String
-  user                 BaUser     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy       String?
-  activeOrganizationId String?
-  activeTeamId         String?
+  id                     String   @id
+  expiresAt              DateTime
+  token                  String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  ipAddress              String?
+  userAgent              String?
+  userId                 String
+  user                   BaUser     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy         String?
+  activeOrganizationId   String?
+  activeTeamId           String?
+  activeOrganizationRole String?
 
   @@unique([token])
   @@index([userId])

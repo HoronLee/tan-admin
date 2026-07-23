@@ -31,6 +31,7 @@ src/lib/auth/
 ├── codegen.ts    ← CLI-only 实例：thin wrapper，绑 prismaAdapter（仅给 generate 用）
 ├── client.ts     ← 浏览器侧 authClient
 ├── session.ts    ← getSessionUser / 类型导出
+├── session-role.ts ← session role 的 fail-closed 解析 helper
 ├── errors.ts     ← BA error code → 中文映射（见 error-handling.md）
 ├── guards.ts     ← requireSiteAdmin 等 server-fn 守卫
 └── plan.ts       ← plan-gating 枚举 + limits 表（见 plan-gating.md）
@@ -48,6 +49,11 @@ src/lib/auth/
 | `pnpm ba:shadow` | 重生 `_better-auth.zmodel` | 见 §1 任一触发 |
 | `pnpm auth:migrate` | 真正建/改 BA 表 | 升级 BA / 改 plugin / 改 additionalFields 后 |
 | `pnpm zen generate` | 重生 ZenStack runtime artifacts | zmodel 改后（`db:push` 也会跑） |
+
+`pnpm db:push`、`pnpm auth:migrate` 和 `pnpm db:seed` 会幂等执行
+`scripts/ensure-auth-session-role-sync.mjs`，安装 `session.activeOrganizationRole`
+列及 member/org 生命周期 trigger。该脚本是 Better Auth 身份表的数据库 invariant，
+不是 ZenStack CRUD；`user` / `session` / `member` 等表仍由 Better Auth 管理并在影子中 `@@ignore`。
 
 ### Critical contract: server.ts vs codegen.ts
 
@@ -110,6 +116,7 @@ export const authConfig = {
   emailAndPassword: { ... },
   emailVerification: { ... },
   databaseHooks: { ... },
+  session: { additionalFields: { activeOrganizationRole: { ... } } },
   plugins: [admin(...), organization(...), multiSession(), tanstackStartCookies()],
   user: { additionalFields: { ... } },
   logger: { ... },

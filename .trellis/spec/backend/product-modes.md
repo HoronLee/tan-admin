@@ -166,6 +166,13 @@ databaseHooks: {
 3. Errors are swallowed + logged. Auto-join is best-effort; a failed join must not roll back signup (BA #7260 makes this hook post-commit anyway).
 4. Skip super-admin email — seed pins them as `owner`, the hook would downgrade them to `member`.
 
+### Active organization role synchronization
+
+`private` 和 `saas` 都使用同一套 session authorization contract：session 创建/切换时把
+`activeOrganizationId` 与 member `role` 成对写入；后续 role 更新、成员离开/移除、owner
+transfer 或组织解散由数据库 trigger 同步该用户的所有 session。产品模式只决定 workspace
+provisioning，不改变角色同步策略。详见 [Session Authorization Context](./session-authorization-context.md)。
+
 ### Env 单份原则（2026-04 改动）
 
 ```

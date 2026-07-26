@@ -1,5 +1,6 @@
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
 import { serverFnErrorMiddleware } from "#/middleware/error";
+import { serverFnAccessMiddleware } from "#/middleware/logging";
 
 const csrfMiddleware = createCsrfMiddleware({
 	filter: (ctx) => ctx.handlerType === "serverFn",
@@ -7,5 +8,6 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
 	requestMiddleware: [csrfMiddleware],
-	functionMiddleware: [serverFnErrorMiddleware],
+	// Access middleware outermost so its duration covers the error middleware.
+	functionMiddleware: [serverFnAccessMiddleware, serverFnErrorMiddleware],
 }));

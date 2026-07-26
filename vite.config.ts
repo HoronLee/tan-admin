@@ -5,6 +5,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 
 import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
 import { defineConfig, type Plugin } from "vite";
 import * as ormClientShim from "./src/integrations/zenstack-query/orm-client-shim";
 
@@ -49,6 +50,7 @@ const config = defineConfig({
 		}),
 		tailwindcss(),
 		tanstackStart(),
+		!process.env.VITEST && nitro(),
 		viteReact(),
 	],
 });

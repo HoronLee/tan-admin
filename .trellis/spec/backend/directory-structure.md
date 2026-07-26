@@ -215,18 +215,22 @@ R2 模板从 `#/components/email/email-styles` import `EmailStyles` 与 `EmailCo
 
 ZenStack RPC（`/api/model/**`）是底层 entity CRUD 通道，**不在四目录里写代码**——业务侧通过 `useZenStackQueries()` 在组件 / 自定义 hook 中使用。普通 `queries/` 工厂不能调用 React hook；需要纯 `queryOptions` 复用时，先提供 oRPC / Better Auth client / server function wrapper 数据源。决策树详见 [`guides/server-fn-vs-orpc-vs-queries.md`](../guides/server-fn-vs-orpc-vs-queries.md)。
 
-## Sentry Bootstrap Location
+## Observability Bootstrap Location
 
-Sentry server bootstrap lives at repo root, loaded via `--import`:
+Sentry / standalone OpenTelemetry server bootstrap lives at repo root and is loaded via `--import`:
 
 ```js
-// instrument.server.mjs
-import * as Sentry from '@sentry/tanstackstart-react'
-Sentry.init({ dsn: sentryDsn, sendDefaultPii: true, ... })
+// instrument.server.mjs (repo root)
+if (sentryDsn) {
+  const Sentry = await import('@sentry/tanstackstart-react')
+  Sentry.init({ dsn: sentryDsn, sendDefaultPii: true, ... })
+}
+// Nitro compatibility: do not register the OpenTelemetry ESM loader hook.
 ```
 
 ```json
 // package.json
 "dev":   "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
-"start": "node --import ./.output/server/instrument.server.mjs .output/server/index.mjs"
+"build": "vite build",  // Nitro emits .output/server/index.mjs
+"start": "node --import ./instrument.server.mjs .output/server/index.mjs"
 ```

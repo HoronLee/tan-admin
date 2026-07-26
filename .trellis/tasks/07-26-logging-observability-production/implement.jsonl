@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "现有日志契约：env 声明、redact、level 分级规则、stream 先于 logger 初始化——本任务全程约束"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误分层与 serverInterceptors/serverFnErrorMiddleware 行为，Phase B 接线不得破坏"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "新文件（shutdown.ts / access-log.ts / otel.server.mjs）落位约定"}
+{"file": ".trellis/tasks/07-26-logging-observability-production/research/pino-graceful-shutdown-and-pino-roll.md", "reason": "Phase A 唯一可靠 flush/close API + pino-roll fail-fast 模式（含反模式：pino.final 不存在、multistream flush no-op）"}
+{"file": ".trellis/tasks/07-26-logging-observability-production/research/orpc-experimental-pino-logging-plugin.md", "reason": "Phase B 插件完整契约（构造项、日志行为、getLogger、plugins 接线、D1 决策门背景）"}
+{"file": ".trellis/tasks/07-26-logging-observability-production/research/otel-node-sdk-bootstrap.md", "reason": "Phase C NodeSDK 配置面、启用门、ESM register 顺序、D2/D3 决策门背景"}

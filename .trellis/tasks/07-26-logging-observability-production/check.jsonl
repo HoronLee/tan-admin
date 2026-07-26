@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "验收对照：redact 契约、level 分级、输出契约是否被新代码遵守"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量门：lint/type/test 全绿标准"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "确认访问日志接线未改变错误传播与 Sentry 上报语义"}
+{"file": ".trellis/tasks/07-26-logging-observability-production/research/pino-graceful-shutdown-and-pino-roll.md", "reason": "复核 flush/close 用法是否踩 multistream no-op / pino-roll 静默降级反模式"}

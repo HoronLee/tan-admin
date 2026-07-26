@@ -12,7 +12,7 @@ Use `pnpm` only. Do not use `npm` or `yarn` in this repo.
 // package.json
 "scripts": {
   "dev":         "dotenv -e .env.local -- ...",
-  "build":       "vite build && cp instrument.server.mjs .output/server",
+  "build":       "vite build",
   "test":        "vitest run",
   "check":       "biome check",
   "db:generate": "dotenv -e .env.local -- zen generate"
@@ -116,7 +116,7 @@ Do not remove Sentry preload wiring from server startup commands:
 
 ```json
 "dev":   "... NODE_OPTIONS='--import ./instrument.server.mjs' vite dev ...",
-"start": "node --import ./.output/server/instrument.server.mjs .output/server/index.mjs"
+"start": "node --import ./instrument.server.mjs .output/server/index.mjs"
 ```
 
 ```js

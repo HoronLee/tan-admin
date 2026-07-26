@@ -11,9 +11,9 @@
 - Boundary interceptors (`src/orpc/interceptors.ts`) upgrade Zod failures into typed errors, log failures, capture unknown failures to Sentry, rethrow `INTERNAL_ERROR`.
 - DB procedures compose `pub` (with `ormErrorMiddleware`) to map ZenStack `ORMError` into typed oRPC errors.
 - `createServerFn` calls are covered by a global `functionMiddleware` in `src/start.ts`.
-- `instrument.server.mjs` is Sentry-init only (loaded via `--import`); no custom `uncaughtException`/`unhandledRejection` — Node defaults + Sentry handle them.
-- **Startup fail-fast**: `src/lib/db.ts` calls `db.$connect()` at module load; top-level `await` throws → Node exits before serving.
-- **Runtime fail-fast**: `server-fn-middleware.ts` detects DB unavailability (recurses into `ORMError.cause`) and `process.exit(1)` after Sentry flush.
+- `instrument.server.mjs` initializes Sentry or the standalone OpenTelemetry SDK from `--import`; it installs no custom `uncaughtException` / `unhandledRejection` handlers.
+- **Startup fail-fast**: `src/lib/db.ts` calls `db.$connect()` at module load and explicitly routes missing configuration / connection rejection through `database-fail-fast.ts`; this is required because Nitro may catch a lazy SSR chunk's top-level rejection as HTTP 500.
+- **Runtime fail-fast**: `src/middleware/error.ts` detects DB unavailability (including nested `ORMError.cause`), schedules the shared fatal helper after the outer access line, then drains OTel → Sentry → Pino and exits with code 1.
 - MCP keeps its JSON-RPC envelope contract unchanged.
 
 ## Standard Error Codes
@@ -165,10 +165,10 @@ After deserialization by `@zenstackhq/client-helpers/fetch.js`, the client sees 
 
 ## Boundary Interceptor Chain
 
-Source: `src/orpc/interceptors.ts`; wired in `src/routes/api.$.ts` and `src/routes/api.rpc.$.ts` via `interceptors: serverInterceptors`.
+Source: `src/orpc/interceptors.ts`; wired inside the bounded access interceptor in `src/routes/api.$.ts` and `src/routes/api.rpc.$.ts` via `interceptors: [createAccessLogInterceptor(), ...serverInterceptors]`.
 
 1. **Zod → `INPUT_VALIDATION_FAILED`**: If the thrown error is `BAD_REQUEST` whose `cause` is `ValidationError`, rebuild a `ZodError` from `cause.issues` and re-throw as `INPUT_VALIDATION_FAILED` carrying `{ formErrors, fieldErrors }` from `z.flattenError(...)`.
-2. **Structured log + unknown remap**: Every error is logged via the `orpc` module logger as `log.error({ err }, "oRPC handler error")`. If the error is not a defined `ORPCError`, it is `Sentry.captureException(error)` and remapped to `new ORPCError("INTERNAL_ERROR", ...)`.
+2. **Structured log + unknown remap**: Defined 4xx errors log at warn; undefined errors and 5xx log at error. Undefined errors are captured by Sentry and remapped to `new ORPCError("INTERNAL_ERROR", ...)`.
 
 Typed errors (the ones on `base`) are considered expected signals and are **not** reported to Sentry.
 
@@ -186,7 +186,15 @@ export const serverInterceptors = [
     }
   }),
   onError((error) => {
-    log.error({ err: error }, "oRPC handler error");
+    const isExpectedClientError =
+      error instanceof ORPCError &&
+      error.defined === true &&
+      error.status >= 400 &&
+      error.status < 500;
+    log[isExpectedClientError ? "warn" : "error"](
+      { err: error },
+      "oRPC handler error",
+    );
     if (error instanceof ORPCError && error.defined === true) return;
     Sentry.captureException(error);
     throw new ORPCError("INTERNAL_ERROR", {
@@ -200,37 +208,31 @@ export const serverInterceptors = [
 
 ## Server Function Global Middleware
 
-Sources: `src/start.ts`, `src/middleware/error.ts`.
+Sources: `src/start.ts`, `src/middleware/{logging,error}.ts`, `src/lib/observability/shutdown.ts`.
 
-`createServerFn` does not pass through oRPC interceptors, so we register a global TanStack Start middleware:
+`createServerFn` does not pass through oRPC interceptors, so two global TanStack Start middlewares run in this order:
 
-- `src/start.ts`: `startInstance = createStart(() => ({ functionMiddleware: [serverFnErrorMiddleware] }))`
-- `serverFnErrorMiddleware` (`type: "function"`) wraps `await next()` in `try/catch`
-- On failure: `log.error({ err, serverFn: { id, name } }, ...)` + `Sentry.captureException` + rethrow
-- DB-unavailable signatures (`ECONNREFUSED` / `ENOTFOUND` / `ETIMEDOUT` / `EHOSTUNREACH` / `ENETUNREACH`, or `ORMError` with `config-error` / connection-level cause) → log `fatal` + `process.exit(1)` after Sentry flush
+- `src/start.ts`: `functionMiddleware: [serverFnAccessMiddleware, serverFnErrorMiddleware]`.
+- The outer access middleware emits exactly one bounded access line on success or failure: `requestId`, `method`, `path`, `status`, `durationMs`, `module`, optional `slow`. It then rethrows failures unchanged.
+- The inner error middleware owns the structured `err` detail, includes the same `requestId`, calls `Sentry.captureException`, and rethrows.
+- DB-unavailable signatures (`ECONNREFUSED` / `ENOTFOUND` / `ETIMEDOUT` / `EHOSTUNREACH` / `ENETUNREACH`, or `ORMError` with `config-error` / connection-level cause) additionally log `fatal`, drain OTel → Sentry → Pino, then `process.exit(1)`.
 
 ```ts
-export const serverFnErrorMiddleware = createMiddleware({ type: "function" }).server(
-  async ({ next, serverFnMeta }) => {
-    try {
-      return await next();
-    } catch (error) {
-      log.error({ err: error, serverFn: serverFnMeta }, "server function error");
-      Sentry.captureException(error);
-      throw error;
-    }
-  },
-);
+functionMiddleware: [serverFnAccessMiddleware, serverFnErrorMiddleware]
+
+// Error-detail middleware (access fields are emitted by the outer middleware).
+log.error({ err: error, requestId, serverFn: serverFnMeta }, "server function error");
+Sentry.captureException(error);
+throw error;
 ```
 
-## Process-Level Fatal Fallback
+## Process Shutdown and Fatal Behavior
 
-Sources: `instrument.server.mjs`, `instrument.critical.mjs`.
+Sources: `instrument.server.mjs`, `src/lib/observability/shutdown.ts`, `src/middleware/error.ts`.
 
-Final safety net for failures outside request/function middleware (bootstrap, detached async):
-
-- `process.on("uncaughtException" | "unhandledRejection", ...)` → structured fatal JSON line + `Sentry.captureException` + `Sentry.flush(2000)` + `exit(1)`
-- Startup/interval critical dependency checks (`instrument.critical.mjs`): Postgres (`DATABASE_URL`) at startup + every 15s; Redis (`REDIS_URL`) and Kafka (`KAFKA_BROKERS`) when present. Any failed check → `criticalDependencyUnavailable` → exit.
+- The preload initializes telemetry only; Node's default uncaught-exception / unhandled-rejection behavior remains intact.
+- `SIGTERM` / `SIGINT` are handled once by `registerShutdownHooks()`: OTel shutdown (2 s guard) → Sentry flush → synchronous Pino flush/close → exit 143 / 130.
+- Logger/file bootstrap errors must fail startup rather than silently downgrade output. DB startup failures use the explicit database fatal helper instead of relying on a top-level module rejection that Nitro could convert into HTTP 500.
 
 ## Client-Side Consumption
 
@@ -332,4 +334,4 @@ VITE_APP_TITLE:
 
 ### Evidence
 
-Source: `src/orpc/errors.ts`, `src/orpc/middleware/{orm-error,auth}.ts`, `src/orpc/interceptors.ts`, `src/routes/api.{$,rpc.$}.ts`, `src/start.ts`, `src/middleware/{auth,logging,error}.ts`, `src/lib/errors/{error-report,zenstack-error-map}.ts`, `src/lib/auth/errors.ts`, `src/routes/__root.tsx`, `src/lib/mcp/handler.ts`, `instrument.server.mjs`.
+Source: `src/orpc/errors.ts`, `src/orpc/middleware/{orm-error,auth}.ts`, `src/orpc/interceptors.ts`, `src/routes/api.{$,rpc.$}.ts`, `src/start.ts`, `src/middleware/{auth,logging,error}.ts`, `src/lib/db.ts`, `src/lib/observability/{database-fail-fast,shutdown}.ts`, `src/lib/errors/{error-report,zenstack-error-map}.ts`, `src/lib/auth/errors.ts`, `src/routes/__root.tsx`, `src/lib/mcp/handler.ts`, `instrument.server.mjs`.

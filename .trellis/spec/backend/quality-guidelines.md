@@ -138,12 +138,13 @@ import { flipEmailVerifiedForAdminCreate } from "#/lib/auth/config";
 
 ```json
 "dev":   "... NODE_OPTIONS='--import ./instrument.server.mjs' ...",
-"start": "node --import ./.output/server/instrument.server.mjs ..."
+"start": "node --import ./instrument.server.mjs .output/server/index.mjs"
 ```
 
 ```js
-// instrument.server.mjs
-import * as Sentry from '@sentry/tanstackstart-react'
+// instrument.server.mjs (repo root; dynamically imported only when configured)
+const Sentry = await import('@sentry/tanstackstart-react')
+// Do not register @opentelemetry/instrumentation/hook.mjs under Nitro.
 ```
 
 Sentry init is limited to DSN + tracing — it does NOT install custom `uncaughtException` / `unhandledRejection` handlers; see `backend/error-handling.md` for the fatal-fallback contract.

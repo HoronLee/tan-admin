@@ -948,3 +948,39 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Logging observability production hardening
+
+**Date**: 2026-07-26
+**Task**: Logging observability production hardening
+**Branch**: `main`
+
+### Summary
+
+完成结构化访问日志、文件输出 fail-fast、统一关闭与数据库故障退出、Nitro Node 生产适配及 OpenTelemetry traces/metrics；通过 90 tests、Nitro 生产浏览器/HTTP/OTLP/SIGTERM/坏库验收。
+
+### Main Changes
+
+- Detailed change bullets were not supplied; see the summary above.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `28d22ba` | (see git log) |
+| `e0ff664` | (see git log) |
+| `4fcfb63` | (see git log) |
+| `40249af` | (see git log) |
+
+### Testing
+
+- Validation was not recorded for this session.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

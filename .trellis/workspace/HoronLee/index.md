@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
-- **Last Active**: 2026-07-23
+- **Total Sessions**: 29
+- **Last Active**: 2026-07-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~950 | Active |
+| `journal-1.md` | ~986 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-07-26 | Logging observability production hardening | `28d22ba`, `e0ff664`, `4fcfb63`, `40249af` | `main` |
 | 28 | 2026-07-23 | 完成 session active role 持久化 | `4104d72` | `main` |
 | 27 | 2026-07-22 | 完成 oRPC SSR 进程内客户端 | `a19c7b0` | `main` |
 | 26 | 2026-07-22 | 统一动态菜单投影与作用域 | `4fd300b` | `main` |

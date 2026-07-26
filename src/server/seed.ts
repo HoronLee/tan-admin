@@ -3,6 +3,7 @@ import { auth } from "#/lib/auth/server";
 import { db, pool } from "#/lib/db";
 import { env } from "#/lib/env";
 import { createModuleLogger } from "#/lib/observability/logger";
+import { flushLogsSync } from "#/lib/observability/shutdown";
 
 const log = createModuleLogger("seed");
 
@@ -591,5 +592,8 @@ main()
 		// CLI never exits. Force-exit after pool.end() to cover any other
 		// lingering handles (BA internals, etc.).
 		await pool.end().catch(() => {});
+		// The force-exit below would drop pino's buffer, including the failure
+		// line the operator actually needs.
+		flushLogsSync();
 		process.exit(process.exitCode ?? 0);
 	});

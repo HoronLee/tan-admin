@@ -11,9 +11,37 @@ export const env = createEnv({
 			.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
 			.optional(),
 		LOG_SLOW_THRESHOLD_MS: z.coerce.number().int().positive().optional(),
+		// Explicit output policy — the single source of truth for whether the
+		// filesystem is touched at all. `LOG_FILE` alone no longer enables file
+		// output; `file`/`both` require it and fail boot when it's missing.
+		LOG_OUTPUT: z.enum(["stdout", "file", "both"]).optional(),
 		LOG_FILE: z.string().min(1).optional(),
 		LOG_MAX_SIZE: z.string().min(1).optional(),
 		LOG_MAX_FILES: z.coerce.number().int().positive().optional(),
+
+		// --- OpenTelemetry ---
+		// Declared for documentation/validation only. The preload
+		// (`instrument.server.mjs`) runs outside the app module graph and reads
+		// `process.env` directly, so nothing here is consumed at runtime.
+		OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+		OTEL_SDK_DISABLED: z.stringbool().optional(),
+		OTEL_SERVICE_NAME: z.string().min(1).optional(),
+		OTEL_EXPORTER_OTLP_PROTOCOL: z
+			.enum(["grpc", "http/protobuf", "http/json"])
+			.optional(),
+		OTEL_TRACES_EXPORTER: z.string().min(1).optional(),
+		OTEL_METRICS_EXPORTER: z.string().min(1).optional(),
+		OTEL_TRACES_SAMPLER: z
+			.enum([
+				"always_on",
+				"always_off",
+				"parentbased_always_on",
+				"parentbased_always_off",
+				"traceidratio",
+				"parentbased_traceidratio",
+			])
+			.optional(),
+		OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).optional(),
 		BETTER_AUTH_SECRET: z.string().min(32),
 		BETTER_AUTH_URL: z.string().url(),
 		SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
@@ -100,9 +128,18 @@ export const env = createEnv({
 		APP_INSTANCE_ID: process.env.APP_INSTANCE_ID,
 		LOG_LEVEL: process.env.LOG_LEVEL,
 		LOG_SLOW_THRESHOLD_MS: process.env.LOG_SLOW_THRESHOLD_MS,
+		LOG_OUTPUT: process.env.LOG_OUTPUT,
 		LOG_FILE: process.env.LOG_FILE,
 		LOG_MAX_SIZE: process.env.LOG_MAX_SIZE,
 		LOG_MAX_FILES: process.env.LOG_MAX_FILES,
+		OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+		OTEL_SDK_DISABLED: process.env.OTEL_SDK_DISABLED,
+		OTEL_SERVICE_NAME: process.env.OTEL_SERVICE_NAME,
+		OTEL_EXPORTER_OTLP_PROTOCOL: process.env.OTEL_EXPORTER_OTLP_PROTOCOL,
+		OTEL_TRACES_EXPORTER: process.env.OTEL_TRACES_EXPORTER,
+		OTEL_METRICS_EXPORTER: process.env.OTEL_METRICS_EXPORTER,
+		OTEL_TRACES_SAMPLER: process.env.OTEL_TRACES_SAMPLER,
+		OTEL_TRACES_SAMPLER_ARG: process.env.OTEL_TRACES_SAMPLER_ARG,
 		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
 		BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
 		SEED_SUPER_ADMIN_EMAIL: process.env.SEED_SUPER_ADMIN_EMAIL,

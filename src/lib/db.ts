@@ -5,13 +5,14 @@ import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
 import { PolicyPlugin } from "@zenstackhq/plugin-policy";
 import { Pool } from "pg";
 import { createMenuMutationGuard } from "#/lib/menu/menu-mutation-guard.server";
+import { exitForDatabaseUnavailable } from "#/lib/observability/database-fail-fast";
 import { schema } from "../../zenstack/schema";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-	throw new Error("DATABASE_URL is required");
-}
+const databaseUrl =
+	process.env.DATABASE_URL ??
+	(await exitForDatabaseUnavailable(new Error("DATABASE_URL is required"), {
+		phase: "bootstrap",
+	}));
 
 declare global {
 	var __pgPool: Pool | undefined;
@@ -80,8 +81,12 @@ if (process.env.NODE_ENV !== "production") {
 	globalThis.__db = db;
 }
 
-// Fail-fast: verify the database is reachable at module load time.
-// A real authentication handshake — stronger than a TCP port check.
-// Any error bubbles up as an uncaught module-load rejection and
-// terminates the process before the server accepts traffic.
-await db.$connect();
+// Fail-fast: verify the database is reachable at module load time with a real
+// authentication handshake. Nitro can lazily import this SSR chunk and turn a
+// rejected top-level await into an HTTP 500, so an ordinary throw is not fatal;
+// the shared helper must drain telemetry/logs and exit explicitly.
+try {
+	await db.$connect();
+} catch (error) {
+	await exitForDatabaseUnavailable(error, { phase: "bootstrap" });
+}

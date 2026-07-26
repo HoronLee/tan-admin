@@ -1,15 +1,11 @@
 import * as Sentry from "@sentry/tanstackstart-react";
 import { createMiddleware } from "@tanstack/react-start";
-import { ORMError, ORMErrorReason } from "@zenstackhq/orm";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+import {
+	isDatabaseUnavailableError,
+	scheduleDatabaseUnavailableExit,
+} from "#/lib/observability/database-fail-fast";
 
-const DB_UNAVAILABLE_CODES = new Set([
-	"ECONNREFUSED",
-	"ENOTFOUND",
-	"ETIMEDOUT",
-	"EHOSTUNREACH",
-	"ENETUNREACH",
-]);
-let exitScheduled = false;
 let logPromise:
 	| Promise<
 			ReturnType<typeof import("#/lib/observability/logger").createModuleLogger>
@@ -21,70 +17,6 @@ async function getLog() {
 		({ createModuleLogger }) => createModuleLogger("server-fn"),
 	);
 	return logPromise;
-}
-
-function hasDbUnavailableCode(value: unknown): boolean {
-	if (
-		typeof value === "object" &&
-		value !== null &&
-		"code" in value &&
-		typeof value.code === "string"
-	) {
-		return DB_UNAVAILABLE_CODES.has(value.code);
-	}
-	return false;
-}
-
-function hasDbUnavailableMessage(error: Error): boolean {
-	const text = `${error.name}: ${error.message}`;
-	return /(ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|Connection terminated|Connection refused|password authentication failed)/i.test(
-		text,
-	);
-}
-
-function isDbUnavailableError(error: unknown): boolean {
-	// ZenStack wraps driver errors as ORMError(DB_QUERY_ERROR). The real pg
-	// network error sits on `cause`; recurse to look for connection codes.
-	if (error instanceof ORMError) {
-		if (error.reason === ORMErrorReason.CONFIG_ERROR) return true;
-		if (error.cause) return isDbUnavailableError(error.cause);
-		return false;
-	}
-
-	if (error instanceof Error) {
-		if (hasDbUnavailableMessage(error) || hasDbUnavailableCode(error)) {
-			return true;
-		}
-
-		const withCause = error as Error & { cause?: unknown };
-		if (withCause.cause) {
-			return isDbUnavailableError(withCause.cause);
-		}
-	}
-
-	if (hasDbUnavailableCode(error)) {
-		return true;
-	}
-
-	return false;
-}
-
-function scheduleProcessExit(): void {
-	if (exitScheduled) return;
-	exitScheduled = true;
-
-	setTimeout(() => {
-		void (async () => {
-			if (typeof Sentry.flush === "function") {
-				try {
-					await Sentry.flush(2000);
-				} catch {
-					// no-op: process exits below
-				}
-			}
-			process.exit(1);
-		})();
-	}, 0).unref();
 }
 
 /**
@@ -99,34 +31,38 @@ function scheduleProcessExit(): void {
 export const serverFnErrorMiddleware = createMiddleware({
 	type: "function",
 }).server(async ({ next, serverFnMeta }) => {
+	let requestId: string | undefined;
+	try {
+		requestId = getRequestHeaders().get("x-request-id") ?? undefined;
+	} catch {
+		// Non-request execution has no correlation id.
+	}
+
 	try {
 		return await next();
 	} catch (error) {
+		const serverFn = {
+			id: serverFnMeta?.id,
+			name: serverFnMeta?.name,
+		};
 		const log = await getLog();
 		log.error(
 			{
 				err: error,
-				serverFn: {
-					id: serverFnMeta?.id,
-					name: serverFnMeta?.name,
-				},
+				requestId,
+				serverFn,
 			},
 			"server function error",
 		);
-		Sentry.captureException(error);
 
-		if (isDbUnavailableError(error)) {
-			log.fatal(
-				{
-					err: error,
-					serverFn: {
-						id: serverFnMeta?.id,
-						name: serverFnMeta?.name,
-					},
-				},
-				"database is unavailable; scheduling process exit",
-			);
-			scheduleProcessExit();
+		if (isDatabaseUnavailableError(error)) {
+			scheduleDatabaseUnavailableExit(error, {
+				phase: "runtime",
+				requestId,
+				serverFn,
+			});
+		} else {
+			Sentry.captureException(error);
 		}
 
 		throw error;

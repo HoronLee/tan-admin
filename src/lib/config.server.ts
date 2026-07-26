@@ -70,11 +70,55 @@ const DEFAULT_REDACT_PATHS = [
 	"*.accessToken",
 ];
 
+export type LogOutput = "stdout" | "file" | "both";
+
+export interface ResolvedLogOutput {
+	output: LogOutput;
+	/**
+	 * `LOG_FILE` was set while the policy keeps us on stdout — the path is
+	 * ignored. Surfaced as a warn line once the logger exists; this resolution
+	 * runs before it.
+	 */
+	fileIgnored: boolean;
+}
+
+/**
+ * Resolve the log output policy. Explicit `LOG_OUTPUT` wins; the default is
+ * stdout-only so container deployments never touch the filesystem.
+ *
+ * `LOG_FILE` on its own no longer enables file output. That implicit coupling
+ * made a misconfigured deployment indistinguishable from a healthy one — the
+ * operator asked for a file, silently got stdout, and had nothing to grep.
+ *
+ * @throws when file output is requested without a destination path.
+ */
+export function resolveLogOutput(input: {
+	output?: LogOutput;
+	file?: string;
+}): ResolvedLogOutput {
+	const output = input.output ?? "stdout";
+
+	if (output !== "stdout" && !input.file) {
+		throw new Error(
+			`LOG_OUTPUT=${output} requires LOG_FILE to be set (e.g. LOG_FILE=logs/app.log). Use LOG_OUTPUT=stdout to log to stdout only.`,
+		);
+	}
+
+	return { output, fileIgnored: output === "stdout" && !!input.file };
+}
+
+const logOutput = resolveLogOutput({
+	output: env.LOG_OUTPUT,
+	file: env.LOG_FILE,
+});
+
 export const logConfig = {
 	level: (env.LOG_LEVEL ??
 		(appConfig.env === "prod" ? "info" : "debug")) as Level,
 	redactPaths: DEFAULT_REDACT_PATHS,
 	slowThresholdMs: env.LOG_SLOW_THRESHOLD_MS ?? 3000,
+	output: logOutput.output,
+	fileIgnored: logOutput.fileIgnored,
 	file: env.LOG_FILE,
 	// e.g. "10m", "100m", "1g" — pino-roll size-based rotation
 	maxSize: env.LOG_MAX_SIZE ?? "10m",

@@ -48,6 +48,11 @@ export function Providers({ children }: { children: ReactNode }) {
 			multiSession={true}
 			passkey={false}
 			magicLink={false}
+			// Mirror `authConfig.emailAndPassword` (src/lib/auth/config.ts): the
+			// server always requires email verification. Without this the sign-up
+			// UI assumes a session is created immediately and redirects anonymous
+			// users straight back to /accept-invitation — an infinite loop.
+			emailAndPassword={{ requireEmailVerification: true }}
 			deleteUser={{ enabled: false }}
 		>
 			{children}

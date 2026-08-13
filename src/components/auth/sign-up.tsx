@@ -4,7 +4,7 @@ import {
 	useSignUpEmail,
 } from "@better-auth-ui/react";
 import { useDebouncer } from "@tanstack/react-pacer";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { type SyntheticEvent, useState } from "react";
 import { toast } from "sonner";
@@ -84,6 +84,10 @@ export function SignUp({
 		? `${baseURL}/accept-invitation?token=${encodeURIComponent(invitationToken)}`
 		: undefined;
 
+	// Router-level navigate for search-carrying navigation (the AuthProvider
+	// `navigate` only forwards `to`/`replace`, no search params).
+	const routerNavigate = useNavigate();
+
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [username, setUsername] = useState("");
@@ -125,7 +129,20 @@ export function SignUp({
 		onSuccess: () => {
 			if (emailAndPassword?.requireEmailVerification) {
 				toast.success(localization.auth.verifyYourEmail);
-				navigate({ to: `${basePaths.auth}/${viewPaths.auth.signIn}` });
+				if (invitationToken) {
+					// Keep the invitation round-trip alive: sign-in's onSuccess
+					// routes back to /accept-invitation (dev @dev.com accounts are
+					// auto-verified, so a plain sign-in completes the flow).
+					routerNavigate({
+						to: `${basePaths.auth}/${viewPaths.auth.signIn}`,
+						search: {
+							invitationToken,
+							...(prefillEmail ? { prefillEmail } : {}),
+						},
+					});
+				} else {
+					navigate({ to: `${basePaths.auth}/${viewPaths.auth.signIn}` });
+				}
 			} else if (invitationToken) {
 				// Auto-sign-in path: requireEmailVerification disabled. Land
 				// straight on the invitation acceptance page.

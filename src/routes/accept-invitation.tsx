@@ -94,6 +94,7 @@ function AcceptInvitationPage() {
 	return (
 		<AuthedInvitation
 			token={token}
+			inviteEmail={email ?? ""}
 			currentUserEmail={session.user.email ?? ""}
 		/>
 	);
@@ -158,9 +159,11 @@ function NeedSignInCard({ token, email }: { token: string; email?: string }) {
 
 function AuthedInvitation({
 	token,
+	inviteEmail,
 	currentUserEmail,
 }: {
 	token: string;
+	inviteEmail: string;
 	currentUserEmail: string;
 }) {
 	const navigate = useNavigate();
@@ -175,7 +178,10 @@ function AuthedInvitation({
 			const { data, error } = await authClient.organization.getInvitation({
 				query: { id: token },
 			});
-			if (error) throw new Error(error.message ?? "Invitation not found");
+			// Keep the raw BetterFetchError (status/code) so the render branch
+			// below can distinguish "not the recipient" (403) from a genuinely
+			// missing/expired invitation (400).
+			if (error) throw error;
 			return data as unknown as InvitationDetail;
 		},
 		retry: false,
@@ -201,11 +207,6 @@ function AuthedInvitation({
 		},
 	});
 
-	async function handleSwitchAccount() {
-		await authClient.signOut();
-		await navigate({ to: "/auth/$path", params: { path: "sign-in" } });
-	}
-
 	if (isPending) {
 		return (
 			<Shell>
@@ -213,6 +214,25 @@ function AuthedInvitation({
 					<CardTitle>{m.accept_invitation_loading_title()}</CardTitle>
 				</CardHeader>
 			</Shell>
+		);
+	}
+
+	// BA throws FORBIDDEN (`YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION`)
+	// *before* returning invitation data when the signed-in user is not the
+	// invitee (see better-auth crud-invites getInvitation). Surface the
+	// email-mismatch card instead of a misleading "invitation not found".
+	const rawError = error as { code?: string; status?: number } | null;
+	const isRecipientMismatch =
+		!!rawError &&
+		(rawError.status === 403 ||
+			rawError.code === "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION");
+
+	if (isRecipientMismatch) {
+		return (
+			<EmailMismatchCard
+				inviteEmail={inviteEmail}
+				currentEmail={currentUserEmail}
+			/>
 		);
 	}
 
@@ -242,30 +262,14 @@ function AuthedInvitation({
 		invitation.email.toLowerCase() === currentUserEmail.toLowerCase();
 
 	if (!emailMatches) {
+		// Defensive: getInvitation normally rejects non-recipients with 403
+		// above, but keep the mismatch card reachable if a future BA version
+		// returns the record instead.
 		return (
-			<Shell>
-				<CardHeader>
-					<CardTitle>{m.accept_invitation_email_mismatch_title()}</CardTitle>
-					<CardDescription>
-						{m.accept_invitation_email_mismatch_body({
-							inviteEmail: invitation.email,
-							currentEmail: currentUserEmail || "—",
-						})}
-					</CardDescription>
-				</CardHeader>
-				<CardFooter className="flex gap-2">
-					<Button type="button" onClick={handleSwitchAccount}>
-						{m.accept_invitation_switch_account()}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => navigate({ to: "/" })}
-					>
-						{m.accept_invitation_back_home()}
-					</Button>
-				</CardFooter>
-			</Shell>
+			<EmailMismatchCard
+				inviteEmail={invitation.email}
+				currentEmail={currentUserEmail}
+			/>
 		);
 	}
 
@@ -306,6 +310,47 @@ function AuthedInvitation({
 					onClick={() => navigate({ to: "/" })}
 				>
 					{m.common_cancel()}
+				</Button>
+			</CardFooter>
+		</Shell>
+	);
+}
+
+function EmailMismatchCard({
+	inviteEmail,
+	currentEmail,
+}: {
+	inviteEmail: string;
+	currentEmail: string;
+}) {
+	const navigate = useNavigate();
+
+	async function handleSwitchAccount() {
+		await authClient.signOut();
+		await navigate({ to: "/auth/$path", params: { path: "sign-in" } });
+	}
+
+	return (
+		<Shell>
+			<CardHeader>
+				<CardTitle>{m.accept_invitation_email_mismatch_title()}</CardTitle>
+				<CardDescription>
+					{m.accept_invitation_email_mismatch_body({
+						inviteEmail: inviteEmail || "—",
+						currentEmail: currentEmail || "—",
+					})}
+				</CardDescription>
+			</CardHeader>
+			<CardFooter className="flex gap-2">
+				<Button type="button" onClick={handleSwitchAccount}>
+					{m.accept_invitation_switch_account()}
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={() => navigate({ to: "/" })}
+				>
+					{m.accept_invitation_back_home()}
 				</Button>
 			</CardFooter>
 		</Shell>

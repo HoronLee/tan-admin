@@ -984,3 +984,24 @@ Upgraded dependency stack and installed shadcn primitives, kept Better Auth UI a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: 修复接受邀请流程两个 bug + 复现验证
+
+**Date**: 2026-08-13
+**Task**: 修复接受邀请流程两个 bug + 复现验证
+**Branch**: `main`
+
+### Summary
+
+修复非收件人打开邀请链接误报'邀请不存在'（区分 BA 403 YOU_ARE_NOT_THE_RECIPIENT，显示邮箱不匹配卡片+切换账号）与匿名注册死循环（AuthProvider 对齐 requireEmailVerification=true，sign-up 跳 sign-in 保留 invitationToken 回环）。真实浏览器复现验证通过：非收件人见'邮箱不匹配'，匿名注册后跳 sign-in 不循环，登录回环接受邀请入组。付费接入确认暂不做，Stripe 相关未改动。测试数据已清理。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0085929` | (see git log) |
+
+### Status
+
+[OK] **Completed**
